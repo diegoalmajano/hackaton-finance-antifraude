@@ -19,6 +19,8 @@ import re
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 
+from antifraude.analysis.text import fold
+
 #: Solo se omite lo que un cliente de correo nunca muestra. ``noscript``, ``head`` y ``title`` SÍ se
 #: analizan (revisión de seguridad: un cliente de correo muestra el contenido de ``<noscript>``).
 _SKIP = {"script", "style", "template"}
@@ -78,6 +80,7 @@ class _Extractor(HTMLParser):
         self._anchor_text: list[str] = []
         self._hidden_stack: list[str] = []  # etiquetas abiertas con estilo oculto
         self.hidden_chars = 0
+        self.hidden_text = ""
         self.script_links = 0
 
     def _flush_anchor(self) -> None:
@@ -98,6 +101,10 @@ class _Extractor(HTMLParser):
         if tag in _BLOCK:
             self.state.parts.append("\n")
         attr = dict(attrs)
+        if tag == "img" and not self._skip_depth:  # los clientes muestran «alt» si bloquean imágenes (A9)
+            alt = (attr.get("alt") or attr.get("title") or "").strip()
+            if alt:
+                self.state.parts.append(" " + alt[:500] + " ")
         if _HIDDEN_STYLE.search(attr.get("style") or "") or "hidden" in attr:
             self._hidden_stack.append(tag)
         if tag == "a":
@@ -125,9 +132,17 @@ class _Extractor(HTMLParser):
             return
         if self._hidden_stack:
             self.hidden_chars += len(data.strip())
+            if len(self.hidden_text) < 4000:
+                self.hidden_text += " " + data[:4000]
         self.state.parts.append(data)
         if self._anchor_href is not None:
             self._anchor_text.append(data)
+
+
+#: Texto oculto que SÍ es sospechoso aunque sea corto: peticiones sensibles u órdenes para programas de IA.
+_SENSITIVE_HIDDEN = re.compile(r"(contrasena|clave|codigo|\bpin\b|tarjeta|cvv|transferencia|bizum|iban|"
+                               r"ignor\w* (las |tus |sus |todas )?instruc|instruction|system|sistema|clasific\w*|"
+                               r"seguro|legitim\w*|safe|assistant|asistente)")
 
 
 def html_to_text_and_anchors(html: str, warnings: list[str] | None = None) -> tuple[str, list[Anchor]]:
@@ -143,7 +158,9 @@ def html_to_text_and_anchors(html: str, warnings: list[str] | None = None) -> tu
     if warnings is not None:
         if truncated:
             warnings.append("Análisis parcial: el contenido HTML era muy extenso; solo se analizó una parte.")
-        if parser.hidden_chars > 20:
+        # Un «preheader» oculto corto es práctica habitual del correo legítimo; el texto oculto se analiza igualmente
+        # (está en el texto), así que solo se señala como ofuscación si es largo (revisión adversarial ronda 3, B1).
+        if parser.hidden_chars > 150 or _SENSITIVE_HIDDEN.search(fold(parser.hidden_text)):
             warnings.append("Texto oculto: el mensaje contiene texto escondido al lector.")
         if parser.script_links:
             warnings.append("Texto oculto: el mensaje contiene enlaces que ejecutarían código.")

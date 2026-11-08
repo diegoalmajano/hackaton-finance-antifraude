@@ -59,6 +59,13 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "content.credential_expiry": FraudCategory.CREDENTIAL_THEFT,
     "content.safe_account_lure": FraudCategory.PAYMENT_FRAUD,
     "content.call_lure": FraudCategory.OTHER,
+    "content.debt_lure": FraudCategory.PAYMENT_FRAUD,
+    "content.public_body_link": FraudCategory.OTHER,
+    "content.login_lure": FraudCategory.PHISHING_LINK,
+    "sender.lookalike_domain": FraudCategory.BANK_IMPERSONATION,
+    "url.brand_in_userinfo": FraudCategory.PHISHING_LINK,
+    "url.brand_in_path": FraudCategory.PHISHING_LINK,
+    "url.domain_in_subdomain": FraudCategory.PHISHING_LINK,
     "content.secrecy": FraudCategory.OTHER,
     "url.unparseable": FraudCategory.PHISHING_LINK,
     "url.brand_in_subdomain": FraudCategory.PHISHING_LINK,
@@ -73,7 +80,7 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
 #: Peticiones que nunca son seguras (D-29).
 _SENSITIVE_REQUESTS = {"content.credential_request", "content.otp_request", "content.card_request",
                        "content.otp_share", "content.credential_request_en", "content.identity_data_request"}
-_PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request"}
+_PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request", "content.debt_lure"}
 #: Señuelos graves: con una corroboración de otra señal, el nivel es ALTO (ADR-0006, regla 1).
 _LURES = _SENSITIVE_REQUESTS | {
     "content.payment_details_change", "content.investment_promise", "content.remote_access",
@@ -88,9 +95,15 @@ _CORROBORATORS = {
     "content.account_threat",
     "content.urgency", "content.injection_attempt", "content.payment_request",
     "content.obfuscation", "content.invisible_chars", "url.unparseable",
-    "content.call_lure", "content.secrecy",
+    "content.call_lure", "content.secrecy", "content.debt_lure", "content.public_body_link",
+    "url.brand_in_path", "url.domain_in_subdomain",
 }
-_CRITICAL_ALONE = {"url.brand_in_subdomain", "url.lookalike_domain"}
+_CRITICAL_ALONE = {"url.brand_in_subdomain", "url.lookalike_domain", "url.brand_in_userinfo",
+                   "sender.lookalike_domain"}
+#: Invitación a entrar en la cuenta o amenaza + cualquier enlace que no es de un dominio oficial → mínimo MEDIO (A8).
+_LOGIN_LURES = {"content.login_lure", "content.account_threat"}
+_NON_OFFICIAL_LINK = {"url.unofficial_link", "url.not_official_for_claimed", "url.shortener", "url.insecure_http",
+                      "url.domain_in_subdomain", "url.brand_in_path"}
 
 
 @dataclass(frozen=True)
@@ -157,6 +170,8 @@ def _decide_raw(evs: Sequence[_Ev], partial: bool) -> RiskLevel:
         return RiskLevel.HIGH
     if ai_high and non_ai_medium:
         return RiskLevel.HIGH
+    if codes & _LOGIN_LURES and codes & _NON_OFFICIAL_LINK:
+        return RiskLevel.MEDIUM
     # ALTO solo por combinaciones críticas (ADR-0006), nunca por mera acumulación de señales.
     # Evidencias solo de severidad baja (p. ej. «http», enlace no oficial) no impiden BAJO.
     if sensitive or payment or n_high >= 1 or (n_medium >= 2 and len(sources_medium) >= 2) or n_medium >= 3:

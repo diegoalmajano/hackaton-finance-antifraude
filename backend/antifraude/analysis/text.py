@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import unicodedata
 
@@ -27,7 +28,10 @@ def clean_text(text: str) -> tuple[str, int]:
     t = _INVISIBLE.sub("", text)
     t = t.replace("\r\n", "\n").replace("\r", "\n")
     t = _CONTROL.sub("", t)
-    t = "\n".join(_SPACES.sub(" ", line).strip() for line in t.split("\n"))
+    # Se conservan como máximo DOS espacios: separan palabras escritas con letras sueltas
+    # («I N T R O D U Z C A   S U   C L A V E»), lo que necesita ``fold`` (revisión adversarial ronda 3, A9).
+    t = "\n".join(_SPACES.sub(lambda m: "  " if len(m.group()) > 1 else " ", line).strip()
+                  for line in t.split("\n"))
     t = re.sub(r"\n{3,}", "\n\n", t).strip()
     return t, invisibles
 
@@ -43,6 +47,7 @@ _LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t
 _LEET_WORD = re.compile(r"\b(?=[a-z0-9@$]*[a-z])(?=[a-z0-9@$]*[0-9@$])[a-z0-9@$]{4,}\b")
 _SPACED = re.compile(r"\b(?:[a-zñ][ .\-_]){3,}[a-zñ]\b")
 _LATIN = re.compile(r"[a-z]")
+_INNER_SEP = re.compile(r"(?<=[a-z])[·_\-](?=[a-z]{1,3}\b|[a-z]{1,3}[·_\-])")
 _OTHER_SCRIPT = re.compile("[Ͱ-ϿЀ-ӿԀ-ԯ]")
 
 
@@ -63,8 +68,14 @@ def fold(text: str) -> str:
     t = unicodedata.normalize("NFKC", text).casefold().translate(_CONFUSABLES)
     t = unicodedata.normalize("NFKD", t)
     t = "".join(ch for ch in t if not unicodedata.combining(ch))
-    t = " ".join(t.split())
-    t = _SPACED.sub(lambda m: re.sub(r"[ .\-_]", "", m.group(0)), t)
+    if "&" in t and ";" in t:  # entidades HTML en texto plano («contrase&ntilde;a») (A9)
+        t = html.unescape(t)
+        t = unicodedata.normalize("NFKD", t)
+        t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    # Dos o más espacios separan palabras: «I N T R O D U Z C A   S U   C L A V E» → «introduzca su clave» (A9)
+    segments = [" ".join(seg.split()) for seg in re.split(r"\s{2,}", t)]
+    t = " ".join(_SPACED.sub(lambda m: re.sub(r"[ .\-_]", "", m.group(0)), seg) for seg in segments if seg)
+    t = _INNER_SEP.sub("", t)  # «con-tra-se-ña», «con·tra·se·ña» → «contrasena» (solo entre letras)
     t = _LEET_WORD.sub(lambda m: m.group(0).translate(_LEET), t)
     return t
 

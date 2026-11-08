@@ -19,9 +19,9 @@ from antifraude.contracts.entities import FinancialEntity
 from antifraude.contracts.messages import AuthVerdict, IncomingMessage
 from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily, SignalSource
 from antifraude.intel.entities import EntityDirectory
-from antifraude.intel.urls import registrable_domain
+from antifraude.intel.urls import find_lookalike, registrable_domain
 
-RULE_VERSION = "rules-0.2.0"
+RULE_VERSION = "rules-0.3.0"
 
 #: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
 #: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
@@ -33,13 +33,15 @@ _NEGATION = re.compile(
 _DIRECT_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)(\s+(le|te|se lo|se la|nos|les|lo|la))?"
                               r"(\s+(debe|deberia|tiene que|tienes que|hay que|debemos))?(\s+nunca)?\s*$")
 #: Discurso referido: «si alguien le pide que confirme…», «los estafadores le dirán «introduzca…»».
-_REPORTED = re.compile(r"\b(le|te|les)\s+(pide|piden|pidan|pidiera|pedira|pediran|dira|diran|dice|dicen)"
-                       r"(\s+que)?\s*[«\"']?\s*$")
+_REPORTED = re.compile(r"\b(alguien|desconocid\w*|estafador\w*|delincuent\w*|ciberdelincuent\w*|terceros?|"
+                       r"nadie|otra persona|un supuesto|una supuesta)\b[^.!?\n]{0,50}\b(le|te|les)\s+"
+                       r"(pide|piden|pidan|pidiera|pedira|pediran|dira|diran|dice|dicen)(\s+que)?\s*[«\"']?\s*$")
 #: Cortes de cláusula además de la puntuación fuerte.
 _CLAUSE_CUT = re.compile(r"[.!?\n:;]|\b(por eso|asi que|pero|sino|solo|para su tranquilidad|ahora)\b")
 _NO_NEED = re.compile(r"\b(no es necesario|no hace falta|no tiene que|no tienes que|no necesita|no debe|"
-                      r"sin necesidad de)\b[^.!?\n:;]{0,40}$")
-_NEGATED_SPAN = re.compile(r"\b(ningun|ninguna|nada)\b")
+                      r"sin necesidad de)\b[^.!?\n:;,]{0,40}$")
+#: «nada»/«ningún pago» solo anula si es el OBJETO del verbo de pago («no pague nada»), no «sin ningún recargo».
+_NEGATED_SPAN = re.compile(r"^\S+\s+(nada|ningun\w*\s+(pago|importe|cantidad|dinero|cargo))\b")
 
 _REQUEST_VERB = (
     r"\b(introduzca|introduce|introducir|introduciendo|indique|indica|facilite|facilita|facilitar|confirme|confirma|"
@@ -50,14 +52,18 @@ _REQUEST_VERB = (
     r"tecle\w*|aporte|aporta|remita|remite|remitiera|remitirnos|"
     # formas con pronombre pegado (revisión adversarial A2/A3)
     r"enviarnos|envianos|facilitarnos|facilitanos|indicarnos|indicanos|confirmarnos|confirmenos|pasame|pasamelo|"
-    r"pasarnos|pasanos|pasenos|pasas|diganos|dinos|mandame|mandanos|reenviame|reenvienos|renueve|renueva|renuevela)"
+    r"pasarnos|pasanos|pasenos|pasas|diganos|dinos|mandame|mandanos|reenviame|reenvienos|renueve|renueva|renuevela|"
+    # subjuntivo de tú («te pide que nos envíes…») y otras formas (revisión adversarial ronda 3, A5/A7)
+    r"envies|mandes|pases|indiques|facilites|confirmes|introduzcas|actualices|compartas|verifiques|digas|"
+    r"pon|ponga|pongan|leamelo|leamelos|leamela|respondanos|respondenos|contestenos|devuelvanos)"
 )
 _CREDENTIAL_OBJECT = (
     r"(contrasena|clave(s)?( de acceso| de firma| personal| secreta| sms| de operaciones| de un solo uso)?\b|pin\b|"
     r"credenciales|usuario y contrasena|coordenadas|numero secreto|"
     r"datos (de acceso|habituales de acceso|bancarios|personales|de (la|su|tu) tarjeta)|"
     r"numero de (la |su |tu )?(tarjeta|cuenta)|(ultimos )?(\d+ )?digitos de (la|su|tu) tarjeta|cvv|cvc|"
-    r"codigo de seguridad|firma (electronica|digital)|identidad con sus datos|foto (de|del) (su |tu )?(dni|tarjeta))"
+    r"codigo de seguridad|firma (electronica|digital)|identidad con sus datos|"
+    r"foto (de|del) (la |el |su |tu )?(dni|tarjeta)|datos con (los )?que (entra|accede|inicia))"
 )
 #: Verbos de petición que NO son «teclear en su propio servicio» (adversarial P2).
 _SHARE_VERB = re.sub(r"(introduzca|introduce|introducir|introduciendo|escriba|escribe|tecle\\w\*)\|", "",
@@ -65,7 +71,10 @@ _SHARE_VERB = re.sub(r"(introduzca|introduce|introducir|introduciendo|escriba|es
 _CARD_OBJECT = r"(datos de (la|su|tu) tarjeta|numero de (la |su |tu )?tarjeta|fecha de caducidad|cvv|cvc)"
 _OTP_OBJECT = (
     r"(codigo (que|de verificacion|de confirmacion|recibido|que le|que te|sms|de un solo uso|otp)|\botp\b|"
-    r"codigo [^.\n]{0,40}(recibira|recibiras|le (hemos|acabamos de) enviad|te (hemos|acabamos de) enviad|le llegara|te llegara|(le|te) ha llegado|(le|te) va a llegar)|codigo de \d+ (cifras|digitos))"
+    r"codigo [^.\n]{0,40}(recibira|recibiras|le (hemos|acabamos de) enviad|te (hemos|acabamos de) enviad|le llegara|te llegara|(le|te) ha llegado|(le|te) va a llegar)|codigo de \d+ (cifras|digitos)|"
+    # código sin la palabra «código» (A7): «el número que le aparecerá en el móvil»
+    r"(numero|numeros|cifras|digitos)( de \d+ cifras)? que (le|te) (llega\w*|aparec\w*|acaba\w* de llegar|"
+    r"ha\w* llegado|va\w* a llegar))"
 )
 
 
@@ -117,7 +126,7 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"documento de identidad)"),
           "Le piden datos personales de identidad (DNI, fecha de nacimiento…).", "petición de datos de identidad",
           negatable=True),
-    _Rule("content.urgency", SignalFamily.CONTENT, Severity.MEDIUM,
+    _Rule("content.urgency", SignalFamily.CONTENT, Severity.LOW,
           _rx(r"(urgente|inmediatamente|de inmediato|en (las proximas |los proximos |un plazo de )?\d+ ?(horas|minutos|h\b)|"
               r"antes de \d+ ?(horas|minutos|h\b)|ultimo aviso|antes de (hoy|manana|medianoche)|cuanto antes|"
               r"lo antes posible|de lo contrario|plazo de \d+|es imprescindible|hoy mismo|plazas limitadas)"),
@@ -142,13 +151,26 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
     _Rule("content.payment_request", SignalFamily.CONTENT, Severity.MEDIUM,
           _rx(r"(\b(realice|realiza|haga|haz|hacer|hacerme|hagas|efectue|efectua|envie|envia|enviar|enviarme|enviame|"
               r"mande|manda|mandarme|pasarme|pasar|pases|prestarme|pague|paga|pagar|pagando|abone|abona|abonar|ingrese|"
-              r"ingresa|transferir)\b[^.\n]{0,40}"
+              r"ingresa|transferir|pon|ponme|envies|mandes)\b[^.\n]{0,40}"
               r"(transferencia|bizum|pago|importe|tasa|\d+[.,]?\d*\s?(€|eur|euros))|\bpague[^.\n]{0,30}tasa|"
-              r"tasa de (aduana|envio|gestion)|pago pendiente|deposito (inicial |minimo )?de \d+|"
-              r"necesit\w* [^.\n]{0,20}\d+[.,]?\d*\s?(€|eur|euros)|si no paga|multa [^.\n]{0,30}(pendiente|sin pagar)|"
+              r"pago pendiente|deposito (inicial |minimo )?de \d+|"
+              r"\b(necesito|necesitamos|necesitaria|necesitariamos) [^.\n]{0,20}\d+[.,]?\d*\s?(€|eur|euros)|"
+              r"(compr|adquier)\w*[^.\n]{0,40}(tarjetas? regalo|paysafecard|tarjetas? prepago)|"
+              r"\b(hazme|ingresame|ingresarme|prestame|prestes|presta|devuelveme|abonelo|abonela|abonarlo)\b[^.\n]{0,40}"
+              r"(\d+[.,]?\d*\s?(€|eur|euros)|bizum|transferencia|importe)|"
               r"actualic\w* (su|tu) (metodo|datos|forma) de pago|(fianza|senal|gastos (notariales|de gestion|de envio)) de \d+|"
               r"para (recibir|cobrar)[^.\n]{0,40}acept\w* (la )?solicitud)"),
           "Le piden que pague o envíe dinero.", "petición de pago", negatable=True, no_need=True),
+    _Rule("content.debt_lure", SignalFamily.CONTENT, Severity.MEDIUM,
+          _rx(r"(si no paga|multa [^.\n]{0,30}(pendiente|sin pagar)|tasa de (aduana|envio|gestion)|deuda pendiente|"
+              r"sancion pendiente|retenid\w* por (falta de )?(pago|franqueo|tasas?))"),
+          "Le reclaman una multa, deuda o tasa y le dan un enlace o teléfono para pagarla. Compruébelo por la web "
+          "oficial del organismo, escribiéndola usted mismo.", "reclamación de pago con enlace o teléfono"),
+    _Rule("content.login_lure", SignalFamily.CONTENT, Severity.LOW,
+          _rx(r"\b(inicie|inicia|acceda|accede|verifique|verifica|valide|valida|confirme|confirma|identifiquese|"
+              r"evitelo|evitalo|reactive|reactiva)\b[^.\n]{0,40}(sesion|su cuenta|tu cuenta|su identidad|tu identidad|"
+              r"sus datos|tus datos|enlace)"),
+          "Le piden que entre en su cuenta o confirme su identidad desde el mensaje.", "invitación a iniciar sesión"),
     _Rule("content.secrecy", SignalFamily.CONTENT, Severity.MEDIUM,
           _rx(r"(no se lo digas|no le digas nada|es confidencial|no lo comentes|mantenlo en secreto|no se lo cuentes|"
               r"no se lo diga|no lo comente)"),
@@ -171,7 +193,7 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"\[iban [a-z]{2} \.\.\.[^\]]*\][^.!?\n]{0,40}(nuev\w*|cambi\w*|a partir de ahora))"),
           "Le indican una cuenta bancaria nueva o diferente para pagar.", "cambio de datos de pago"),
     _Rule("content.investment_promise", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(r"(rentabilidad(es)? (garantizad|asegurad|del \d+)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
+          _rx(r"(rentabilidad(es)? (garantizad|asegurad)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
               r"sin (ningun )?riesgo|ganancias? (garantizad|diari|semanal)|beneficios? garantizad|"
               r"invierta (ahora|hoy)|oportunidad unica de inversion|invi?e?rt\w* \d+|gan\w* hasta \d+|"
               r"\d+[.,]?\d* ?(€|euros) al (mes|dia)|inversion inicial|recibir \d+[.,]?\d* (millones|mil))"),
@@ -186,7 +208,9 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
           "Alguien dice ser un familiar con un número nuevo.", "suplantación de familiar"),
     _Rule("content.remote_access", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(anydesk|teamviewer|acceso remoto|control remoto|instal\w* (esta|la) (aplicacion|app)|"
-              r"descargue (esta|la) (aplicacion|app)|(virus|infectad\w*)[^.\n]{0,80}(tecnico|llam\w*))"),
+              r"descargue (esta|la) (aplicacion|app)|(virus|infectad\w*)[^.\n]{0,80}(tecnico|llam\w*)|"
+              r"\b(instal|descarg)\w* (la |el |esta |este |nuestra |nuestro |una |un )?(herramienta|programa|software)"
+              r"( de (asistencia|soporte|control))?)"),
           "Le piden instalar un programa o dar acceso remoto a su dispositivo.", "acceso remoto"),
     _Rule("content.injection_attempt", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(ignora (todas )?(tus|las|sus) instrucciones|ignore (all |the )?(previous|prior|above) instructions|"
@@ -230,6 +254,54 @@ _OFFICIAL_CHANNEL = re.compile(r"(reverso de (su|tu) tarjeta|telefono (habitual|
 _EXPIRY_CONTEXT = re.compile(r"(caduc|valid|expir)\w*[^.\n]{0,15}$")
 
 
+#: Instrucción de pagar o ingresar dirigida al lector (o en pasiva: «deberá abonarse»).
+_PAY_INSTRUCTION = re.compile(
+    r"\b(abon(e|en|ar|arse|elo|ela)|ingres(e|en|a|ar|arlo)|transfier\w*|transferir|pagu(e|en)|pagar|"
+    r"deposit(e|en|ar)|domicili(e|en|ar)|(realic|efectu|hag)\w* (el|los) (pagos?|abonos?|ingresos?))\b|"
+    r"(el|los) pagos? (se realizara|debe|debera|deberan)|(debe|deberan?|deben) abonarse")
+_NOTHING_TO_DO = re.compile(r"no (tiene|tienes|necesita|necesitas) que hacer nada|no es necesario que haga nada")
+_REFUND_DONE = re.compile(r"\b(ha sido|se ha|hemos|has|ha) (tramitad|procesad|abonad|reembolsad|recibid|realizad)o\b")
+_NOVELTY = re.compile(r"\b(nuev\w*|cambi\w*|anterior|cancelad\w*|anulad\w*|a partir de|desde este|en lugar de|"
+                      r"ya no|otra cuenta|cuenta de mi)\b")
+_CALL_TO_ACTION = re.compile(r"\b(acced\w*|consult\w*|puls\w*|haga clic|pinch\w*|siga|complete|regularic\w*|"
+                             r"abon\w*|pagu\w*|pagando|descargu\w*|actualic\w*|verifiqu\w*|entre|visite|recib\w*)\b")
+_USUAL = re.compile(r"\b(de siempre|habitual)\b")
+
+
+def _matches(pattern: re.Pattern[str], text: str, limit: int = 40) -> list[re.Match[str]]:
+    """Coincidencias que pueden SOLAPARSE: tras una coincidencia se busca de nuevo desde su inicio + 1.
+
+    Así, en «No confirme nada por teléfono; confirme su clave en…», si la primera coincidencia está negada,
+    la segunda petición se evalúa por separado (revisión adversarial ronda 3, A1). Acotado a ``limit``.
+    """
+    out: list[re.Match[str]] = []
+    pos = 0
+    while len(out) < limit:
+        m = pattern.search(text, pos)
+        if m is None:
+            break
+        out.append(m)
+        pos = m.start() + 1
+    return out
+
+
+def _iban_payment(folded: str, signals: list[Signal]) -> None:
+    """IBAN + instrucción de pago (A6). Con novedad o anulación de la cuenta anterior → cambio de cuenta (ALTO);
+    sin ella → petición de pago a una cuenta (MEDIO). «La de siempre / habitual» lo desactiva."""
+    if "[iban " not in folded or not _PAY_INSTRUCTION.search(folded) or _USUAL.search(folded):
+        return
+    codes = {s.code for s in signals}
+    if _NOVELTY.search(folded) and not _NOTHING_TO_DO.search(folded):
+        if "content.payment_details_change" not in codes:
+            signals.append(_signal("content.payment_details_change", SignalFamily.CONTENT, Severity.HIGH,
+                                   "Le indican una cuenta bancaria nueva o diferente para pagar.",
+                                   "IBAN con instrucción de pago y cambio de cuenta"))
+    elif "content.payment_request" not in codes:
+        signals.append(_signal("content.payment_request", SignalFamily.CONTENT, Severity.MEDIUM,
+                               "Le piden que pague o ingrese dinero en una cuenta bancaria.",
+                               "IBAN con instrucción de pago"))
+
+
 _ES_WORDS = frozenset("de la que el en y los su por para con una es se del las le no un al lo como mas pero sus "
                       "este esta usted su sea muy ya".split())
 
@@ -261,9 +333,21 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
     folded = fold(visible)
     signals: list[Signal] = []
 
+    has_link_or_phone = bool(message.urls) or "[telefono]" in folded
     for rule in _CONTENT_RULES:
-        for m in rule.pattern.finditer(folded):
+        for m in _matches(rule.pattern, folded):
             if rule.negatable and _is_negated(folded, m.start(), m.end(), rule.no_need):
+                continue
+            if rule.code == "content.debt_lure" and not has_link_or_phone:
+                continue
+            if rule.code == "content.payment_request" and re.search(r"en efectivo", folded[m.start():m.end() + 30]):
+                continue
+            if rule.code == "content.payment_details_change" and (not _PAY_INSTRUCTION.search(folded)
+                                                                 or _NOTHING_TO_DO.search(folded)):
+                continue  # «su nueva cuenta ya está operativa» informa; solo es riesgo si le piden pagar allí (B1)
+            if rule.code == "content.prize_or_refund" and _REFUND_DONE.search(folded):
+                continue
+            if rule.code == "content.account_threat" and _OFFICIAL_CHANNEL.search(folded[m.end():m.end() + 120]):
                 continue
             if rule.code == "content.urgency" and _EXPIRY_CONTEXT.search(folded[max(0, m.start() - 25):m.start()]):
                 continue  # «el código caduca en 10 minutos» no es presión (adversarial P2)
@@ -272,6 +356,17 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
                 continue
             signals.append(_signal(rule.code, rule.family, rule.severity, rule.user, rule.tech))
             break
+
+    _iban_payment(folded, signals)
+    # Organismo público + enlace + llamada a la acción: sin dominios verificados de organismos (salvo «.gob.es»,
+    # reservado a las administraciones públicas) no se puede afirmar que el enlace sea oficial (A4).
+    if any(s.code == "context.public_body" for s in signals) and message.urls and _CALL_TO_ACTION.search(folded):
+        hosts = [u.host for u in message.urls if u.host]
+        if not hosts or not all(h.endswith(".gob.es") for h in hosts):
+            signals.append(_signal("content.public_body_link", SignalFamily.CONTENT, Severity.MEDIUM,
+                                   "Dice venir de un organismo público y le pide actuar desde un enlace que no podemos "
+                                   "confirmar que sea oficial. Entre escribiendo usted mismo la web del organismo.",
+                                   "organismo público + enlace no verificado + llamada a la acción"))
 
     if any("invisibles" in w for w in message.parse_warnings):
         signals.append(_signal("content.invisible_chars", SignalFamily.CONTENT, Severity.MEDIUM,
@@ -308,6 +403,13 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
                                        f"El mensaje menciona a {entity.official_name}, pero no procede de su dirección oficial.",
                                        f"cuerpo menciona {entity.entity_id}; dominio {sender.domain}"))
                 break
+    for role, dom in (("remitente", sender.domain), ("respuesta", message.reply_to.domain if message.reply_to else None)):
+        found = find_lookalike(dom, directory) if dom else None
+        if found:
+            signals.append(_signal("sender.lookalike_domain", SignalFamily.SENDER, Severity.CRITICAL,
+                                   "La dirección de correo imita la de una entidad, pero no es la oficial.",
+                                   f"dominio de {role} {dom} imita {found[1]}"))
+            break
     if message.reply_to and message.reply_to.domain and sender.domain:
         if registrable_domain(message.reply_to.domain) != registrable_domain(sender.domain):
             signals.append(_signal("sender.reply_to_mismatch", SignalFamily.SENDER, Severity.MEDIUM,

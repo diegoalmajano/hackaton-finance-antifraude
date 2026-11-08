@@ -17,6 +17,7 @@ from difflib import SequenceMatcher
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from antifraude.analysis.text import fold
 from antifraude.contracts.checks import CheckResult, CheckStatus
 from antifraude.contracts.common import Severity
 from antifraude.contracts.links import DomainComparison, UrlAnalysis
@@ -119,6 +120,86 @@ def looks_like_host(text: str) -> str | None:
     return split_url(t).host
 
 
+#: Etiquetas que, dentro de un subdominio, indican un dominio completo incrustado («correos.es.otro.test»).
+_TLD_LIKE = frozenset({"com", "es", "net", "org", "gob", "gov", "eu", "info"})
+
+
+def _skeleton(host: str) -> str:
+    """Forma canónica de un host para comparar: punycode decodificado, homoglifos y «leet» normalizados."""
+    labels = []
+    for label in host.split("."):
+        if label.startswith("xn--"):
+            try:
+                label = label.encode("ascii").decode("idna")
+            except (UnicodeError, ValueError):
+                pass
+        labels.append(label)
+    return fold(".".join(labels)).replace(" ", "")
+
+
+def _match_brand(host: str, directory: EntityDirectory) -> tuple[str, str] | None:
+    reg = registrable_domain(host) or host
+    reg_label = _label(host)
+    sub = host[: -len(reg)].strip(".") if host.endswith(reg) else ""
+    sub_tokens = re.split(r"[.\-]", sub) if sub else []
+    for entity in directory.all():
+        for od in entity.official_domains:
+            brand = _label(od.domain)
+            # dominio oficial usado como subdominio de otro («bancoficticio.example.otro.test»), con límite de
+            # etiqueta: «booking.example» NO contiene a «ing.example».
+            embedded = bool(re.search(r"(^|[.\-])" + re.escape(od.domain) + r"\.", host))
+            if embedded or (len(brand) >= 4 and brand in sub_tokens):
+                return "url.brand_in_subdomain", od.domain
+            if len(brand) >= 4 and (brand in reg_label.split("-") or (len(brand) >= 6 and brand in reg_label)
+                                    or (len(brand) >= 5 and SequenceMatcher(None, brand, reg_label).ratio()
+                                        >= SIMILARITY_THRESHOLD)):
+                return "url.lookalike_domain", od.domain
+    return None
+
+
+def find_lookalike(host: str | None, directory: EntityDirectory) -> tuple[str, str] | None:
+    """¿El host (de un enlace o de un remitente) imita el dominio de una entidad del directorio?
+
+    Devuelve ``(código, dominio_oficial_imitado)`` o ``None``. Un dominio oficial exacto nunca es parecido.
+    Se compara el host tal cual y su «esqueleto» (homoglifos cirílicos/griegos, punycode y dígitos por letras).
+    """
+    if not host:
+        return None
+    host = host.lower().strip(".")
+    if directory.official_entity_for_host(host) is not None:
+        return None
+    found = _match_brand(host, directory)
+    if found:
+        return found
+    skeleton = _skeleton(host)
+    if skeleton != host:
+        official = directory.official_entity_for_host(skeleton)
+        if official is not None and official.official_domains:
+            return "url.lookalike_domain", official.official_domains[0].domain
+        return _match_brand(skeleton, directory)
+    return None
+
+
+def _userinfo(raw: str) -> str | None:
+    m = re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://([^/?#]*)@", raw.strip())
+    return m.group(1) if m else None
+
+
+def urlsplit_path(raw: str) -> str:
+    m = re.match(r"^(?:[a-zA-Z][a-zA-Z0-9+.\-]*://)?[^/?#]*(/[^?#]*)?", raw.strip())
+    return (m.group(1) or "") if m else ""
+
+
+def _brand_mentioned(text: str, directory: EntityDirectory, *, domains_only: bool = False) -> str | None:
+    folded = _skeleton(text.lower())
+    for entity in directory.all():
+        for od in entity.official_domains:
+            brand = _label(od.domain)
+            if od.domain in folded or (not domains_only and len(brand) >= 5 and brand in folded):
+                return od.domain
+    return None
+
+
 def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id: str | None = None) -> UrlAnalysis:
     parts = split_url(url.raw)
     findings: list[Signal] = []
@@ -164,27 +245,39 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
         comparison = DomainComparison.OFFICIAL
     elif host is not None and not parts.is_ip:
         comparison = DomainComparison.UNRELATED
-        for entity in directory.all():
-            for od in entity.official_domains:
-                brand = _label(od.domain)
-                host_labels = host.split(".")
-                reg_label = _label(host)
-                if host.startswith(od.domain + ".") or brand in host_labels[:-2]:
-                    comparison, lookalike_of = DomainComparison.LOOKALIKE, od.domain
-                    findings.append(_signal("url.brand_in_subdomain", Severity.CRITICAL,
-                                            "La dirección imita la web de una entidad colocándola delante de otro dominio.",
-                                            f"{od.domain} usado como subdominio de {reg}"))
-                elif len(brand) >= 4 and (brand in reg_label.split("-") or (len(brand) >= 6 and brand in reg_label)
-                                          or (len(brand) >= 5 and SequenceMatcher(None, brand, reg_label).ratio()
-                                              >= SIMILARITY_THRESHOLD)):
-                    comparison, lookalike_of = DomainComparison.LOOKALIKE, od.domain
-                    findings.append(_signal("url.lookalike_domain", Severity.CRITICAL,
-                                            "La dirección se parece a la de una entidad, pero no es la oficial.",
-                                            f"{reg} se parece a {od.domain}"))
-                if lookalike_of:
-                    break
-            if lookalike_of:
-                break
+        found = find_lookalike(host, directory)
+        if found:
+            code, lookalike_of = found
+            comparison = DomainComparison.LOOKALIKE
+            if code == "url.brand_in_subdomain":
+                findings.append(_signal(code, Severity.CRITICAL,
+                                        "La dirección imita la web de una entidad colocándola delante de otro dominio.",
+                                        f"{lookalike_of} usado como subdominio de {reg}"))
+            else:
+                findings.append(_signal(code, Severity.CRITICAL,
+                                        "La dirección se parece a la de una entidad, pero no es la oficial.",
+                                        f"{reg} se parece a {lookalike_of}"))
+        sub = host[: -len(reg)].strip(".") if reg and host.endswith(reg) else ""
+        if not found and any(lbl in _TLD_LIKE for lbl in sub.split(".")[1:]):  # «es.wikipedia.org» no cuenta
+            findings.append(_signal("url.domain_in_subdomain", Severity.HIGH,
+                                    "La dirección coloca el nombre de otra web delante de su dominio real "
+                                    "(por ejemplo «empresa.es.otra-web»).", f"dominio incrustado en {host}"))
+    # Marca oficial escondida antes de la «@» o en la ruta (revisión adversarial ronda 3, A10).
+    userinfo = _userinfo(url.raw)
+    if userinfo and not lookalike_of:
+        brand_hit = _brand_mentioned(userinfo, directory)
+        if brand_hit:
+            lookalike_of, comparison = brand_hit, DomainComparison.LOOKALIKE
+            findings.append(_signal("url.brand_in_userinfo", Severity.CRITICAL,
+                                    "El enlace escribe la dirección de una entidad antes de una «@», pero lleva a otra web.",
+                                    f"{brand_hit} en la parte de usuario de la URL"))
+    path = urlsplit_path(url.raw)
+    if path and official is None and not lookalike_of:
+        in_path = _brand_mentioned(path, directory, domains_only=True)
+        if in_path:
+            findings.append(_signal("url.brand_in_path", Severity.HIGH,
+                                    "El enlace incluye la dirección de una entidad en su ruta, pero lleva a otra web.",
+                                    f"{in_path} en la ruta de {host}"))
 
     if url.display_text:
         shown = looks_like_host(url.display_text)
