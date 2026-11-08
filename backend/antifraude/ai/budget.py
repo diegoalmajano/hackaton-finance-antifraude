@@ -66,6 +66,17 @@ _MAX_ENTRIES = 500
 _LOCK_STALE_S = 300.0
 
 
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _inside_repo(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(_REPO_ROOT)
+        return True
+    except ValueError:
+        return False
+
+
 def default_ledger_path() -> Path:
     """``%LOCALAPPDATA%\\antifraude\\gasto_ia.json`` (o ``~/.antifraude``): siempre fuera del repositorio."""
     base = os.environ.get("LOCALAPPDATA")
@@ -105,6 +116,8 @@ class AiPolicy(BaseModel):
             return "El presupuesto autorizado es 0 USD (AI_BUDGET_USD)."
         if self.max_requests <= 0:
             return "El límite de solicitudes es 0 (AI_MAX_REQUESTS)."
+        if _inside_repo(self.resolved_ledger_path):
+            return "El registro de gasto debe estar fuera del repositorio (AI_LEDGER_PATH)."
         return None
 
     @property
@@ -120,8 +133,11 @@ _REQUEST_OVERHEAD_TOKENS = 400
 
 
 def estimate_input_tokens(*texts: str) -> int:
+    """Cota superior prudente: el mayor de «caracteres / 2,5» y «bytes UTF-8 / 2» (cubre emojis y otros
+    alfabetos, que ocupan más tokens por carácter). Sigue siendo una estimación: ver CONTROL_COSTES_IA.md."""
     chars = sum(len(t) for t in texts)
-    return int(math.ceil(chars / _CHARS_PER_TOKEN_LOW)) + _REQUEST_OVERHEAD_TOKENS
+    utf8 = sum(len(t.encode("utf-8")) for t in texts)
+    return int(max(math.ceil(chars / _CHARS_PER_TOKEN_LOW), math.ceil(utf8 / 2))) + _REQUEST_OVERHEAD_TOKENS
 
 
 def _usd(tokens: int, price_per_mtok: Decimal) -> Decimal:
@@ -173,32 +189,50 @@ class SpendLedger:
         self._lock = threading.Lock()
 
     # Lectura/escritura atómica -------------------------------------------------------------------
-    def _load(self) -> dict[str, Any]:
-        if not self.path.exists():
-            return {"version": 1, "spent_usd": "0", "entries": []}
+    @property
+    def backup_path(self) -> Path:
+        return self.path.with_name(self.path.name + ".bak")
+
+    @staticmethod
+    def _read(path: Path) -> dict[str, Any] | None:
+        if not path.exists():
+            return None
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-            Decimal(data["spent_usd"])
-            if not isinstance(data.get("entries"), list):
-                raise ValueError
+            data = json.loads(path.read_text(encoding="utf-8"))
+            spent = Decimal(str(data["spent_usd"]))
+            if not spent.is_finite() or spent < 0 or not isinstance(data.get("entries"), list):
+                raise ValueError("valor no válido")
             return data
-        except Exception as exc:  # archivo dañado → no se gasta (fallo seguro), no se sobrescribe
+        except Exception as exc:  # archivo dañado o manipulado → no se gasta (fallo seguro), no se sobrescribe
             raise LedgerError("El registro de gasto de la IA está dañado; revíselo antes de continuar.") from exc
+
+    def _load(self) -> dict[str, Any]:
+        """Lee el libro y su copia; si falta uno, vale el otro; si están los dos, el de MAYOR gasto.
+
+        Borrar solo el libro no reinicia el presupuesto (revisión del control de gasto, ALTO 1). Borrar ambos sí:
+        es un límite local; el límite efectivo de facturación está en Anthropic Console (R-66).
+        """
+        main, backup = self._read(self.path), self._read(self.backup_path)
+        candidates = [d for d in (main, backup) if d is not None]
+        if not candidates:
+            return {"version": 1, "spent_usd": "0", "entries": []}
+        return max(candidates, key=lambda d: Decimal(str(d["spent_usd"])))
 
     def _save(self, data: dict[str, Any]) -> None:
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             data["entries"] = data["entries"][-_MAX_ENTRIES:]
-            fd, tmp = tempfile.mkstemp(prefix=".gasto_", dir=self.path.parent)
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(data, fh, ensure_ascii=False, indent=1)
-            os.replace(tmp, self.path)
+            for target in (self.path, self.backup_path):
+                fd, tmp = tempfile.mkstemp(prefix=".gasto_", dir=self.path.parent)
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    json.dump(data, fh, ensure_ascii=False, indent=1)
+                os.replace(tmp, target)
         except OSError as exc:
             raise LedgerError("No se puede escribir el registro de gasto de la IA.") from exc
 
     def spent(self) -> Decimal:
         with self._lock:
-            return Decimal(self._load()["spent_usd"])
+            return Decimal(str(self._load()["spent_usd"]))
 
     def summary(self) -> dict[str, Any]:
         with self._lock:
@@ -211,7 +245,7 @@ class SpendLedger:
         """Apunta el peor caso como «en curso» si cabe en el presupuesto; si no, ``BudgetBlocked``."""
         with self._lock:
             data = self._load()
-            spent = Decimal(data["spent_usd"])
+            spent = Decimal(str(data["spent_usd"]))
             if spent + amount > budget:
                 raise BudgetBlocked("Presupuesto de IA agotado o insuficiente para el peor caso de esta solicitud.",
                                     "budget")
@@ -228,13 +262,17 @@ class SpendLedger:
         """Sustituye la reserva por el coste final (real o, si no se conoce, el pesimista)."""
         with self._lock:
             data = self._load()
-            spent = Decimal(data["spent_usd"]) - reservation.amount + cost
-            for e in data["entries"]:
-                if e.get("id") == reservation.entry_id:
-                    e.update({"status": status, "cost_usd": str(cost), "settled_at": _now()})
-                    if usage:
-                        e["usage"] = {k: int(v) for k, v in usage.items()}
-                    break
+            entry = next((e for e in data["entries"] if e.get("id") == reservation.entry_id), None)
+            if entry is None:  # el libro desapareció o se sustituyó a mitad: se apunta el coste, sin descontar
+                spent = Decimal(str(data["spent_usd"])) + cost
+                entry = {"id": reservation.entry_id, "at": _now(), "model": reservation.model,
+                         "reserved_usd": str(reservation.amount), "recovered": True}
+                data["entries"].append(entry)
+            else:
+                spent = Decimal(str(data["spent_usd"])) - reservation.amount + cost
+            entry.update({"status": status, "cost_usd": str(cost), "settled_at": _now()})
+            if usage:
+                entry["usage"] = {k: int(v) for k, v in usage.items()}
             data["spent_usd"] = str(max(spent, Decimal("0")))
             self._save(data)
             return Decimal(data["spent_usd"])
@@ -251,20 +289,26 @@ class _InterProcessLock:
         self.path = path.with_suffix(".lock")
         self._fd: int | None = None
 
-    def acquire(self) -> bool:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    def _create(self) -> bool:
         try:
             self._fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             return True
-        except FileExistsError:
-            try:  # bloqueo abandonado por un proceso muerto
-                if time.time() - self.path.stat().st_mtime > _LOCK_STALE_S:
-                    self.path.unlink(missing_ok=True)
-                    self._fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                    return True
-            except OSError:
-                pass
+        except (FileExistsError, PermissionError):  # Windows: «pendiente de borrado» → ocupado
             return False
+
+    def acquire(self) -> bool:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self._create():
+            return True
+        try:  # bloqueo abandonado por un proceso muerto: se aparta con un renombrado atómico (solo uno gana)
+            if time.time() - self.path.stat().st_mtime > _LOCK_STALE_S:
+                os.replace(self.path, self.path.with_name(f"{self.path.name}.caducado.{os.getpid()}.{time.time_ns()}"))
+                for old in self.path.parent.glob(self.path.name + ".caducado.*"):
+                    old.unlink(missing_ok=True)
+                return self._create()
+        except OSError:
+            pass
+        return False
 
     def release(self) -> None:
         if self._fd is not None:
@@ -281,7 +325,7 @@ class CostGuard:
         self.ledger = ledger or SpendLedger(policy.resolved_ledger_path)
         self.requests_sent = 0
         self._thread_lock = threading.Lock()
-        self._wait_s = wait_s
+        self.wait_s = wait_s
 
     def check_policy(self) -> None:
         reason = self.policy.blocked_reason()
@@ -299,7 +343,7 @@ class CostGuard:
         assert model is not None
         if estimated_input_tokens > self.policy.max_input_tokens:
             raise BudgetBlocked("El mensaje es demasiado largo para el límite de tokens de entrada.", "input_limit")
-        if not self._thread_lock.acquire(timeout=self._wait_s):
+        if not self._thread_lock.acquire(timeout=self.wait_s):
             raise BudgetBlocked("Ya hay un análisis con IA en curso.", "busy")
         ip_lock = _InterProcessLock(self.ledger.path)
         try:
@@ -318,8 +362,11 @@ class CostGuard:
                                    status=status, usage=usage)
                 raise
             cost, status, usage = settle_cost(result)
-            self.ledger.settle(reservation, cost=reservation.amount if cost is None else cost, status=status,
-                               usage=usage)
+            try:
+                self.ledger.settle(reservation, cost=reservation.amount if cost is None else cost, status=status,
+                                   usage=usage)
+            except LedgerError:
+                pass  # ya pagado: se usa la respuesta; el cargo pesimista reservado sigue en el libro
             return result
         finally:
             ip_lock.release()

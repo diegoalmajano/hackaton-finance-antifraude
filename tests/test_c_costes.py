@@ -268,3 +268,96 @@ def test_la_app_por_defecto_no_activa_la_ia() -> None:
     app = create_app(Settings.from_env({"ANTHROPIC_API_KEY": "clave-de-prueba-no-real", "CLAUDE_MODEL": SONNET}),
                      issue_initial_code=False)
     assert app.state.ai_configured is False  # falta AI_ENABLED y presupuesto (y el SDK no está instalado)
+
+
+# --- Regresiones de la revisión independiente del control de gasto (misión 3) -----------------------------
+def test_borrar_el_libro_no_reinicia_el_presupuesto(tmp_path: Path) -> None:
+    ia(tmp_path, Transporte()).analyze(msg("Uno: introduzca su clave"), [])
+    (tmp_path / "gasto.json").unlink()  # queda la copia .bak
+    assert gastado(tmp_path) == Decimal("0.007")
+
+
+def test_libro_borrado_durante_la_solicitud_sigue_apuntando_el_coste(tmp_path: Path) -> None:
+    def borra_y_responde(params: Any) -> Any:
+        for f in tmp_path.glob("gasto.json*"):
+            f.unlink()
+        return resp()
+    ClaudeAnalyzer(policy=politica(tmp_path), api_key=None, transport=borra_y_responde).analyze(msg(), [])
+    assert gastado(tmp_path) == Decimal("0.007")
+
+
+@pytest.mark.parametrize("valor", ["-1000", "NaN", "Infinity"])
+def test_gasto_negativo_o_no_finito_bloquea(tmp_path: Path, valor: str) -> None:
+    (tmp_path / "gasto.json").write_text(json.dumps({"version": 1, "spent_usd": valor, "entries": []}),
+                                         encoding="utf-8")
+    t = Transporte()
+    r = ia(tmp_path, t).analyze(msg(), [])
+    assert r.failure_reason and r.failure_reason.value == "budget_blocked" and t.llamadas == 0
+
+
+def test_estimacion_por_exceso_con_emojis_y_otros_alfabetos() -> None:
+    assert estimate_input_tokens("😀" * 5000) >= 10_000  # 4 bytes por emoji → ≥ 2 tokens estimados
+    assert estimate_input_tokens("ñ" * 1000) >= 1000
+
+
+def test_libro_dentro_del_repositorio_se_rechaza(tmp_path: Path) -> None:
+    dentro = Path(__file__).resolve().parents[1] / "gasto_prueba.json"
+    assert "fuera del repositorio" in (politica(tmp_path, ledger_path=dentro).blocked_reason() or "")
+
+
+def test_bloqueo_ocupado_en_windows_no_rompe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import antifraude.ai.budget as b
+
+    real_open = b.os.open
+
+    def abrir(path: Any, flags: int, *a: Any) -> int:
+        if str(path).endswith(".lock"):
+            raise PermissionError("pendiente de borrado")
+        return real_open(path, flags, *a)
+
+    monkeypatch.setattr(b.os, "open", abrir)
+    t = Transporte()
+    r = ia(tmp_path, t).analyze(msg(), [])
+    assert r.failure_reason and r.failure_reason.value == "busy" and t.llamadas == 0
+
+
+def test_mismo_mensaje_en_dos_hilos_se_paga_una_vez(tmp_path: Path) -> None:
+    barrera = threading.Barrier(2)
+    llamadas: list[int] = []
+
+    def transporte(params: Any) -> Any:
+        llamadas.append(1)
+        return resp()
+
+    a = ClaudeAnalyzer(policy=politica(tmp_path), api_key=None, transport=transporte)
+
+    def tarea() -> None:
+        barrera.wait()
+        a.analyze(msg(), ["x"])
+
+    hilos = [threading.Thread(target=tarea) for _ in range(2)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join(10)
+    assert len(llamadas) == 1
+
+
+@pytest.mark.parametrize("codigo,cobra", [(400, False), (429, False), (408, True), (500, True)])
+def test_errores_http_facturables_y_no_facturables(tmp_path: Path, codigo: int, cobra: bool) -> None:
+    class ErrorApi(Exception):
+        status_code = codigo
+    ia(tmp_path, Transporte(ErrorApi("x"))).analyze(msg(), [])
+    assert (gastado(tmp_path) > 0) is cobra
+
+
+def test_fallo_al_liquidar_tras_pagar_conserva_la_respuesta(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import antifraude.ai.budget as b
+
+    def falla(*a: Any, **k: Any) -> Any:
+        raise b.LedgerError("disco lleno")
+
+    monkeypatch.setattr(b.SpendLedger, "settle", falla)
+    r = ia(tmp_path, Transporte()).analyze(msg(), [])
+    assert r.status is CheckStatus.DONE  # la respuesta ya pagada se usa
+    assert gastado(tmp_path) > Decimal("0.03")  # y el cargo pesimista reservado sigue apuntado

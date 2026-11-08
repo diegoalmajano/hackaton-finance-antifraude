@@ -20,6 +20,7 @@ import json
 import logging
 import re
 import secrets
+import threading
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
 from decimal import Decimal
@@ -187,13 +188,17 @@ _BLOCK_REASONS = {"budget": AiFailureReason.BUDGET_BLOCKED, "policy": AiFailureR
                   "busy": AiFailureReason.BUSY}
 
 
+#: Errores HTTP en los que la API rechaza la petición sin generar (no se facturan). 408/409 no se incluyen.
+_NOT_BILLED = frozenset({400, 401, 403, 404, 413, 422, 429})
+
+
 def _settle(model: str) -> Callable[[Any], tuple[Decimal | None, str, dict[str, int] | None]]:
     """Coste final de una solicitud. ``None`` = desconocido → se mantiene el cargo pesimista reservado."""
 
     def settle(outcome: Any) -> tuple[Decimal | None, str, dict[str, int] | None]:
         if isinstance(outcome, BaseException):
             status_code = getattr(outcome, "status_code", None)
-            if isinstance(status_code, int) and 400 <= status_code < 500:
+            if status_code in _NOT_BILLED:
                 return Decimal("0"), f"error_http_{status_code}", None  # la API rechaza sin generar
             return None, "error_posible_cargo", None  # tiempo agotado / red / 5xx: puede haberse facturado
         usage = parse_usage(outcome, model) if isinstance(outcome, Mapping) else None
@@ -215,6 +220,7 @@ class ClaudeAnalyzer:
         self._transport = transport
         self._guard = guard
         self._cache: OrderedDict[str, AiFindings] = OrderedDict()
+        self._lock = threading.Lock()
         self._cache_key = secrets.token_bytes(32)  # HMAC por proceso: la memoria no sirve de diccionario
 
     @property
@@ -257,6 +263,17 @@ class ClaudeAnalyzer:
     def analyze(self, message: IncomingMessage, technical_findings: list[str]) -> AiFindings:
         if not self.configured or self.model is None:
             return AiFindings(status=CheckStatus.NOT_CONFIGURED)
+        # Un solo análisis con IA a la vez en esta instancia: la memoria y el envío no pueden cruzarse entre hilos.
+        if not self._lock.acquire(timeout=self.guard.wait_s):
+            return AiFindings(status=CheckStatus.FAILED, failure_reason=AiFailureReason.BUSY, model_id=self.model,
+                              prompt_version=PROMPT_VERSION)
+        try:
+            return self._analyze_locked(message, technical_findings)
+        finally:
+            self._lock.release()
+
+    def _analyze_locked(self, message: IncomingMessage, technical_findings: list[str]) -> AiFindings:
+        assert self.model is not None
         key = self._key(message, technical_findings)
         if key in self._cache:  # mismo mensaje y mismos parámetros: no se paga dos veces
             self._cache.move_to_end(key)

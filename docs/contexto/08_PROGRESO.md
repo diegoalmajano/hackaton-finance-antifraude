@@ -46,7 +46,7 @@
 - Ejecutor de evaluación reproducible y pruebas de integración real preparadas.
 - Gmail sin pérdidas silenciosas.
 - Detalle en `15`. |
-| Pruebas | **659** automáticas en verde (+4 de integración real saltadas, +1 `xfail` de limitación conocida) |
+| Pruebas | **674** automáticas en verde (+4 de integración real saltadas, +1 `xfail` de limitación conocida) |
 
 ## Próximos pasos
 1. ~~Trasladar el repositorio~~ ✅ · ~~Primer commit~~ ✅ local · ~~Instalar ECC~~ ✅ · ~~Aprobar arquitectura~~ ✅ (D-26).

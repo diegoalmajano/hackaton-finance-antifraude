@@ -235,6 +235,8 @@ def metrics_dict(run: ConfigRun) -> dict[str, object]:
         "recall_ic95_wilson": wilson(m.tp, pos), "tasa_fp_ic95_wilson": wilson(m.fp, neg),
         "latencia_ms_p50": m.percentile(0.5), "latencia_ms_p95": m.percentile(0.95),
         "llamadas_ia": run.ai_calls, "fallos_ia": run.ai_failures, "coste_real_usd": run.cost_usd,
+        "nota_coste": ("suma del usage de las respuestas; las solicitudes sin usage (tiempo agotado, error) "
+                       "figuran en el libro de gasto con su cargo pesimista"),
     }
 
 
@@ -327,6 +329,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         kind = "sellado"
         cases = load_cases([path])
+        # La marca se escribe ANTES de ejecutar: si el proceso cae a mitad, el conjunto no puede repetirse (D-40).
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("en curso", encoding="utf-8")
     else:
         cases = load_cases(sorted((_ROOT / "eval" / "datasets" / "dev").glob("*.jsonl")))
 
@@ -347,6 +352,9 @@ def main(argv: list[str] | None = None) -> int:
         worst = worst_case_cost(policy.model, estimate_input_tokens("x" * 6000), policy.max_output_tokens) * len(cases)
         print(f"Peor caso estimado: {worst} USD para {len(cases)} casos (límite autorizado {policy.budget_usd} USD; "
               f"máx. {policy.max_requests} solicitudes).")
+        if worst > policy.budget_usd:
+            print("AVISO: el presupuesto autorizado no cubre el peor caso de todos los casos: la IA se detendrá al "
+                  "agotarlo y los casos restantes figurarán como «IA no disponible» (análisis parcial).")
         if not args.confirmar_gasto:
             print("Falta --confirmar-gasto: no se envía ninguna solicitud.")
             return 3
@@ -359,7 +367,7 @@ def main(argv: list[str] | None = None) -> int:
     out.write_text(json.dumps(rep, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     if kind == "sellado":
         (RESULTS_DIR / f"sellado_{sha[:16] if sha else 'x'}.ejecutado").write_text(str(rep["fecha_utc"]),
-                                                                                     encoding="utf-8")
+                                                                                     encoding="utf-8")  # completado
         for c in rep["configuraciones"]:  # type: ignore[union-attr]
             print(json.dumps(c, ensure_ascii=False, default=str))
     else:

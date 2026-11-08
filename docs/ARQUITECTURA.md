@@ -47,7 +47,7 @@ Modelos Pydantic v2 en `backend/antifraude/contracts/` (fuente única, ADR-0003)
 - Errores en español sin detalles técnicos. Las excepciones no controladas se registran sin su mensaje.
 
 ## 5. Calidad
-- **659 pruebas automáticas** (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto, IA y Gmail simulados), más 4 de integración real saltadas por defecto y 1 limitación conocida (`xfail`).
+- **674 pruebas automáticas** (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto, IA y Gmail simulados), más 4 de integración real saltadas por defecto y 1 limitación conocida (`xfail`).
 - Tres revisiones independientes con agentes de solo lectura (código, seguridad y accesibilidad), además de una revisión de etiquetas y una prueba adversarial. Cada hallazgo corregido tiene su prueba de regresión.
 
 ## 6. Qué es real, qué es simulado y qué falta

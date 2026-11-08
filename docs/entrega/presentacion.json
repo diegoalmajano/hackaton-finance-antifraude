@@ -46,7 +46,7 @@
       "Control de gasto local: IA desactivada por defecto, presupuesto y límites; coste real aún sin medir",
       "Valor para el banco: menos fraude y más confianza de sus clientes vulnerables"]},
     {"titulo": "Calidad comprobada", "puntos": [
-      "659 pruebas automáticas (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto)",
+      "674 pruebas automáticas (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto)",
       "Revisiones independientes: código, seguridad, accesibilidad, etiquetas y pruebas adversariales",
       "Métricas de DESARROLLO solo para ajustar (no son evaluación independiente)",
       "Metodología de evaluación independiente preparada (conjunto sellado pendiente)"]},

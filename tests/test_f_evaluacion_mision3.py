@@ -110,3 +110,17 @@ def test_comparacion_reglas_frente_a_ia_simulada(tmp_path: Path) -> None:
     assert isinstance(informe["diferencias"], list)
     # La IA (aquí sin hallazgos) completa el análisis: los casos parciales sin IA dejan de serlo.
     assert con_ia.metrics.inconclusive <= reglas.metrics.inconclusive
+
+
+def test_sellado_marcado_antes_de_ejecutar(resultados: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    f, sha = sellado_falso(tmp_path)
+
+    def cae(*a: Any, **k: Any) -> Any:
+        raise RuntimeError("corte de luz")
+
+    monkeypatch.setattr(ev, "evaluate_config", cae)
+    with pytest.raises(RuntimeError):
+        ev.main(["--sellado", str(f), "--sha256", sha])
+    monkeypatch.undo()
+    monkeypatch.setattr(ev, "RESULTS_DIR", resultados)
+    assert ev.main(["--sellado", str(f), "--sha256", sha]) == 2  # no se puede repetir aunque cayera a mitad

@@ -68,7 +68,7 @@ Los puntos ⏳ de los ADR **no están verificados**. Cambiar un ADR exige uno nu
   - Correcciones de seguridad y reglas `rules-0.3.0`.
   - 5 dominios del Registro de Entidades del Banco de España con cobertura parcial.
   - Ejecutor de evaluación reproducible y pruebas de integración real preparadas.
-  - **659 tests** + 4 saltados + 1 `xfail`.
+  - **674 tests** + 4 saltados + 1 `xfail`.
 - **Desarrollo autónomo (D-54/D-55) y misión 2 (D-56):**
   - Etapas A–D completadas y probadas: **528 tests** en verde, también desde una copia limpia del ZIP. Reglas `rules-0.2.0` tras la prueba adversarial.
   - E: Gmail preparado y probado con simulación; la conexión real está bloqueada.

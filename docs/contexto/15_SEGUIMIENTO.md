@@ -90,6 +90,6 @@ Esperar las autorizaciones del usuario (sección «Bloqueos»). Sin ellas, lo m�
 | E — Pruebas de integración real (Claude y Gmail) | ✅ preparadas y saltadas por defecto; `docs/PRUEBAS_INTEGRACION_REAL.md` | `5944318` |
 | F — Evaluación reproducible (reglas frente a Claude; sellado) | ✅ `python -m antifraude.evaluation --modo/--sellado`; `eval/EJECUCION.md` | `5944318` |
 | E — Gmail: mensajes por encima del máximo y errores transitorios se perdían | ✅ cola de pendientes; máximo 40 por consulta (cuota) | `5944318` |
-| Revisión independiente del control de gasto (agente, solo lectura) | en curso | — |
+| Revisión independiente del control de gasto (agente, solo lectura) | ✅ sin caminos que eviten el control. Corregidos: 2 ALTOS (libro borrado reiniciaba el presupuesto → copia `.bak` y re-apunte; gasto negativo o no finito aceptado → libro dañado) y MEDIOS (estimación por bytes UTF-8, `PermissionError` del bloqueo en Windows, pago duplicado entre hilos, carrera del bloqueo caducado, libro dentro del repositorio) y BAJOS (4xx no facturables explícitos, respuesta pagada conservada, marca del sellado previa, aviso de presupuesto insuficiente) | ver commit siguiente |
 
-Total de pruebas (misión 3): **659** en verde + 4 de integración real saltadas + 1 `xfail`.
+Total de pruebas (misión 3): **674** en verde + 4 de integración real saltadas + 1 `xfail`.
