@@ -20,6 +20,7 @@ from uuid import UUID
 from antifraude.analysis.text import fold
 from antifraude.contracts.checks import CheckResult, CheckStatus
 from antifraude.contracts.common import Severity
+from antifraude.contracts.entities import DomainCoverage
 from antifraude.contracts.links import DomainComparison, UrlAnalysis
 from antifraude.contracts.messages import ExtractedUrl
 from antifraude.contracts.screening import Signal, SignalFamily, SignalSource
@@ -137,6 +138,10 @@ def _skeleton(host: str) -> str:
     return fold(".".join(labels)).replace(" ", "")
 
 
+#: Nombre de una entidad con lista de dominios PARCIAL dentro de otro dominio: puede ser oficial o no.
+UNVERIFIED_BRAND = "url.brand_name_unverified"
+
+
 def _match_brand(host: str, directory: EntityDirectory) -> tuple[str, str] | None:
     reg = registrable_domain(host) or host
     reg_label = _label(host)
@@ -148,12 +153,15 @@ def _match_brand(host: str, directory: EntityDirectory) -> tuple[str, str] | Non
             # dominio oficial usado como subdominio de otro («bancoficticio.example.otro.test»), con límite de
             # etiqueta: «booking.example» NO contiene a «ing.example».
             embedded = bool(re.search(r"(^|[.\-])" + re.escape(od.domain) + r"\.", host))
-            if embedded or (len(brand) >= 4 and brand in sub_tokens):
+            partial = entity.domain_coverage is DomainCoverage.PARTIAL
+            if embedded:  # el dominio oficial completo usado como subdominio de otro: nunca es legítimo
                 return "url.brand_in_subdomain", od.domain
+            if len(brand) >= 4 and brand in sub_tokens:
+                return (UNVERIFIED_BRAND if partial else "url.brand_in_subdomain"), od.domain
             if len(brand) >= 4 and (brand in reg_label.split("-") or (len(brand) >= 6 and brand in reg_label)
                                     or (len(brand) >= 5 and SequenceMatcher(None, brand, reg_label).ratio()
                                         >= SIMILARITY_THRESHOLD)):
-                return "url.lookalike_domain", od.domain
+                return (UNVERIFIED_BRAND if partial else "url.lookalike_domain"), od.domain
     return None
 
 
@@ -246,6 +254,14 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
     elif host is not None and not parts.is_ip:
         comparison = DomainComparison.UNRELATED
         found = find_lookalike(host, directory)
+        if found and found[0] == UNVERIFIED_BRAND:
+            entity = directory.official_entity_for_host(found[1])
+            name = entity.official_name if entity else found[1]
+            findings.append(_signal(UNVERIFIED_BRAND, Severity.MEDIUM,
+                                    f"La dirección usa el nombre de {name}, pero no está entre sus webs oficiales "
+                                    "verificadas: puede ser suya o una imitación. Entre escribiendo usted mismo la web.",
+                                    f"{reg} contiene la marca de {found[1]} (lista de dominios parcial)"))
+            found = None
         if found:
             code, lookalike_of = found
             comparison = DomainComparison.LOOKALIKE
@@ -288,7 +304,12 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
 
     if claimed_entity_id and comparison is not DomainComparison.OFFICIAL and host and not lookalike_of:
         entity = directory.get(claimed_entity_id)
-        if entity is not None and entity.official_domains:
+        if entity is not None and entity.official_domains and entity.domain_coverage is DomainCoverage.PARTIAL:
+            # Sin lista completa de dominios, un enlace a otra web no es prueba de suplantación: solo se informa.
+            findings.append(_signal("url.not_verified_for_claimed", Severity.LOW,
+                                    f"El enlace no es de una web de {entity.official_name} que hayamos podido verificar.",
+                                    f"{host} no figura en los dominios verificados (parciales) de {claimed_entity_id}"))
+        elif entity is not None and entity.official_domains:
             findings.append(_signal("url.not_official_for_claimed", Severity.HIGH,
                                     f"El mensaje dice venir de {entity.official_name}, pero el enlace no es de su web oficial.",
                                     f"{host} no es dominio oficial de {claimed_entity_id}"))

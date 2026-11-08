@@ -15,11 +15,11 @@ from time import perf_counter
 from antifraude.analysis.text import fold
 from antifraude.contracts.checks import CheckStatus
 from antifraude.contracts.common import Severity
-from antifraude.contracts.entities import FinancialEntity
+from antifraude.contracts.entities import DomainCoverage, FinancialEntity
 from antifraude.contracts.messages import AuthVerdict, IncomingMessage
 from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily, SignalSource
 from antifraude.intel.entities import EntityDirectory
-from antifraude.intel.urls import find_lookalike, registrable_domain
+from antifraude.intel.urls import UNVERIFIED_BRAND, find_lookalike, registrable_domain
 
 RULE_VERSION = "rules-0.3.0"
 
@@ -390,8 +390,12 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
 
     for entity in claimed:
         if entity.official_domains and (sender_official is None or sender_official.entity_id != entity.entity_id):
-            signals.append(_signal("sender.brand_mismatch", SignalFamily.SENDER, Severity.HIGH,
-                                   f"El remitente se presenta como {entity.official_name}, pero no escribe desde su dirección oficial.",
+            partial = entity.domain_coverage is DomainCoverage.PARTIAL
+            signals.append(_signal("sender.brand_mismatch", SignalFamily.SENDER,
+                                   Severity.MEDIUM if partial else Severity.HIGH,
+                                   f"El remitente se presenta como {entity.official_name}, pero no escribe desde "
+                                   + ("una dirección suya que hayamos podido verificar." if partial
+                                      else "su dirección oficial."),
                                    f"display_name menciona {entity.entity_id}; dominio {sender.domain}"))
     # El cuerpo habla en nombre de una entidad, pero el correo no viene de su dominio oficial (revisión Etapa B).
     if sender.domain and not claimed:
@@ -405,6 +409,12 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
                 break
     for role, dom in (("remitente", sender.domain), ("respuesta", message.reply_to.domain if message.reply_to else None)):
         found = find_lookalike(dom, directory) if dom else None
+        if found and found[0] == UNVERIFIED_BRAND:
+            signals.append(_signal("sender.brand_name_unverified", SignalFamily.SENDER, Severity.MEDIUM,
+                                   "La dirección de correo usa el nombre de una entidad, pero no figura entre sus "
+                                   "direcciones verificadas: puede ser suya o una imitación.",
+                                   f"dominio de {role} {dom} contiene la marca de {found[1]} (lista parcial)"))
+            break
         if found:
             signals.append(_signal("sender.lookalike_domain", SignalFamily.SENDER, Severity.CRITICAL,
                                    "La dirección de correo imita la de una entidad, pero no es la oficial.",

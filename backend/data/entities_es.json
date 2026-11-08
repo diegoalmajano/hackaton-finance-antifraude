@@ -1,51 +1,81 @@
 {
   "schema_version": "1",
-  "description": "Entidades financieras reales en España. TODAS pendientes de verificación: sin dominios oficiales hasta comprobarlos en fuentes oficiales (V-27).",
+  "description": "Entidades financieras reales en España. Dominios web tomados del Registro de Entidades del Banco de España (campo PÁGINA WEB, fichero de 05/11/2026). Cobertura PARCIAL: el registro solo da una web por entidad.",
   "entities": [
     {
       "entity_id": "santander",
       "official_name": "Banco Santander, S.A.",
       "aliases": ["Banco Santander", "Santander"],
-      "verification_status": "pending_verification",
-      "official_domains": [],
-      "verification": null,
-      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial", "Alias 'Santander' ambiguo (también es una ciudad)"]
+      "verification_status": "verified",
+      "official_domains": [{"domain": "santander.com", "include_subdomains": true, "usage": ["web"]}],
+      "domain_coverage": "partial",
+      "verification": {
+        "source_description": "Registro de Entidades del Banco de España, listado «Entidades de crédito» (fichero de 05/11/2026), código BE 0049, NIF A39000013, campo PÁGINA WEB",
+        "source_url": "https://www.bde.es/f/webbe/SGE/regis/ficheros/es/Registro_EntCredito.xlsx",
+        "checked_on": "2026-11-08",
+        "checked_by": "Claude Code (misión 3): descarga y lectura del fichero oficial; pendiente de revisión humana"
+      },
+      "notes": ["Solo la web registrada; otros dominios (p. ej. de banca de clientes o correo) NO verificados: cobertura parcial", "Alias 'Santander' ambiguo (también es una ciudad)"]
     },
     {
       "entity_id": "bbva",
       "official_name": "Banco Bilbao Vizcaya Argentaria, S.A.",
       "aliases": ["BBVA"],
-      "verification_status": "pending_verification",
-      "official_domains": [],
-      "verification": null,
-      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial"]
+      "verification_status": "verified",
+      "official_domains": [{"domain": "bbva.com", "include_subdomains": true, "usage": ["web"]}],
+      "domain_coverage": "partial",
+      "verification": {
+        "source_description": "Registro de Entidades del Banco de España, listado «Entidades de crédito» (fichero de 05/11/2026), código BE 0182, NIF A48265169, campo PÁGINA WEB",
+        "source_url": "https://www.bde.es/f/webbe/SGE/regis/ficheros/es/Registro_EntCredito.xlsx",
+        "checked_on": "2026-11-08",
+        "checked_by": "Claude Code (misión 3): descarga y lectura del fichero oficial; pendiente de revisión humana"
+      },
+      "notes": ["Solo la web registrada; otros dominios NO verificados: cobertura parcial"]
     },
     {
       "entity_id": "caixabank",
       "official_name": "CaixaBank, S.A.",
       "aliases": ["CaixaBank"],
-      "verification_status": "pending_verification",
-      "official_domains": [],
-      "verification": null,
-      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial"]
+      "verification_status": "verified",
+      "official_domains": [{"domain": "caixabank.es", "include_subdomains": true, "usage": ["web"]}],
+      "domain_coverage": "partial",
+      "verification": {
+        "source_description": "Registro de Entidades del Banco de España, listado «Entidades de crédito» (fichero de 05/11/2026), código BE 2100, NIF A08663619, campo PÁGINA WEB",
+        "source_url": "https://www.bde.es/f/webbe/SGE/regis/ficheros/es/Registro_EntCredito.xlsx",
+        "checked_on": "2026-11-08",
+        "checked_by": "Claude Code (misión 3): descarga y lectura del fichero oficial; pendiente de revisión humana"
+      },
+      "notes": ["Solo la web registrada; otros dominios NO verificados: cobertura parcial"]
     },
     {
       "entity_id": "sabadell",
       "official_name": "Banco de Sabadell, S.A.",
       "aliases": ["Banco Sabadell", "Sabadell"],
-      "verification_status": "pending_verification",
-      "official_domains": [],
-      "verification": null,
-      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial", "Alias 'Sabadell' ambiguo (también es una ciudad)"]
+      "verification_status": "verified",
+      "official_domains": [{"domain": "grupobancosabadell.com", "include_subdomains": true, "usage": ["web"]}],
+      "domain_coverage": "partial",
+      "verification": {
+        "source_description": "Registro de Entidades del Banco de España, listado «Entidades de crédito» (fichero de 05/11/2026), código BE 0081, NIF A08000143, campo PÁGINA WEB",
+        "source_url": "https://www.bde.es/f/webbe/SGE/regis/ficheros/es/Registro_EntCredito.xlsx",
+        "checked_on": "2026-11-08",
+        "checked_by": "Claude Code (misión 3): descarga y lectura del fichero oficial; pendiente de revisión humana"
+      },
+      "notes": ["Solo la web registrada; otros dominios NO verificados: cobertura parcial", "Alias 'Sabadell' ambiguo (también es una ciudad)"]
     },
     {
       "entity_id": "bankinter",
       "official_name": "Bankinter, S.A.",
       "aliases": ["Bankinter"],
-      "verification_status": "pending_verification",
-      "official_domains": [],
-      "verification": null,
-      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial"]
+      "verification_status": "verified",
+      "official_domains": [{"domain": "ebankinter.com", "include_subdomains": true, "usage": ["web"]}],
+      "domain_coverage": "partial",
+      "verification": {
+        "source_description": "Registro de Entidades del Banco de España, listado «Entidades de crédito» (fichero de 05/11/2026), código BE 0128, NIF A28157360, campo PÁGINA WEB",
+        "source_url": "https://www.bde.es/f/webbe/SGE/regis/ficheros/es/Registro_EntCredito.xlsx",
+        "checked_on": "2026-11-08",
+        "checked_by": "Claude Code (misión 3): descarga y lectura del fichero oficial; pendiente de revisión humana"
+      },
+      "notes": ["Solo la web registrada; otros dominios NO verificados: cobertura parcial"]
     }
   ]
 }

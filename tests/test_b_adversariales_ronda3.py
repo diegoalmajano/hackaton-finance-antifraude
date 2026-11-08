@@ -176,3 +176,41 @@ def test_ronda3_texto_oculto_con_peticion_sigue_siendo_senal(pipeline: AnalysisP
 def test_comparacion_de_dominios(directorio: EntityDirectory, host: str, esperado: str | None) -> None:
     r = find_lookalike(host, directorio)
     assert (r[0] if r else None) == esperado, (host, r)
+
+
+# --- Tarea C: bancos reales con cobertura PARCIAL de dominios (registro del Banco de España) ------------------
+@pytest.fixture(scope="module")
+def pipeline_real() -> AnalysisPipeline:
+    return AnalysisPipeline(EntityDirectory.load_default(include_fictitious=False))
+
+
+@pytest.mark.parametrize("host,esperado", [
+    ("www.bbva.com", None),                               # web registrada
+    ("bbva.com.verificacion.test", "url.brand_in_subdomain"),  # dominio oficial incrustado: siempre crítico
+    ("bbva.es", "url.brand_name_unverified"),             # puede ser suyo: incertidumbre, NO imitación segura
+    ("bbva-seguridad.test", "url.brand_name_unverified"),
+])
+def test_bancos_reales_cobertura_parcial(host: str, esperado: str | None) -> None:
+    d = EntityDirectory.load_default(include_fictitious=False)
+    r = find_lookalike(host, d)
+    assert (r[0] if r else None) == esperado, (host, r)
+
+
+def test_correo_real_desde_dominio_no_listado_no_es_alto(pipeline_real: AnalysisPipeline) -> None:
+    # Un aviso informativo real de BBVA desde un dominio que el registro no recoge: incertidumbre, no ALTO.
+    texto = "BBVA: ya puede consultar su extracto mensual en la app."
+    s = make_sender("BBVA", "avisos@bbva.es", OK)
+    assert nivel(pipeline_real, texto, s) in (RiskLevel.LOW, RiskLevel.INCONCLUSIVE, RiskLevel.MEDIUM)
+    assert nivel(pipeline_real, texto, s) is not RiskLevel.HIGH
+
+
+def test_imitacion_de_banco_real_con_peticion_es_alto(pipeline_real: AnalysisPipeline) -> None:
+    texto = "BBVA: su cuenta será bloqueada. Introduzca su clave en https://bbva-seguridad.test"
+    assert nivel(pipeline_real, texto) is RiskLevel.HIGH
+    assert nivel(pipeline_real, "Acceda a https://bbva.com.verificacion.test/login") is RiskLevel.HIGH
+
+
+def test_ciudad_con_enlace_no_alarma(pipeline_real: AnalysisPipeline) -> None:
+    # «Santander» también es una ciudad (R-50): sin IA queda en NO CONCLUYENTE (mención + enlace), nunca en alerta.
+    texto = "Te mando las fotos del viaje a Santander: https://fotos.test/album"
+    assert nivel(pipeline_real, texto) in (RiskLevel.LOW, RiskLevel.INCONCLUSIVE)

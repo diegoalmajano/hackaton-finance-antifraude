@@ -29,7 +29,7 @@
 | Familiar que pide dinero frente a la estafa del «hijo con número nuevo» | MEDIO como máximo si no hay más señales | El texto puede ser idéntico; ninguna regla sabe si el número es el de siempre | El usuario, llamando al número de siempre |
 | Cambio de IBAN legítimo de un proveedor, DNI que pide un colegio, multas reales | MEDIO o NO CONCLUYENTE | No se distingue del fraude por el texto | Verificación por un canal conocido (se recomienda siempre) |
 | Organismos públicos y empresas (Correos, Hacienda, eléctricas) | NO CONCLUYENTE o MEDIO si hay enlace y llamada a la acción | Sus dominios no están verificados (solo `.gob.es` se considera oficial por estar reservado a las administraciones) | Verificar sus dominios en fuentes oficiales |
-| Bancos reales | Ver `backend/data/entities_es.json` | Solo se detectan imitaciones de bancos con dominios **verificados** | Tarea C (dominios verificados con fuente y fecha) |
+| Bancos reales | Dominio oficial incrustado → ALTO; otros dominios con su nombre → MEDIO (incertidumbre) | El registro del Banco de España solo da una web por entidad (cobertura parcial, `docs/DOMINIOS_BANCARIOS.md`) | Completar dominios web y de correo con fuentes de cada entidad |
 | Petición de claves desde el dominio oficial («introduzca su contraseña en la nueva app») | MEDIO | Decisión D-29: una petición de credenciales nunca se considera segura | — (decisión deliberada) |
 | Mensajes en otros idiomas | Cobertura mínima (inglés básico) y aviso de idioma | Las reglas están pensadas para español (R-56) | IA |
 | Contenido dentro de adjuntos o imágenes | No se analiza | Fuera del alcance del MVP (P2) | Fase posterior |

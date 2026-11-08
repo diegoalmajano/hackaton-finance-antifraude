@@ -62,12 +62,18 @@ def test_archivos_de_datos_validos() -> None:
         EntityFile.model_validate_json(f.read_text(encoding="utf-8"))
 
 
-def test_entidades_reales_pendientes_y_sin_dominios() -> None:
+def test_entidades_reales_verificadas_con_fuente_oficial_y_cobertura_parcial() -> None:
+    # Misión 3 (tarea C): dominios del Registro de Entidades del Banco de España (campo PÁGINA WEB).
     reales = EntityFile.model_validate_json(REAL_ENTITIES_FILE.read_text(encoding="utf-8")).entities
     assert {e.entity_id for e in reales} == {"santander", "bbva", "caixabank", "sabadell", "bankinter"}
+    esperados = {"santander": "santander.com", "bbva": "bbva.com", "caixabank": "caixabank.es",
+                 "sabadell": "grupobancosabadell.com", "bankinter": "ebankinter.com"}
     for e in reales:
-        assert e.verification_status is VerificationStatus.PENDING
-        assert e.official_domains == [] and e.verification is None
+        assert e.verification_status is VerificationStatus.VERIFIED
+        assert [d.domain for d in e.official_domains] == [esperados[e.entity_id]]
+        assert e.domain_coverage.value == "partial"  # el registro solo da una web: nunca se presume completa
+        assert e.verification is not None and e.verification.source_url is not None
+        assert e.verification.source_url.startswith("https://www.bde.es/")
 
 
 def test_ningun_dominio_real_sin_verificar_en_los_datos() -> None:
@@ -175,9 +181,11 @@ def test_subdominios_solo_si_se_permiten() -> None:
     assert not d.is_official_host("www.entidad-prueba.es", "entidad_prueba")
 
 
-def test_entidades_pendientes_no_tienen_hosts_oficiales(directorio: EntityDirectory) -> None:
-    for entity_id in ["santander", "bbva", "caixabank", "sabadell", "bankinter"]:
-        assert directorio.official_domains(entity_id) == []
+def test_dominios_registrados_y_sus_subdominios_son_oficiales(directorio: EntityDirectory) -> None:
+    assert directorio.is_official_host("www.bbva.com", "bbva")
+    assert directorio.is_official_host("caixabank.es", "caixabank")
+    assert not directorio.is_official_host("bbva.com.otro.test", "bbva")
+    assert directorio.official_entity_for_host("bbva.es") is None  # no verificado (cobertura parcial)
 
 
 def test_normalize_host() -> None:

@@ -79,6 +79,14 @@ class EntityType(StrEnum):
     OTHER = "other"
 
 
+class DomainCoverage(StrEnum):
+    #: Lista completa: cualquier otro dominio que use el nombre de la entidad es una imitación.
+    COMPLETE = "complete"
+    #: Lista parcial (p. ej. el registro oficial solo da la web corporativa): otro dominio con el nombre de la
+    #: entidad puede ser oficial o una imitación → se declara incertidumbre, no imitación segura.
+    PARTIAL = "partial"
+
+
 class OfficialDomain(ContractModel):
     domain: DomainStrict
     #: Si True, también son oficiales los subdominios reales (``*.dominio``). Nunca coincidencias parciales.
@@ -115,6 +123,7 @@ class FinancialEntity(ContractModel):
     country: str = Field(default="ES", pattern=r"^[A-Z]{2}$")
     verification_status: VerificationStatus
     official_domains: list[OfficialDomain] = Field(default_factory=list, max_length=30)
+    domain_coverage: DomainCoverage = DomainCoverage.COMPLETE
     verification: VerificationRecord | None = None
     notes: list[ShortNote] = Field(default_factory=list, max_length=10)
 

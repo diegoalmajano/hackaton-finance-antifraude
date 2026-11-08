@@ -66,6 +66,8 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "url.brand_in_userinfo": FraudCategory.PHISHING_LINK,
     "url.brand_in_path": FraudCategory.PHISHING_LINK,
     "url.domain_in_subdomain": FraudCategory.PHISHING_LINK,
+    "url.brand_name_unverified": FraudCategory.PHISHING_LINK,
+    "sender.brand_name_unverified": FraudCategory.BANK_IMPERSONATION,
     "content.secrecy": FraudCategory.OTHER,
     "url.unparseable": FraudCategory.PHISHING_LINK,
     "url.brand_in_subdomain": FraudCategory.PHISHING_LINK,
@@ -96,7 +98,7 @@ _CORROBORATORS = {
     "content.urgency", "content.injection_attempt", "content.payment_request",
     "content.obfuscation", "content.invisible_chars", "url.unparseable",
     "content.call_lure", "content.secrecy", "content.debt_lure", "content.public_body_link",
-    "url.brand_in_path", "url.domain_in_subdomain",
+    "url.brand_in_path", "url.domain_in_subdomain", "url.brand_name_unverified", "sender.brand_name_unverified",
 }
 _CRITICAL_ALONE = {"url.brand_in_subdomain", "url.lookalike_domain", "url.brand_in_userinfo",
                    "sender.lookalike_domain"}
