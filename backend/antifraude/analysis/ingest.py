@@ -12,7 +12,9 @@ from __future__ import annotations
 import email
 import email.policy
 import hashlib
+import hmac
 import re
+import secrets
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -23,7 +25,7 @@ from uuid import UUID, uuid4
 from pydantic import ValidationError
 
 from antifraude.analysis.html_text import html_to_text_and_anchors
-from antifraude.analysis.text import clean_text, fold, minimize
+from antifraude.analysis.text import clean_text, fold, has_mixed_script, minimize
 from antifraude.contracts.common import (
     MAX_ATTACHMENTS,
     MAX_RAW_BYTES,
@@ -59,6 +61,9 @@ _URL_RE = re.compile(
     re.IGNORECASE,
 )
 _TRAILING = ".,;:!?)]}»"
+_HASH_KEY = secrets.token_bytes(32)
+#: Máximo de partes MIME de un .eml (protección frente a denegación de servicio).
+MAX_MIME_PARTS = 200
 _QUERY = re.compile(r"[?#].*$", re.DOTALL)
 
 
@@ -93,7 +98,7 @@ def _make_url(raw: str, location: UrlLocation, display: str | None, message_id: 
     raw, _ = clean_text(raw)
     raw = raw.replace("\n", "").replace(" ", "")
     if display is not None:
-        display = clean_text(display)[0][:1000] or None
+        display = minimize(clean_text(display)[0])[:1000] or None
     if not raw:
         return None
     if len(raw) > MAX_URL_CHARS:
@@ -147,7 +152,7 @@ def build_message(
     if body_text.strip() and html_text.strip():
         plain_words = set(fold(body_text).split())
         extra = [w for w in fold(html_text).split() if w not in plain_words]
-        if len(extra) > 5:
+        if len(extra) >= 2:  # cualquier contenido HTML que no esté en el texto plano se analiza
             base_text = body_text + "\n\n" + html_text
             warnings.append("El correo contenía en su versión HTML texto distinto del texto plano; se han analizado ambos.")
     cleaned, invisibles = clean_text(base_text)
@@ -155,6 +160,8 @@ def build_message(
         raise IngestError("El mensaje está vacío.")
     if invisibles:
         warnings.append(f"Se eliminaron {invisibles} caracteres invisibles.")
+    if has_mixed_script((subject or "") + " " + cleaned):
+        warnings.append("Texto oculto: hay palabras que mezclan letras de distintos alfabetos para disimularse.")
     text = minimize(cleaned)  # minimizar ANTES de recortar: la máscara puede alargar el texto
     if len(text) > MAX_TEXT_CHARS:
         text = text[:MAX_TEXT_CHARS]
@@ -180,7 +187,9 @@ def build_message(
         urls = urls[:MAX_URLS_PER_MESSAGE]
         warnings.append("Hay demasiados enlaces; solo se analizan los primeros.")
 
-    content_hash = hashlib.sha256((subject or "").encode() + b"\x00" + base_text.encode()).hexdigest()
+    # HMAC con clave local por ejecución: sirve para deduplicar sin permitir adivinar el contenido (p. ej. un OTP).
+    content_hash = hmac.new(_HASH_KEY, (subject or "").encode() + b"\x00" + base_text.encode(),
+                            hashlib.sha256).hexdigest()
     msg = IncomingMessage(
         id=message_id,
         user_id=user_id,
@@ -269,12 +278,17 @@ def from_eml(raw: bytes, user_id: UUID, *, channel: Channel = Channel.MANUAL, so
              is_simulated: bool = False) -> IngestResult:
     if not raw or len(raw) > MAX_RAW_BYTES:
         raise IngestError("El archivo está vacío o es demasiado grande.")
+    # Pre-comprobación lineal: miles de partes MIME harían el análisis muy lento (revisión de seguridad).
+    if raw.count(b"\n--") > MAX_MIME_PARTS * 2 + 10:
+        raise IngestError("El correo tiene demasiadas partes para analizarlo con seguridad.")
     msg = email.message_from_bytes(raw, policy=email.policy.default)
     assert isinstance(msg, EmailMessage)
     text_parts: list[str] = []
     html_parts: list[str] = []
     attachments: list[AttachmentMeta] = []
-    for part in msg.walk():
+    for n, part in enumerate(msg.walk()):
+        if n > MAX_MIME_PARTS:
+            raise IngestError("El correo tiene demasiadas partes para analizarlo con seguridad.")
         if part.is_multipart():
             continue
         disposition = part.get_content_disposition()

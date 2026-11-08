@@ -50,6 +50,8 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "sender.brand_mismatch": FraudCategory.BANK_IMPERSONATION,
     "sender.body_brand_mismatch": FraudCategory.BANK_IMPERSONATION,
     "content.otp_share": FraudCategory.ACCOUNT_TAKEOVER,
+    "content.obfuscation": FraudCategory.OTHER,
+    "url.unparseable": FraudCategory.PHISHING_LINK,
     "url.brand_in_subdomain": FraudCategory.PHISHING_LINK,
     "url.lookalike_domain": FraudCategory.PHISHING_LINK,
     "url.display_mismatch": FraudCategory.PHISHING_LINK,
@@ -75,6 +77,7 @@ _CORROBORATORS = {
     "sender.brand_mismatch", "sender.body_brand_mismatch", "sender.dmarc_fail", "sender.reply_to_mismatch",
     "content.account_threat",
     "content.urgency", "content.injection_attempt", "content.payment_request",
+    "content.obfuscation", "content.invisible_chars", "url.unparseable",
 }
 _CRITICAL_ALONE = {"url.brand_in_subdomain", "url.lookalike_domain"}
 

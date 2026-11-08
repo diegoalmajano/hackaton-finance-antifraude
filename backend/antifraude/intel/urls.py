@@ -150,8 +150,12 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
                                 "Es un enlace acortado: no se puede saber a dónde lleva sin abrirlo.",
                                 f"acortador {host}"))
         limitations.append("El destino del enlace acortado no se ha comprobado (no se abren enlaces).")
-    if host is None:
-        limitations.append("No se pudo determinar el dominio del enlace.")
+    if host is None or "\\" in url.raw.split("?")[0]:
+        findings.append(_signal("url.unparseable", Severity.MEDIUM,
+                                "El enlace tiene una forma extraña que impide saber a qué web lleva.",
+                                "host indeterminable o barra invertida en la dirección"))
+        if host is None:
+            limitations.append("No se pudo determinar el dominio del enlace.")
 
     comparison = DomainComparison.UNKNOWN
     lookalike_of: str | None = None

@@ -32,21 +32,54 @@ def clean_text(text: str) -> tuple[str, int]:
     return t, invisibles
 
 
+#: Letras de otros alfabetos que imitan a las latinas (revisión de seguridad: evasión por homoglifos).
+_CONFUSABLES = str.maketrans({
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "х": "x", "у": "y", "і": "i", "ј": "j", "ѕ": "s",
+    "ԁ": "d", "һ": "h", "ӏ": "l", "ո": "n", "ս": "u", "к": "k", "м": "m", "т": "t", "в": "b", "н": "h",
+    "α": "a", "ο": "o", "ρ": "p", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "τ": "t", "υ": "u", "χ": "x",
+    "ı": "i", "ɑ": "a", "ɡ": "g",
+})
+_LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s"})
+_LEET_WORD = re.compile(r"\b(?=[a-z0-9@$]*[a-z])(?=[a-z0-9@$]*[0-9@$])[a-z0-9@$]{4,}\b")
+_SPACED = re.compile(r"\b(?:[a-zñ] ){3,}[a-zñ]\b")
+_LATIN = re.compile(r"[a-z]")
+_OTHER_SCRIPT = re.compile("[Ͱ-ϿЀ-ӿԀ-ԯ]")
+
+
+def has_mixed_script(text: str) -> bool:
+    """¿Alguna palabra mezcla letras latinas con griegas o cirílicas? (típico de evasión)."""
+    for word in re.findall(r"\w+", text.lower()):
+        if _LATIN.search(word) and _OTHER_SCRIPT.search(word):
+            return True
+    return False
+
+
 def fold(text: str) -> str:
-    """Minúsculas, sin acentos ni diacríticos, espacios simples (solo para comparar)."""
-    t = unicodedata.normalize("NFKD", text)
+    """Forma canónica para comparar reglas (nunca se muestra al usuario).
+
+    Minúsculas, sin acentos, homoglifos cirílicos/griegos → latinos, «leet» dentro de palabras
+    («c0ntraseña» → «contrasena») y letras espaciadas reunidas («c l a v e» → «clave»).
+    """
+    t = unicodedata.normalize("NFKC", text).casefold().translate(_CONFUSABLES)
+    t = unicodedata.normalize("NFKD", t)
     t = "".join(ch for ch in t if not unicodedata.combining(ch))
-    return " ".join(t.casefold().split())
+    t = " ".join(t.split())
+    t = _SPACED.sub(lambda m: m.group(0).replace(" ", ""), t)
+    t = _LEET_WORD.sub(lambda m: m.group(0).translate(_LEET), t)
+    return t
 
 
 # --- Minimización ---------------------------------------------------------------
-_CARD = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
-_IBAN = re.compile(r"\b([A-Z]{2})(\d{2})((?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?)\b", re.IGNORECASE)
-_CODE_CONTEXT = re.compile(
-    r"((?:c[oó]digo|code|pin|clave|otp|contrase[nñ]a|password|cvv|cvc)\b[^0-9\n]{0,25}?)(\d{4,8})(?!\d)",
-    re.IGNORECASE,
-)
-_PASSWORD_VALUE = re.compile(r"((?:contrase[nñ]a|password|clave)\s*[:=]\s*)(\S+)", re.IGNORECASE)
+_CARD = re.compile(r"(?<!\d)(?:\d[ \t\n.\-/]?){13,19}(?!\d)")
+_IBAN = re.compile(r"\b([A-Z]{2})(\d{2})((?:[ .\-]?[A-Z0-9]{2,4}){4,8})\b", re.IGNORECASE)
+_CCC = re.compile(r"(?<!\d)\d{4}[ .\-]?\d{4}[ .\-]?\d{2}[ .\-]?\d{10}(?!\d)")  # cuenta española antigua
+_KEYWORD = r"(?:c[oó]digo|code|pin|clave|otp|contrase[nñ]a|password|cvv|cvc|verificaci[oó]n|verification|token)"
+_CODE_AFTER = re.compile(rf"(\b{_KEYWORD}\b[^\n.]{{0,60}}?(?:\n[ \t]*)?)(\d(?:[ \-]?\d){{2,9}})(?!\d)", re.IGNORECASE)
+_CODE_BEFORE = re.compile(rf"(?<!\d)(\d(?:[ \-]?\d){{3,9}})(?!\d)(\s+(?:es|is|=)\s+(?:su|tu|el|your)?\s*{_KEYWORD})",
+                          re.IGNORECASE)
+_PASSWORD_VALUE = re.compile(r"((?:contrase[nñ]a|password|clave)\s*(?:[:=]|\bes\b|\bis\b)\s*)(\S+)", re.IGNORECASE)
+_DNI = re.compile(r"\b(\d{8})[ \-]?([A-HJ-NP-TV-Z])\b")
+_PHONE = re.compile(r"(?<![\d+])(?:\+34[ ]?)?[6789]\d{2}[ ]?\d{3}[ ]?\d{3}(?!\d)")
 
 
 def _luhn_ok(digits: str) -> bool:
@@ -77,9 +110,17 @@ def _mask_iban(m: re.Match[str]) -> str:
 
 
 def minimize(text: str) -> str:
-    """Enmascara datos sensibles conservando su significado para el análisis."""
+    """Enmascara datos sensibles conservando su significado para el análisis.
+
+    Tarjetas (Luhn, con cualquier separador), IBAN y cuentas, códigos de 3–10 dígitos junto a palabras
+    como «código», «PIN» o «verificación» (antes o después), contraseñas escritas, DNI y teléfonos.
+    """
     t = _PASSWORD_VALUE.sub(lambda m: m.group(1) + "[OCULTO]", text)
     t = _IBAN.sub(_mask_iban, t)
+    t = _CCC.sub("[CUENTA]", t)
     t = _CARD.sub(_mask_card, t)
-    t = _CODE_CONTEXT.sub(lambda m: m.group(1) + "[CÓDIGO]", t)
+    t = _CODE_AFTER.sub(lambda m: m.group(1) + "[CÓDIGO]", t)
+    t = _CODE_BEFORE.sub(lambda m: "[CÓDIGO]" + m.group(2), t)
+    t = _DNI.sub("[DNI]", t)
+    t = _PHONE.sub("[TELÉFONO]", t)
     return t

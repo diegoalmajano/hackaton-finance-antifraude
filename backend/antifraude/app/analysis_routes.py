@@ -107,7 +107,7 @@ def _render(request: Request, outcome: AnalysisOutcome, session: Session, *, eje
 
 
 @router.post("/analizar", response_class=HTMLResponse)
-async def analizar(
+def analizar(  # síncrona: FastAPI la ejecuta en un hilo y no bloquea el bucle de eventos
     request: Request,
     session: CsrfSessionDep,
     texto: Annotated[str, Form(max_length=MAX_TEXT_FORM_CHARS)] = "",
@@ -119,7 +119,7 @@ async def analizar(
         if archivo is not None and archivo.filename:
             if not archivo.filename.lower().endswith(".eml"):
                 raise UserFacingError(400, "Solo se pueden importar archivos de correo con extensión .eml.")
-            raw = await archivo.read(MAX_RAW_BYTES + 1)
+            raw = archivo.file.read(MAX_RAW_BYTES + 1)
             ingested = from_eml(raw, user_id)
         elif texto.strip():
             ingested = from_manual_text(texto, user_id)

@@ -69,7 +69,7 @@ def _rx(p: str) -> re.Pattern[str]:
 
 _CONTENT_RULES: tuple[_Rule, ...] = (
     _Rule("content.credential_request", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(_REQUEST_VERB + r"\b[^.\n]{0,70}?" + _CREDENTIAL_OBJECT),
+          _rx(_REQUEST_VERB + r"\b[^.\n]{0,120}?" + _CREDENTIAL_OBJECT),
           "Le piden claves, contraseñas o datos de acceso. Su banco nunca se los pedirá por mensaje.",
           "petición de credenciales", negatable=True),
     _Rule("content.otp_request", SignalFamily.CONTENT, Severity.HIGH,
@@ -186,6 +186,10 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
     if any("invisibles" in w for w in message.parse_warnings):
         signals.append(_signal("content.invisible_chars", SignalFamily.CONTENT, Severity.MEDIUM,
                                "El mensaje contenía caracteres ocultos.", "caracteres invisibles eliminados"))
+    if any(w.startswith("Texto oculto") for w in message.parse_warnings):
+        signals.append(_signal("content.obfuscation", SignalFamily.CONTENT, Severity.MEDIUM,
+                               "El mensaje intenta esconder parte de su contenido (texto oculto o letras disfrazadas).",
+                               "ofuscación: texto oculto en HTML, alfabetos mezclados o enlaces con código"))
 
     # --- Remitente --------------------------------------------------------------
     sender = message.sender
