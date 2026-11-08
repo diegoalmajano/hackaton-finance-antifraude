@@ -4,6 +4,8 @@ Asistente de IA que **ayuda a reconocer estafas financieras en mensajes escritos
 
 > **Estado: prototipo académico en desarrollo**, no es un producto comercial. Consulte la sección «Estado y limitaciones». Nada de lo que se muestra como simulado se presenta como real.
 
+Para continuar el desarrollo con Codex: [guía de traspaso](docs/TRASPASO_CODEX.md) e [instrucciones del repositorio](AGENTS.md). Anthropic API permanece desactivada y con presupuesto de 0 USD.
+
 ## 1. Requisitos
 - Windows 10/11 con PowerShell (probado en Windows 11).
 - **Python 3.12** (64 bits). Comprobación: `py -3.12 --version`.

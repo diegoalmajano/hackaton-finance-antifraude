@@ -1,3 +1,5 @@
+> **Traspaso a Codex (08-11-2026):** instrucciones operativas actuales en `AGENTS.md` y `docs/TRASPASO_CODEX.md`. La rama `feat/fase-0` ya está publicada; las menciones anteriores a «sin push» son históricas. Anthropic API sigue sin gasto autorizado (0 USD).
+
 # CLAUDE.md — hackaton-finance-antifraude · memoria operativa del repositorio
 
 > Memoria persistente **propia e independiente** de este repositorio. Mantener < 200 líneas; el detalle vive en `docs/contexto/` (empieza por `docs/contexto/00_INDICE.md`). Última actualización: **2026-11-08 (sesión 6)**.

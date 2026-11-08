@@ -77,3 +77,6 @@ desktop.ini
 
 # ==== Claude Code (configuración personal local) ====
 .claude/settings.local.json
+
+# Copias temporales: descargar el ZIP oficial desde GitHub, no versionarlo.
+*.zip

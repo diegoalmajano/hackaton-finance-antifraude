@@ -93,3 +93,10 @@ Esperar las autorizaciones del usuario (sección «Bloqueos»). Sin ellas, lo m�
 | Revisión independiente del control de gasto (agente, solo lectura) | ✅ sin caminos que eviten el control. Corregidos: 2 ALTOS (libro borrado reiniciaba el presupuesto → copia `.bak` y re-apunte; gasto negativo o no finito aceptado → libro dañado) y MEDIOS (estimación por bytes UTF-8, `PermissionError` del bloqueo en Windows, pago duplicado entre hilos, carrera del bloqueo caducado, libro dentro del repositorio) y BAJOS (4xx no facturables explícitos, respuesta pagada conservada, marca del sellado previa, aviso de presupuesto insuficiente) | ver commit siguiente |
 
 Total de pruebas (misión 3): **674** en verde + 4 de integración real saltadas + 1 `xfail`.
+
+
+## Actualización de traspaso a Codex — 08-11-2026
+- Publicación autorizada en esta solicitud: rama feat/fase-0 subida y verificada en el remoto privado (58bc5f9); el bloqueo histórico del primer push queda cerrado.
+- Continuación con Codex según AGENTS.md y docs/TRASPASO_CODEX.md; ECC no se ejecuta ni se requiere.
+- Verificación local: 674 pruebas correctas, 4 saltadas y 1 fallo esperado; Anthropic desactivado, presupuesto 0 USD, ninguna llamada real durante el traspaso.
+- Las autorizaciones de IA/Gmail reales, revisión humana y evaluación independiente siguen pendientes. No se cambia el proveedor de IA de la aplicación.

@@ -76,3 +76,10 @@
 - (sesión 6) R-29 **Capacidad de un solo desarrollador** → orden D-28, recortar g y después f. · R-30 La seguridad de la API local retrasa el núcleo → límite de tiempo en F0-05. · R-31 Clasificación errónea en los 3 casos de demo (falsos positivos o NO CONCLUYENTE) → ADR-0006 y ensayo desde la fase c.
 - R-20 Novedad frente a competidores consolidados (30 %). · R-21 Prometer canales imposibles (`12` §1). · R-22 Porcentajes sin calibrar (prohibidos, D-14). · R-23 Prompt injection. · R-24 Privacidad de mensajes enviados a la nube. · R-25 Alcance vs 4 días. · R-26 Banco de pruebas circular (IA que escribe y detecta). · R-27 Demo dependiente de red/APIs → modo sin IA real etiquetado. · R-28 Correos de prueba en SPAM.
 - Registro completo con mitigaciones: `14` §7 (incluye la posible pérdida de puntos de IA frontera por no usar audio, aceptada).
+
+
+## Actualización de traspaso a Codex — 08-11-2026
+- Publicación autorizada en esta solicitud: rama feat/fase-0 subida y verificada en el remoto privado (58bc5f9); el bloqueo histórico del primer push queda cerrado.
+- Continuación con Codex según AGENTS.md y docs/TRASPASO_CODEX.md; ECC no se ejecuta ni se requiere.
+- Verificación local: 674 pruebas correctas, 4 saltadas y 1 fallo esperado; Anthropic desactivado, presupuesto 0 USD, ninguna llamada real durante el traspaso.
+- Las autorizaciones de IA/Gmail reales, revisión humana y evaluación independiente siguen pendientes. No se cambia el proveedor de IA de la aplicación.
