@@ -1,0 +1,5 @@
+# Finales de línea coherentes en Windows (core.autocrlf) sin alterar archivos de terceros.
+* text=auto
+
+# Recursos vendorizados: se conservan byte a byte (sus huellas SHA-256 están registradas en docs/DEPENDENCIAS.md, R-42).
+vendor/** -text -diff
