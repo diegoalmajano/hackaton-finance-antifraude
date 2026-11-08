@@ -1,4 +1,4 @@
-# Guion de la demostración (≈ 5 minutos) — BORRADOR
+# Guion de la demostración (≈ 5 minutos)
 
 > Reglas: la demo es la **versión entregada** (mismo commit que el ZIP). Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
 
@@ -13,6 +13,7 @@
 3. Navegador en `http://127.0.0.1:8790/`, zoom al 125–150 % para que se lea desde la sala.
 4. Tener copiado en el portapapeles un mensaje de phishing de ejemplo **ficticio** (por ejemplo el de la sección «Texto libre» más abajo).
 5. Plan B: si el portátil falla, el mismo flujo en otro ordenador con el ZIP. No hay plan B «grabado».
+6. Resultados esperados (comprobados con `rules-0.2.0`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
 
 ## Desarrollo
 | Min. | Qué se hace | Qué se dice (idea) |

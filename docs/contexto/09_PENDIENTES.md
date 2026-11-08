@@ -5,10 +5,20 @@
 ## 0. Autorizaciones pendientes del usuario para completar el MVP (sesión 6)
 - **IA real:** instalar `anthropic` (SDK oficial) + clave + **presupuesto** para la comparativa Opus/Sonnet (D-24, D-32).
 - **Gmail real:** proyecto GCP + OAuth «Desktop» + cuenta de pruebas (B-04) e instalar `google-auth-oauthlib`, `google-api-python-client`, `keyring`.
-- **Publicación:** push a GitHub (el ZIP oficial se descarga de GitHub) y verificación del ZIP en carpeta limpia.
+- **Publicación:** push a GitHub (el ZIP oficial se descarga de GitHub). La copia local equivalente (`git archive`) ya se verificó en una carpeta limpia: 528 pruebas en verde y el servidor arranca.
 - **Revisión humana** de los 27 casos sintéticos (R-47) y de las dudas del agente de datos (dev-0009, dev-0025, dev-0027).
 - **Dominios bancarios reales** (V-27) y **nombre del producto** (A-07).
 - (sesión 6) Riesgos nuevos: R-55 dominio registrable aproximado **sin PSL** (lista corta de sufijos); R-56 reglas **solo en español** (inglés/catalán no se detectan por contenido; documentarlo); R-57 los casos dev se usaron para ajustar el motor → sus métricas no son evaluación; R-58 accesibilidad corregida solo por revisión estática (falta navegador real y lector de pantalla); R-59 HTML > 300 KB se analiza solo en parte (declarado).
+- (misión 2) Riesgos abiertos de la prueba adversarial:
+  - R-60 (P5): un correo oficial con enlaces de terceros (encuestas, redes, seguimiento de clics) sale MEDIO.
+  - R-61 (P6): un tercero que menciona un banco y pone un enlace sale MEDIO.
+  - R-62 (P7): sin IA, los mensajes informativos con una sola señal media quedan en NO CONCLUYENTE.
+  - R-63 (A12): sin dominios verificados no se detectan imitaciones de bancos reales (depende de V-27).
+  - R-64 (A17): un enlace a `.apk`/`.exe` no es señal propia.
+  - R-65: las reglas son patrones; habrá variantes no cubiertas. Por eso hace falta la evaluación independiente (`eval/METODOLOGIA_INDEPENDIENTE.md`) y la IA como segunda capa.
+- (misión 2) **Pendiente de verificación:**
+  - V-28: el kwarg `fallbacks` del SDK y la compilación de `anyOf` en la API real (`docs/AUDITORIA_CLAUDE_API.md`).
+  - V-29: `build_gmail_service` con las librerías reales de Google.
 
 ## 1. Bloqueantes para empezar a programar
 - B-01 (actualizado sesión 6) ~~Aprobación del MVP y de los ADR~~ ✅ (D-26, `docs/adr/`). Pendiente: **aprobación del plan de la Fase 0** (`14` §11, P-16) y de sus instalaciones (Python 3.12 + dependencias de `14` §11.4).

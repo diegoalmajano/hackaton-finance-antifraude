@@ -67,6 +67,14 @@ Regla: una PROPUESTA solo pasa a CONFIRMADA cuando el usuario lo dice. Añadir e
 - D-04 (límites de la inicialización de la sesión 1) → cumplida; sustituida por D-20.
 - P-11 (índice 0–100) → **superada por D-14**. P-12 (MVP v1 con voz, BancoNova, Opus) → **superada por D-12/D-14 y P-14**.
 
+| D-56 | 2026-11-08 (sesión 6, misión 2) | **Misión autónoma 2 (finalización del MVP sin credenciales ni pagos).** Decisiones técnicas tomadas dentro del mandato, revisables por el usuario:
+(1) Cambios de etiquetas dev justificados y trazados en `eval/CAMBIOS_ETIQUETAS.md` (dev-0009, dev-0015, dev-0027). Los casos con nivel esperado NO CONCLUYENTE se informan aparte y no cuentan como falsos positivos.
+(2) Reglas `rules-0.2.0` tras la prueba adversarial. La negación solo anula su propia cláusula. Los consejos de seguridad («nunca facilite…») no son peticiones. Teclear un OTP en el propio servicio no es compartirlo, salvo que sea en un enlace o una respuesta. «Hijo con número nuevo» es un señuelo grave.
+(3) **No** se implementa «≥2 evidencias altas de fuentes distintas ⇒ ALTO», porque marcaba como ALTO a proveedores legítimos. El motor rebaja ALTO a MEDIO si no hay evidencia alta.
+(4) Límite de 30 análisis por minuto y sesión.
+(5) Las pruebas del `.gitignore` se hacen en un repositorio temporal, para que la suite pase desde el ZIP.
+(6) El PDF se genera con Edge sin interfaz (perfil temporal, sin red de fondo) y el PPTX con PowerPoint COM; sin dependencias nuevas. |
+
 ## Propuestas vigentes (NO confirmadas)
 | ID | Fecha | Propuesta | Notas |
 |---|---|---|---|

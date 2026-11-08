@@ -37,7 +37,8 @@
 | Etapa D (interfaz) | ✅ **Implementado y probado**: análisis manual real, resultado explicado, historial sin texto, modo demo etiquetado; revisión a11y aplicada; **pendiente prueba real** con navegador/lector de pantalla |
 | Etapa E (Gmail) | 🟡 conector **probado con Gmail SIMULADO**; ⛔ conexión real **bloqueada** (OAuth + librerías) |
 | Etapa F (entrega) | 🟡 27 casos dev + informe de métricas de desarrollo; borradores de guion, resumen y presentación; **faltan** PDF/PPTX maquetados, ZIP oficial (requiere push) y evaluación sellada |
-| Pruebas | **436** automáticas en verde |
+| Misión 2 (finalización sin credenciales) | ✅ Auditoría de la API de Claude (sin llamadas). Gmail preparado para OAuth (simulado). Revisión ciega de etiquetas y metodología independiente. Prueba adversarial corregida (78 regresiones). PPTX y PDF de una cara generados. Arranque verificado desde una copia limpia del ZIP. Detalle en `15` |
+| Pruebas | **528** automáticas en verde (repo y copia limpia del ZIP) |
 
 ## Próximos pasos
 1. ~~Trasladar el repositorio~~ ✅ · ~~Primer commit~~ ✅ local · ~~Instalar ECC~~ ✅ · ~~Aprobar arquitectura~~ ✅ (D-26).

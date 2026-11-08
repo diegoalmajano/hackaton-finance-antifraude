@@ -76,7 +76,7 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación y directorio de entidades. Todas son locales: no usan Internet ni APIs de pago.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **528 pruebas en verde**, también desde una copia limpia del proyecto (sin `.git`), como la que se descarga en ZIP.
 
 ## 6. Seguridad y privacidad (resumen)
 - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y no hay recursos externos.
@@ -100,6 +100,16 @@ Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuraci�
 | Idioma de los mensajes | Las reglas están pensadas para **español**; mensajes en otros idiomas pueden no detectarse por su contenido |
 
 Más detalle: `docs/contexto/15_SEGUIMIENTO.md`, `08_PROGRESO.md` y `09_PENDIENTES.md`.
+
+Documentación útil:
+| Documento | Contenido |
+|---|---|
+| `docs/ARQUITECTURA.md` | Resumen de la arquitectura para el jurado |
+| `docs/AUDITORIA_CLAUDE_API.md` | Integración con Claude comparada con la documentación oficial: qué está verificado y qué no |
+| `docs/GMAIL_CONFIGURACION.md` | Pasos para conectar Gmail cuando se autoricen OAuth y las librerías |
+| `eval/METODOLOGIA_INDEPENDIENTE.md` | Cómo se hará la evaluación independiente (conjunto sellado fuera del repositorio) |
+| `eval/CAMBIOS_ETIQUETAS.md` | Correcciones de etiquetas del conjunto de desarrollo, con su justificación |
+| `docs/entrega/` | Presentación (PPTX), resumen de una cara (PDF) y guion de la demo |
 
 ## 8. Estructura
 ```
