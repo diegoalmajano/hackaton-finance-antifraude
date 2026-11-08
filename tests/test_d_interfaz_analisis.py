@@ -128,3 +128,14 @@ def test_html_del_resultado_compatible_con_csp(harness: Harness) -> None:
     harness.pair()
     html = analizar(harness, PHISHING)
     assert not re.search(r"<script|\sstyle=|\son[a-z]+=", html)
+
+
+def test_limite_de_analisis_por_sesion(harness: Harness) -> None:
+    harness.pair()
+    h = cabeceras(harness)
+    for _ in range(30):
+        assert harness.client.post("/analizar", data={"texto": "hola"}, headers=h).status_code == 200
+    r = harness.client.post("/analizar", data={"texto": "hola"}, headers=h)
+    assert r.status_code == 429 and "Espere un minuto" in r.json()["detail"]
+    harness.clock.advance(61)
+    assert harness.client.post("/analizar", data={"texto": "hola"}, headers=h).status_code == 200

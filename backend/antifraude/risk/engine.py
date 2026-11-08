@@ -50,6 +50,7 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "sender.brand_mismatch": FraudCategory.BANK_IMPERSONATION,
     "sender.body_brand_mismatch": FraudCategory.BANK_IMPERSONATION,
     "content.otp_share": FraudCategory.ACCOUNT_TAKEOVER,
+    "content.credential_request_en": FraudCategory.CREDENTIAL_THEFT,
     "content.obfuscation": FraudCategory.OTHER,
     "url.unparseable": FraudCategory.PHISHING_LINK,
     "url.brand_in_subdomain": FraudCategory.PHISHING_LINK,
@@ -63,7 +64,7 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
 
 #: Peticiones que nunca son seguras (D-29).
 _SENSITIVE_REQUESTS = {"content.credential_request", "content.otp_request", "content.card_request",
-                       "content.otp_share"}
+                       "content.otp_share", "content.credential_request_en"}
 _PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request"}
 #: Señuelos graves: con una corroboración de otra señal, el nivel es ALTO (ADR-0006, regla 1).
 _LURES = _SENSITIVE_REQUESTS | {
@@ -260,6 +261,8 @@ def assess(
                 uncertainties.append(f"No se pudo completar la comprobación «{c.name}».")
     for ua in url_analyses:
         uncertainties += [lim for lim in ua.limitations if lim not in uncertainties]
+    if any(s.code == "context.non_spanish" for s in screening.signals):
+        uncertainties.append("El mensaje no parece estar en español; la revisión del texto está pensada para español.")
     if level is RiskLevel.INCONCLUSIVE and not uncertainties:
         uncertainties.append("Hay indicios débiles que no permiten concluir si el mensaje es seguro.")
     uncertainties = uncertainties[:50]

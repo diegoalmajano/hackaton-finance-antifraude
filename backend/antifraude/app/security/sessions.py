@@ -37,6 +37,8 @@ class Session:
     last_seen: float
     #: Historial de la sesión: solo nivel, título y hora; NUNCA el texto del mensaje. Se pierde al cerrar.
     history: list[dict[str, str]] = field(default_factory=list)
+    #: Marcas de tiempo de los últimos análisis (límite de uso por sesión, R-36).
+    recent_analyses: list[float] = field(default_factory=list)
 
 
 class SessionStore:
@@ -97,6 +99,10 @@ class SessionStore:
             return
         with self._lock:
             self._sessions.pop(_digest(raw_id), None)
+
+    def now(self) -> float:
+        """Reloj del almacén (inyectable en las pruebas)."""
+        return self._clock()
 
     @property
     def active_count(self) -> int:

@@ -111,3 +111,21 @@ def test_huella_de_contenido_no_es_sha256_simple() -> None:
     import hashlib
     m = from_manual_text("Tu código es 4829", USER).message
     assert m.content_hash != hashlib.sha256(b"\x00Tu c\xc3\xb3digo es 4829").hexdigest()
+
+
+# --- Pendientes de seguridad resueltos en la misión 2 ------------------------------------------
+def test_ingles_basico_y_aviso_de_idioma(pipeline: AnalysisPipeline) -> None:
+    out = pipeline.run(from_manual_text(
+        "Dear customer, please enter your password and PIN at https://evil.test/login to keep your account active.", USER))
+    assert out.assessment.risk_level in (RiskLevel.MEDIUM, RiskLevel.HIGH)
+    assert any("no parece estar en español" in u for u in out.assessment.uncertainties)
+
+
+def test_espanol_no_genera_aviso_de_idioma(pipeline: AnalysisPipeline) -> None:
+    out = pipeline.run(from_manual_text("Su pedido llegará mañana entre las nueve y las dos. No tiene que pagar nada.", USER))
+    assert not any("español" in u for u in out.assessment.uncertainties)
+
+
+def test_ancho_completo_es_senal_de_ofuscacion(pipeline: AnalysisPipeline) -> None:
+    out = pipeline.run(from_manual_text("Acceda a ｂａｎｃｏ-falso.example/login para revisar su cuenta", USER))
+    assert any("ofuscación" in e.description_tech for e in out.assessment.evidence)

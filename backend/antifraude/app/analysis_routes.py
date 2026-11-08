@@ -56,6 +56,19 @@ CHECK_VIEW = {
 }
 
 
+#: Límite de análisis por sesión y minuto (R-36): evita saturar el servidor local.
+MAX_ANALYSES_PER_MINUTE = 30
+
+
+def _check_rate(request: Request, session: Session) -> None:
+    now = request.app.state.security.sessions.now()
+    session.recent_analyses[:] = [t for t in session.recent_analyses if now - t < 60.0]
+    if len(session.recent_analyses) >= MAX_ANALYSES_PER_MINUTE:
+        raise UserFacingError(429, "Ha hecho muchas comprobaciones seguidas. Espere un minuto y vuelva a intentarlo.",
+                              {"Retry-After": "60"})
+    session.recent_analyses.append(now)
+
+
 def _pipeline(request: Request) -> AnalysisPipeline:
     pipeline: AnalysisPipeline = request.app.state.pipeline
     return pipeline
@@ -113,6 +126,7 @@ def analizar(  # síncrona: FastAPI la ejecuta en un hilo y no bloquea el bucle 
     texto: Annotated[str, Form(max_length=MAX_TEXT_FORM_CHARS)] = "",
     archivo: Annotated[UploadFile | None, File()] = None,
 ) -> Response:
+    _check_rate(request, session)
     user_id = uuid5(_NAMESPACE, session.csrf_token)  # identificador estable por sesión, sin datos personales
     try:
         ingested: IngestResult
@@ -135,6 +149,7 @@ def analizar(  # síncrona: FastAPI la ejecuta en un hilo y no bloquea el bucle 
 def analizar_ejemplo(request: Request, numero: int, session: CsrfSessionDep) -> Response:
     if not request.app.state.settings.demo_mode:
         raise UserFacingError(404, "Los ejemplos solo están disponibles en el modo demostración.")
+    _check_rate(request, session)
     casos = {c.demo_order: c for c in load_cases([DEMO_FILE]) if c.demo_order}
     caso = casos.get(numero)
     if caso is None:

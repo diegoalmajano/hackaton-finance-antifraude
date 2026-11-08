@@ -81,7 +81,12 @@ class IngestResult:
 def _extract_urls(text: str, location: UrlLocation, message_id: UUID, start: int,
                   warnings: list[str]) -> list[ExtractedUrl]:
     found: list[ExtractedUrl] = []
-    # NFKC: los caracteres de ancho completo («ｂａｎｃｏ.example») se convierten a su forma normal.
+    # NFKC: los caracteres de ancho completo («ｂａｎｃｏ.example») se convierten a su forma normal,
+    # pero se deja constancia: escribir una dirección así es una forma de disfrazarla.
+    if any("！" <= ch <= "～" for ch in text):
+        note = "Texto oculto: hay letras o direcciones escritas con caracteres especiales de ancho completo."
+        if note not in warnings:
+            warnings.append(note)
     for m in _URL_RE.finditer(unicodedata.normalize("NFKC", text)):
         raw = m.group(0).rstrip(_TRAILING)
         if not raw:

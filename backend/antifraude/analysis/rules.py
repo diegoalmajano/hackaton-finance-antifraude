@@ -72,6 +72,12 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
           _rx(_REQUEST_VERB + r"\b[^.\n]{0,120}?" + _CREDENTIAL_OBJECT),
           "Le piden claves, contraseñas o datos de acceso. Su banco nunca se los pedirá por mensaje.",
           "petición de credenciales", negatable=True),
+    # Peticiones de credenciales en inglés (cobertura mínima; las reglas están pensadas para español, R-56).
+    _Rule("content.credential_request_en", SignalFamily.CONTENT, Severity.HIGH,
+          _rx(r"\b(enter|confirm|verify|update|provide|submit|send|reply with|log ?in with)\b[^.\n]{0,60}?"
+              r"\b(password|passcode|pin|login details|card number|cvv|security code|verification code|one[- ]time code)"),
+          "Le piden claves, códigos o datos de tarjeta (mensaje en inglés). Su banco nunca se los pedirá por mensaje.",
+          "petición de credenciales (inglés)", negatable=True),
     _Rule("content.otp_request", SignalFamily.CONTENT, Severity.HIGH,
           _rx(_REQUEST_VERB + r"\b[^.\n]{0,70}?" + _OTP_OBJECT),
           "Le piden un código de verificación (de un solo uso). No lo comparta nunca.",
@@ -156,6 +162,17 @@ def _is_negated(folded: str, start: int, end: int, no_need: bool) -> bool:
     return False
 
 
+_ES_WORDS = frozenset("de la que el en y los su por para con una es se del las le no un al lo como mas pero sus "
+                      "este esta usted su sea muy ya".split())
+
+
+def _looks_non_spanish(folded: str) -> bool:
+    words = re.findall(r"[a-z]+", folded)
+    if len(words) < 8:
+        return False
+    return sum(w in _ES_WORDS for w in words) / len(words) < 0.06
+
+
 def mentioned_entities(text: str, directory: EntityDirectory) -> list[FinancialEntity]:
     """Entidades del directorio cuyo nombre o alias aparece como palabra completa en ``text``."""
     folded = fold(text)
@@ -190,6 +207,11 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
         signals.append(_signal("content.obfuscation", SignalFamily.CONTENT, Severity.MEDIUM,
                                "El mensaje intenta esconder parte de su contenido (texto oculto o letras disfrazadas).",
                                "ofuscación: texto oculto en HTML, alfabetos mezclados o enlaces con código"))
+
+    if _looks_non_spanish(folded):
+        signals.append(_signal("context.non_spanish", SignalFamily.CONTEXT, Severity.LOW,
+                               "El mensaje no parece estar en español: algunas comprobaciones del texto podrían no detectarlo todo.",
+                               "idioma probablemente no español"))
 
     # --- Remitente --------------------------------------------------------------
     sender = message.sender
