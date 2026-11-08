@@ -30,7 +30,8 @@ Todo funciona sin configurar nada. Las variables se definen en la consola. El as
 | `APP_PORT` | `8790` | Puerto local (siempre `127.0.0.1`) |
 | `APP_LOG_LEVEL` | `INFO` | Detalle de los registros |
 | `ANTHROPIC_API_KEY` | vacía | Análisis con IA (opcional; sin clave, la IA figura como «no configurada») |
-| `CLAUDE_MODEL` | vacío | Modelo de Claude (pendiente de elegir por medición) |
+| `CLAUDE_MODEL` | vacío | Modelo de Claude: `claude-sonnet-5-5` previsto para las primeras pruebas; `claude-opus-5-5` solo con `AI_ALLOW_OPUS=1` |
+| `AI_ENABLED` / `AI_BUDGET_USD` | `0` / `0` | La IA está **desactivada** y el gasto autorizado es **0 USD** por defecto. Más límites en `docs/CONTROL_COSTES_IA.md` |
 
 ## 4. Ejecución
 ```powershell
@@ -62,7 +63,21 @@ $env:APP_DEMO_MODE = "1"
 Carga la entidad ficticia «Banco Ficticio» y tres **ejemplos sintéticos** que se analizan con un clic: aviso legítimo, estafa evidente y estafa sofisticada. Todo va etiquetado como «EJEMPLO SINTÉTICO»; ningún dato es real.
 
 ### Análisis con IA (opcional)
-Requiere la librería oficial `anthropic` (su instalación está **pendiente de autorización**), una clave (`ANTHROPIC_API_KEY`) y un modelo (`CLAUDE_MODEL`: `claude-opus-5-5` o `claude-sonnet-5-5`; la elección se hará midiendo). Sin ellos, la aplicación funciona con reglas y análisis de enlaces, y lo indica: «análisis parcial — IA no disponible».
+**Desactivado por defecto y sin gasto autorizado.** Requiere:
+- la librería oficial `anthropic` (instalación **pendiente de autorización**);
+- `AI_ENABLED=1`;
+- una clave (`ANTHROPIC_API_KEY`);
+- un modelo (`CLAUDE_MODEL`);
+- un presupuesto **autorizado** (`AI_BUDGET_USD`).
+
+Cada solicitud pasa por un **control de gasto local**:
+- estimación del peor caso y reserva previa en un libro de gasto fuera del repositorio;
+- límites de tokens y de solicitudes;
+- una solicitud a la vez;
+- sin reintentos ni cambio a otros modelos;
+- registro del coste real sin guardar contenido.
+
+Detalle: `docs/CONTROL_COSTES_IA.md`. Sin IA, la aplicación funciona con reglas y análisis de enlaces, y lo indica: «análisis parcial — IA no disponible».
 
 ### Métricas del conjunto de desarrollo
 ```powershell
@@ -76,7 +91,7 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **528 pruebas en verde**, también desde una copia limpia del proyecto (sin `.git`), como la que se descarga en ZIP.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **659 pruebas en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`. También pasan desde una copia limpia del proyecto (sin `.git`), como la que se descarga en ZIP.
 
 ## 6. Seguridad y privacidad (resumen)
 - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y no hay recursos externos.
@@ -92,9 +107,11 @@ Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuraci�
 | Motor de riesgo determinista (4 niveles, sin porcentajes; un error nunca da BAJO) | Implementado y probado |
 | Alertas preventiva y definitiva con explicación, evidencias, incertidumbres y recomendaciones | Implementado y probado |
 | Interfaz accesible en español con sesión segura | Implementada; prueba manual en navegador hecha; pendientes: CSP en consola, teclado completo, zoom 200 % y contraste medido |
-| Análisis con Claude | Implementado y probado **con respuestas simuladas**; sin llamadas reales (falta autorizar la librería y el presupuesto) |
+| Análisis con Claude | Implementado y probado **con respuestas simuladas**; sin llamadas reales (falta autorizar la librería y el presupuesto). **Gasto real: 0 USD** |
+| Control de gasto de la IA | Implementado y probado con clientes simulados (31 pruebas) |
 | Gmail | Conector implementado y probado con un **Gmail simulado**; conexión real **bloqueada** (credenciales OAuth y librerías no autorizadas) |
-| Directorio de bancos reales | Preparado; **dominios oficiales pendientes de verificar** (por eso la demo usa el banco ficticio) |
+| Directorio de bancos reales | 5 dominios web tomados del **Registro de Entidades del Banco de España**, con cobertura **parcial** (`docs/DOMINIOS_BANCARIOS.md`); la demo usa el banco ficticio |
+| Límites de la detección sin IA | Documentados en `docs/LIMITACIONES_DETECCION.md` |
 | RDAP y reputación de URLs | No configurados (opcionales; se declaran como no comprobados) |
 | Escritorio (bandeja, notificaciones nativas) | No implementado (fase opcional) |
 | Idioma de los mensajes | Las reglas están pensadas para **español**; mensajes en otros idiomas pueden no detectarse por su contenido |
@@ -109,6 +126,11 @@ Documentación útil:
 | `docs/GMAIL_CONFIGURACION.md` | Pasos para conectar Gmail cuando se autoricen OAuth y las librerías |
 | `eval/METODOLOGIA_INDEPENDIENTE.md` | Cómo se hará la evaluación independiente (conjunto sellado fuera del repositorio) |
 | `eval/CAMBIOS_ETIQUETAS.md` | Correcciones de etiquetas del conjunto de desarrollo, con su justificación |
+| `eval/EJECUCION.md` | Cómo ejecutar la evaluación reproducible (reglas frente a Claude; conjunto sellado) |
+| `docs/CONTROL_COSTES_IA.md` | Control de gasto de la IA; límite local frente al límite de facturación |
+| `docs/PRUEBAS_INTEGRACION_REAL.md` | Pruebas con Claude y Gmail reales (preparadas, no ejecutadas) |
+| `docs/DOMINIOS_BANCARIOS.md` | Dominios de bancos reales: fuente oficial, fecha y cobertura |
+| `docs/LIMITACIONES_DETECCION.md` | Lo que la detección por reglas no puede resolver |
 | `docs/entrega/` | Presentación (PPTX), resumen de una cara (PDF) y guion de la demo |
 
 ## 8. Estructura

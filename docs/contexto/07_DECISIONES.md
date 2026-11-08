@@ -75,6 +75,21 @@ Regla: una PROPUESTA solo pasa a CONFIRMADA cuando el usuario lo dice. Añadir e
 (5) Las pruebas del `.gitignore` se hacen en un repositorio temporal, para que la suite pase desde el ZIP.
 (6) El PDF se genera con Edge sin interfaz (perfil temporal, sin red de fondo) y el PPTX con PowerPoint COM; sin dependencias nuevas. |
 
+| D-57 | 2026-11-08 (sesión 6, misión 3) | **Misión autónoma 3 (robustecimiento).** Decisiones dentro del mandato, revisables por el usuario:
+(1) **Control de gasto de la IA:**
+- IA desactivada por defecto y gasto **autorizado 0 USD** (el previsto, 0,50 USD, NO está autorizado).
+- Sonnet 5.5 como modelo previsto para las primeras pruebas; Opus bloqueado salvo `AI_ALLOW_OPUS=1`. El modelo sigue siendo configuración sin valor por defecto; ADR-0007 no cambia.
+- Sin *fallback* de modelo y sin reintentos.
+- Reserva del peor caso en un libro de gasto fuera del repositorio; una solicitud a la vez.
+(2) **Bancos reales:** dominios web del Registro de Entidades del Banco de España con **cobertura parcial**. Otro dominio con el nombre del banco produce incertidumbre (MEDIO), no imitación segura; un dominio oficial incrustado en otro sigue siendo crítico.
+(3) **Reglas `rules-0.3.0`:**
+- La urgencia sola es una señal leve, pero sigue corroborando señuelos.
+- Las multas y deudas solo cuentan con enlace o teléfono.
+- Un organismo público con enlace no verificable (salvo `.gob.es`) nunca da BAJO.
+(4) **Contenido largo:** se revisan el principio y el final, y el análisis se declara parcial (`ingest.complete`).
+(5) **Evaluación:** el ejecutor reproducible exige `--confirmar-gasto` para la IA. El modo sellado va fuera del repositorio, con huella y una sola ejecución.
+(6) **Gmail:** máximo 40 mensajes por consulta, por la cuota; cola de pendientes sin pérdidas silenciosas. |
+
 ## Propuestas vigentes (NO confirmadas)
 | ID | Fecha | Propuesta | Notas |
 |---|---|---|---|

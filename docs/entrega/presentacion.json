@@ -43,10 +43,10 @@
     {"titulo": "Modelo de negocio", "puntos": [
       "Cliente: bancos españoles, como capa de protección para sus clientes (marca blanca)",
       "Coste: las reglas no cuestan nada por mensaje; la IA solo se usa en los sospechosos",
-      "Coste real por análisis con IA: pendiente de medir con presupuesto autorizado",
+      "Control de gasto local: IA desactivada por defecto, presupuesto y límites; coste real aún sin medir",
       "Valor para el banco: menos fraude y más confianza de sus clientes vulnerables"]},
     {"titulo": "Calidad comprobada", "puntos": [
-      "528 pruebas automáticas (contratos, seguridad, interfaz, motor, regresiones)",
+      "659 pruebas automáticas (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto)",
       "Revisiones independientes: código, seguridad, accesibilidad, etiquetas y pruebas adversariales",
       "Métricas de DESARROLLO solo para ajustar (no son evaluación independiente)",
       "Metodología de evaluación independiente preparada (conjunto sellado pendiente)"]},
@@ -54,7 +54,7 @@
       "Hoy: análisis manual completo, interfaz accesible y modo demostración",
       "Preparado y probado con simulaciones: IA (Claude) y Gmail",
       "Siguiente: Gmail real con OAuth, comparativa de modelos con presupuesto",
-      "Después: directorio de bancos verificados, aplicación de escritorio, voz (fase 2)"]},
+      "Después: completar dominios de bancos (hoy, registro del Banco de España), escritorio, voz (fase 2)"]},
     {"titulo": "Gracias", "subtitulo": "Un asistente que explica, reconoce sus límites y deja decidir al usuario\n¿Preguntas?"}
   ]
 }

@@ -70,7 +70,7 @@
 - **Revisión humana** de los 27 casos sintéticos (R-47).
 - Nombre del producto; hora de cierre del hackatón (Q-01); cerrar el proceso Python 3.14 inactivo.
 
-## Total de pruebas: **528** en verde (última ejecución, en el repo y en una copia limpia del ZIP).
+## Total de pruebas (misión 2): **528**. Ver la sección de la misión 3 para el total vigente.
 
 ## Próxima acción
 Esperar las autorizaciones del usuario (sección «Bloqueos»). Sin ellas, lo más útil es:
@@ -82,10 +82,14 @@ Esperar las autorizaciones del usuario (sección «Bloqueos»). Sin ellas, lo m�
 ## Misión 3 (robustecimiento) — registro vivo
 | Tarea | Estado | Commit |
 |---|---|---|
-| A — Control de costes de la API (sin llamadas reales) | ✅ `ai/budget.py`, `docs/CONTROL_COSTES_IA.md`; 31 pruebas simuladas | `6dbfea3` |
+| A — Control de costes de la API (sin llamadas reales) | ✅ `ai/budget.py`, `docs/CONTROL_COSTES_IA.md`; 31 pruebas simuladas. **Gasto real: 0 USD** | `6dbfea3` |
 | E — Gmail: duplicados acotados, fallos comunicados, keyring seguro, desconexión | ✅ (simulado) | `6dbfea3` |
-| Revisión de seguridad (agente, solo lectura) | informe recibido: 2 ALTOS (relleno >100k → BAJO; CR/LF en From rompe la ingesta), 3 MEDIOS, 4 BAJOS | pendiente de corregir |
-| Revisión adversarial ronda 3 (agente, ~245 casos) | informe recibido: A1–A10, B1–B4, D (límites) | pendiente de corregir |
-| C — Dominios bancarios reales | pendiente | — |
-| E — Pruebas de integración real (preparadas, saltadas) | pendiente | — |
-| F — Evaluación reproducible (reglas vs Claude, sellado) | pendiente | — |
+| D — Revisión de seguridad (agente, solo lectura): 2 ALTOS, 3 MEDIOS, 4 BAJOS | ✅ corregidos: relleno → cabeza+cola y parcial; cabeceras CR/LF; límite antes de minimizar; nombre mostrado minimizado y dentro del bloque; citas ≥8 caracteres; contactos fuera del texto libre de la IA; frecuencia atómica; SSE revalidado; OSV: 0 vulnerabilidades | `86b22c0` |
+| B — Ronda adversarial 3 (agente, ~245 casos) | ✅ `rules-0.3.0`; 66 regresiones + 1 `xfail` (limitación); `docs/LIMITACIONES_DETECCION.md` | `502337f` |
+| C — Dominios bancarios reales | ✅ 5 webs del Registro de Entidades del Banco de España (05/11/2026), cobertura parcial; `docs/DOMINIOS_BANCARIOS.md`. Revisión humana pendiente | `34f2540` |
+| E — Pruebas de integración real (Claude y Gmail) | ✅ preparadas y saltadas por defecto; `docs/PRUEBAS_INTEGRACION_REAL.md` | `5944318` |
+| F — Evaluación reproducible (reglas frente a Claude; sellado) | ✅ `python -m antifraude.evaluation --modo/--sellado`; `eval/EJECUCION.md` | `5944318` |
+| E — Gmail: mensajes por encima del máximo y errores transitorios se perdían | ✅ cola de pendientes; máximo 40 por consulta (cuota) | `5944318` |
+| Revisión independiente del control de gasto (agente, solo lectura) | en curso | — |
+
+Total de pruebas (misión 3): **659** en verde + 4 de integración real saltadas + 1 `xfail`.

@@ -13,8 +13,15 @@
   - R-60 (P5): un correo oficial con enlaces de terceros (encuestas, redes, seguimiento de clics) sale MEDIO.
   - R-61 (P6): un tercero que menciona un banco y pone un enlace sale MEDIO.
   - R-62 (P7): sin IA, los mensajes informativos con una sola señal media quedan en NO CONCLUYENTE.
-  - R-63 (A12): sin dominios verificados no se detectan imitaciones de bancos reales (depende de V-27).
+  - R-63 (A12): **mitigado en la misión 3.** Hay 5 dominios del registro del Banco de España con cobertura parcial, y las imitaciones con el nombre del banco dan MEDIO, no ALTO. **Pendiente:** completar los dominios web y de correo con las fuentes de cada entidad (V-27, revisión humana).
   - R-64 (A17): un enlace a `.apk`/`.exe` no es señal propia.
+- (misión 3) Riesgos y pendientes nuevos:
+  - R-66: el límite de gasto es **preventivo y local**; el efectivo es el de Anthropic Console. Fijarlo antes de autorizar gasto (`docs/CONTROL_COSTES_IA.md` §4).
+  - R-67: el coste real por análisis, la latencia y los rechazos con Claude siguen **sin medir** (V-28).
+  - R-68: la urgencia sola ya no alerta. Es una decisión contra los falsos positivos; podría bajar la detección de estafas que solo meten prisa (lo cubre la IA).
+  - R-69: un 403 de Gmail por cuota se trata como fallo de autorización.
+  - R-70: el registro del Banco de España da solo la web corporativa. Un correo real del banco desde otro dominio sale MEDIO o NO CONCLUYENTE (incertidumbre declarada).
+  - Limitaciones de las reglas: `docs/LIMITACIONES_DETECCION.md`.
   - R-65: las reglas son patrones; habrá variantes no cubiertas. Por eso hace falta la evaluación independiente (`eval/METODOLOGIA_INDEPENDIENTE.md`) y la IA como segunda capa.
 - (misión 2) **Pendiente de verificación:**
   - V-28: el kwarg `fallbacks` del SDK y la compilación de `anyOf` en la API real (`docs/AUDITORIA_CLAUDE_API.md`).

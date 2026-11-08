@@ -38,7 +38,15 @@
 | Etapa E (Gmail) | 🟡 conector **probado con Gmail SIMULADO**; ⛔ conexión real **bloqueada** (OAuth + librerías) |
 | Etapa F (entrega) | 🟡 27 casos dev + informe de métricas de desarrollo; borradores de guion, resumen y presentación; **faltan** PDF/PPTX maquetados, ZIP oficial (requiere push) y evaluación sellada |
 | Misión 2 (finalización sin credenciales) | ✅ Auditoría de la API de Claude (sin llamadas). Gmail preparado para OAuth (simulado). Revisión ciega de etiquetas y metodología independiente. Prueba adversarial corregida (78 regresiones). PPTX y PDF de una cara generados. Arranque verificado desde una copia limpia del ZIP. Detalle en `15` |
-| Pruebas | **528** automáticas en verde (repo y copia limpia del ZIP) |
+| Misión 3 (robustecimiento, sin credenciales) | ✅
+- Control de gasto de la IA (sin llamadas reales).
+- Seguridad: 2 ALTOS y 3 MEDIOS corregidos, SSE revalidado, OSV sin vulnerabilidades.
+- Detección `rules-0.3.0` (ronda adversarial de unos 245 casos).
+- 5 dominios bancarios del registro del Banco de España.
+- Ejecutor de evaluación reproducible y pruebas de integración real preparadas.
+- Gmail sin pérdidas silenciosas.
+- Detalle en `15`. |
+| Pruebas | **659** automáticas en verde (+4 de integración real saltadas, +1 `xfail` de limitación conocida) |
 
 ## Próximos pasos
 1. ~~Trasladar el repositorio~~ ✅ · ~~Primer commit~~ ✅ local · ~~Instalar ECC~~ ✅ · ~~Aprobar arquitectura~~ ✅ (D-26).
