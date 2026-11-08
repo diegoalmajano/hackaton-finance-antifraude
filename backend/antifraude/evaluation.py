@@ -73,6 +73,11 @@ class Metrics:
     inconclusive: int
     level_ok: int
     latencies_ms: list[int] = field(default_factory=list)
+    #: Casos etiquetados NO CONCLUYENTE: no son «legítimos» ni «fraude»; se excluyen de
+    #: precisión/recall/FP y se informan aparte (revisión de etiquetas, sesión 6).
+    ambiguous_n: int = 0
+    ambiguous_level_ok: int = 0
+    ambiguous_alerted: int = 0
 
     @property
     def precision(self) -> float | None:
@@ -119,6 +124,13 @@ def evaluate(cases: Iterable[EvalCase], pipeline: AnalysisPipeline) -> tuple[lis
     m = Metrics(n=len(results), tp=0, fp=0, fn=0, tn=0, inconclusive=0, level_ok=0,
                 latencies_ms=[r.latency_ms for r in results])
     for r in results:
+        m.inconclusive += r.obtained is RiskLevel.INCONCLUSIVE
+        m.level_ok += r.level_ok
+        if r.expected is RiskLevel.INCONCLUSIVE:
+            m.ambiguous_n += 1
+            m.ambiguous_level_ok += r.level_ok
+            m.ambiguous_alerted += r.alerted
+            continue
         if r.must_alert and r.alerted:
             m.tp += 1
         elif not r.must_alert and r.alerted:
@@ -127,8 +139,6 @@ def evaluate(cases: Iterable[EvalCase], pipeline: AnalysisPipeline) -> tuple[lis
             m.fn += 1
         else:
             m.tn += 1
-        m.inconclusive += r.obtained is RiskLevel.INCONCLUSIVE
-        m.level_ok += r.level_ok
     return results, m
 
 
@@ -143,7 +153,9 @@ def report(results: list[CaseResult], m: Metrics) -> str:
         "INFORME DE DESARROLLO — conjunto dev (casos sintéticos, la mayoría redactados con IA).",
         "AVISO: el motor se ha ajustado con estos mismos casos; estas cifras NO son una evaluación",
         "independiente ni deben presentarse como rendimiento real. Sin IA (solo reglas + enlaces).",
-        f"Casos: {m.n} (deben alertar: {pos}; no deben alertar: {neg})",
+        f"Casos: {m.n} (deben alertar: {pos}; legítimos: {neg}; ambiguos NO CONCLUYENTE, aparte: {m.ambiguous_n})",
+        f"Ambiguos: nivel aceptable {m.ambiguous_level_ok}/{m.ambiguous_n}; con alerta {m.ambiguous_alerted}"
+        " (no cuentan como falsos positivos)",
         f"VP={m.tp} FP={m.fp} FN={m.fn} VN={m.tn} | NO CONCLUYENTE={m.inconclusive} | nivel aceptable={m.level_ok}/{m.n}",
         f"Precision={_fmt(m.precision)}  Recall={_fmt(m.recall)}  F1={_fmt(m.f1)}  Tasa FP={_fmt(m.false_positive_rate)}",
     ]

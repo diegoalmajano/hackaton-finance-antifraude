@@ -57,7 +57,7 @@ Observaciones del usuario (D-52):
 - **Evaluación final sellada (`sealed_test`)**: **fuera del repositorio** y no consultable por los agentes durante el desarrollo (D-40). **Todavía no existe**; su ubicación está pendiente (T-14). Procedimiento: `SELLADO.md`.
 
 ## 6. Métricas previstas (cuando exista el detector)
-Clase positiva = **fraude** (`expected.must_alert = true`). Predicción positiva = el sistema alerta, es decir, MEDIO o ALTO.
+Clase positiva = **fraude** (`expected.must_alert = true`). Predicción positiva = el sistema alerta, es decir, MEDIO o ALTO. Los casos etiquetados **NO CONCLUYENTE** se excluyen de la precisión y de la tasa de falsos positivos, y se informan aparte (ver `CAMBIOS_ETIQUETAS.md`). Metodología de la evaluación independiente: `METODOLOGIA_INDEPENDIENTE.md`.
 
 | Métrica | Definición | Para qué |
 |---|---|---|
