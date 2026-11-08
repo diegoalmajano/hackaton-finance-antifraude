@@ -97,6 +97,7 @@ Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuraci�
 | Directorio de bancos reales | Preparado; **dominios oficiales pendientes de verificar** (por eso la demo usa el banco ficticio) |
 | RDAP y reputación de URLs | No configurados (opcionales; se declaran como no comprobados) |
 | Escritorio (bandeja, notificaciones nativas) | No implementado (fase opcional) |
+| Idioma de los mensajes | Las reglas están pensadas para **español**; mensajes en otros idiomas pueden no detectarse por su contenido |
 
 Más detalle: `docs/contexto/15_SEGUIMIENTO.md`, `08_PROGRESO.md` y `09_PENDIENTES.md`.
 

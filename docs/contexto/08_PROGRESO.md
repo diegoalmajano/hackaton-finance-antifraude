@@ -28,6 +28,17 @@
 | README / PDF / PPTX | 🔴 No iniciados |
 | Herramientas (ECC) | ✅ Instalado (sesión 6): plugin `ecc@ecc` con alcance local, hooks desactivados (`hooks_enabled=false`), MCP `chrome-devtools` desactivado; reglas de uso en `CLAUDE.md` §10 bis |
 
+## Desarrollo autónomo hacia el MVP (D-54, sesión 6) — detalle en `15_SEGUIMIENTO.md`
+| Área | Estado |
+|---|---|
+| Etapa A (F0-10) | ✅ README completo, `.gitattributes` |
+| Etapa B (motor) | ✅ **Implementado y probado**: ingesta texto/.eml/HTML, minimización, enlaces pasivos, reglas, motor determinista, alertas en 2 fases; revisado por agentes independientes (Python y seguridad) y corregido |
+| Etapa C (IA) | ✅ **Implementado; probado solo con respuestas SIMULADAS** (0 llamadas reales; SDK y presupuesto pendientes) |
+| Etapa D (interfaz) | ✅ **Implementado y probado**: análisis manual real, resultado explicado, historial sin texto, modo demo etiquetado; revisión a11y aplicada; **pendiente prueba real** con navegador/lector de pantalla |
+| Etapa E (Gmail) | 🟡 conector **probado con Gmail SIMULADO**; ⛔ conexión real **bloqueada** (OAuth + librerías) |
+| Etapa F (entrega) | 🟡 27 casos dev + informe de métricas de desarrollo; borradores de guion, resumen y presentación; **faltan** PDF/PPTX maquetados, ZIP oficial (requiere push) y evaluación sellada |
+| Pruebas | **436** automáticas en verde |
+
 ## Próximos pasos
 1. ~~Trasladar el repositorio~~ ✅ · ~~Primer commit~~ ✅ local · ~~Instalar ECC~~ ✅ · ~~Aprobar arquitectura~~ ✅ (D-26).
 2. **Aprobar el plan de la Fase 0** (`14` §11), el método de sesión de la API local (T-13) y las instalaciones de `14` §11.4.

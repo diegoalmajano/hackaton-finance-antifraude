@@ -2,6 +2,14 @@
 
 > Adaptado (sesión 5) del documento homónimo de la memoria original: solo lo vigente para el asistente antifraude (las preguntas y riesgos de la idea fiscal son históricos y se omiten). Identificadores originales conservados. Cerrar una entrada = anotarlo aquí con fecha y fuente.
 
+## 0. Autorizaciones pendientes del usuario para completar el MVP (sesión 6)
+- **IA real:** instalar `anthropic` (SDK oficial) + clave + **presupuesto** para la comparativa Opus/Sonnet (D-24, D-32).
+- **Gmail real:** proyecto GCP + OAuth «Desktop» + cuenta de pruebas (B-04) e instalar `google-auth-oauthlib`, `google-api-python-client`, `keyring`.
+- **Publicación:** push a GitHub (el ZIP oficial se descarga de GitHub) y verificación del ZIP en carpeta limpia.
+- **Revisión humana** de los 27 casos sintéticos (R-47) y de las dudas del agente de datos (dev-0009, dev-0025, dev-0027).
+- **Dominios bancarios reales** (V-27) y **nombre del producto** (A-07).
+- (sesión 6) Riesgos nuevos: R-55 dominio registrable aproximado **sin PSL** (lista corta de sufijos); R-56 reglas **solo en español** (inglés/catalán no se detectan por contenido; documentarlo); R-57 los casos dev se usaron para ajustar el motor → sus métricas no son evaluación; R-58 accesibilidad corregida solo por revisión estática (falta navegador real y lector de pantalla); R-59 HTML > 300 KB se analiza solo en parte (declarado).
+
 ## 1. Bloqueantes para empezar a programar
 - B-01 (actualizado sesión 6) ~~Aprobación del MVP y de los ADR~~ ✅ (D-26, `docs/adr/`). Pendiente: **aprobación del plan de la Fase 0** (`14` §11, P-16) y de sus instalaciones (Python 3.12 + dependencias de `14` §11.4).
 - B-02 (actualizado sesión 5) Repositorio: ✅ creado e independiente (D-23). ~~Traslado~~ ✅ hecho y verificado (sesión 6, 2026-11-08) · remoto ✅ comprobado (accesible, vacío) · primer commit ✅ local (sesión 6). Pendiente: **primer push** (con autorización).
