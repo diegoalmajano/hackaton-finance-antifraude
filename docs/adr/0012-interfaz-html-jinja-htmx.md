@@ -21,3 +21,6 @@ UI renderizada en servidor con **plantillas Jinja2** y **htmx** para interaccion
 - Interactividad rica más limitada que en un SPA.
 ### Riesgos
 - Scripts en línea incompatibles con CSP estricta (ADR-0013) → sin JS en línea; configuración de htmx por atributos/archivo local.
+
+## Implementación F0-06 (2026-11-08)
+htmx 2.0.11 desde `vendor/htmx/` (ruta `/vendor/htmx/htmx.min.js`). Incompatibilidades detectadas por inspección de `htmx.min.js` y neutralizadas con `<meta name="htmx-config">` (D-47): inserta un `<style>` en línea para los indicadores (`includeIndicatorStyles` → `false`; los indicadores se definen en `app.css`); usa `eval`/`new Function` para `hx-on`, `js:` y `hx-vars` (`allowEval` → `false`; esos atributos no se usan); guarda copias de página en `sessionStorage` para el historial (`historyEnabled` → `false`, `historyCacheSize` → `0`). Aún escribe en `sessionStorage` la clave `htmx-current-path-for-history` (solo la ruta, sin datos). **Pendiente:** confirmarlo en un navegador real (V-26).

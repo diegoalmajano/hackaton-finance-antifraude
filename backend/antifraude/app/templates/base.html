@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  {# Configuración de htmx compatible con la CSP estricta (ADR-0012/0013):
+     sin eval, sin <style> en línea, sin historial en sessionStorage. #}
+  <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"historyEnabled":false,"historyCacheSize":0,"selfRequestsOnly":true,"refreshOnHistoryMiss":false}'>
+  <title>{% block title %}Asistente antifraude{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/vendor/htmx/htmx.min.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body{% if autenticado %} data-autenticado="1"{% endif %}>
+  <a class="saltar" href="#contenido">Saltar al contenido principal</a>
+
+  <header class="cabecera">
+    <div class="cabecera-interior">
+      <a class="marca" href="/">
+        <span class="marca-icono" aria-hidden="true">🛡️</span>
+        <span>Asistente antifraude</span>
+      </a>
+      {% block cabecera_acciones %}{% endblock %}
+    </div>
+  </header>
+
+  <div id="aviso-global" class="mensaje mensaje-global" role="alert" aria-live="assertive" hidden></div>
+
+  <main id="contenido" class="contenido" tabindex="-1">
+    <noscript>
+      <p class="mensaje" data-tipo="error">Para usar el asistente necesita tener activado JavaScript en el navegador.</p>
+    </noscript>
+    {% block contenido %}{% endblock %}
+  </main>
+
+  <footer class="pie">
+    <p>Prototipo académico. Funciona solo en este ordenador.</p>
+    <p><strong>Recuerde:</strong> su banco nunca le pedirá contraseñas, PIN ni códigos por mensaje.</p>
+  </footer>
+</body>
+</html>

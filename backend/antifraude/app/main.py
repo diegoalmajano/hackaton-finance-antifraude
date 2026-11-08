@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from antifraude.app.auth_routes import router as auth_router
+from antifraude.app.pages import router as pages_router
+from antifraude.app.safe_errors import SafeErrorMiddleware
 from antifraude.app.errors import install_error_handlers
 from antifraude.app.events import router as events_router
 from antifraude.app.health import router as health_router
@@ -20,6 +24,10 @@ from antifraude.app.security.middleware import (
 from antifraude.app.security.pairing import CodeSink, PairingManager, console_code_sink
 from antifraude.app.security.sessions import SessionStore
 from antifraude.core.config import Settings, get_settings
+
+STATIC_DIR = Path(__file__).parent / "static"
+#: htmx vendorizado en el repositorio (vendor/htmx), servido localmente sin CDN.
+VENDOR_HTMX_DIR = Path(__file__).resolve().parents[3] / "vendor" / "htmx"
 
 
 def create_app(
@@ -48,6 +56,9 @@ def create_app(
         sessions=SessionStore(clock=clock),
     )
     install_error_handlers(app)
+    # Orden: el último añadido es el más externo. SafeErrorMiddleware queda dentro del
+    # middleware de seguridad, así las respuestas 500 también llevan sus cabeceras.
+    app.add_middleware(SafeErrorMiddleware)
     app.add_middleware(
         LocalSecurityMiddleware,
         allowed_hosts=allowed_hosts_for(settings.port),
@@ -56,6 +67,11 @@ def create_app(
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(events_router)
+    app.include_router(pages_router)
+    if not (VENDOR_HTMX_DIR / "htmx.min.js").is_file():
+        raise RuntimeError(f"No se encuentra htmx en {VENDOR_HTMX_DIR}; revise la instalación (vendor/htmx).")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/vendor/htmx", StaticFiles(directory=VENDOR_HTMX_DIR), name="htmx")
     if issue_initial_code:
         app.state.security.pairing.issue_code()
     return app

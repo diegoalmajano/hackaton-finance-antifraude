@@ -46,7 +46,7 @@ Los puntos ⏳ de los ADR **no están verificados**. Cambiar un ADR exige uno nu
 - **Un desarrollador** asistido por Claude Code y ECC (D-33). Orden (D-28): a) análisis manual → b) reglas + enlaces → c) motor de riesgo + explicaciones → d) Claude real → e) UI accesible + alertas → f) Gmail real → g) escritorio (pywebview/bandeja/toasts) si queda tiempo.
 - Monolito modular de **6 paquetes**: `connectors` · `analysis` · `intel` · `ai` · `risk` · `app` (+ `contracts`, `core/security`) (ADR-0001).
 - **Python 3.12 + FastAPI + Pydantic v2 + SQLite**; UI **HTML + Jinja + htmx** vendorizado; **web local en navegador primero** (ADR-0002, 0011, 0012). Electron y Tauri descartados.
-- **API local** (ADR-0013): solo `127.0.0.1`; sesión en cookie HttpOnly/SameSite=Strict; Host, Origin y CSRF; **sin tokens en URLs**; SSE protegido; CSP estricta. Método de sesión: T-13 pendiente.
+- **API local** (ADR-0013): solo `127.0.0.1`; sesión en cookie HttpOnly/SameSite=Strict; Host, Origin y CSRF; **sin tokens en URLs**; SSE protegido; CSP estricta. Sesión: emparejamiento con código de un solo uso (D-39, T-13 resuelto), parámetros D-45; el código se envía solo en el cuerpo de `POST /pairing`, nunca en URLs ni respuestas.
 - **Riesgo** (ADR-0006): comprobaciones `done`/`failed`/`not_configured`; solo las obligatorias fallidas impiden BAJO; **credenciales/OTP desde dominio aparentemente oficial = mínimo MEDIO**.
 - **Enlaces estrictamente pasivos** (sin visitar, sin DNS de dominios sospechosos, sin seguir acortadores); RDAP y reputación complementarias (ADR-0005, 0009).
 - Gmail por **polling de `history.list`**; la **demo principal no depende de Gmail** (D-34): respaldo análisis manual + simulado etiquetado (ADR-0004).
@@ -61,10 +61,10 @@ Los puntos ⏳ de los ADR **no están verificados**. Cambiar un ADR exige uno nu
 - Máquina del usuario (sesión 6): Git 2.53, Node 24; Python 3.10, 3.11, 3.13 y 3.14 (predeterminado) preexistentes + **3.12.10 instalado para el proyecto** (gestor oficial; `py -3.12`); sin Rust; sin `gh`. Entorno del repo: `.venv` (3.12); dependencias en `docs/DEPENDENCIAS.md`.
 
 ## 8. Estado actual (sesión 6)
-- **Implementado:** memoria propia del repo y `.gitignore`; traslado verificado; primer commit local `2f27d7f` (sin push); ECC instalado (local, hooks off; MCP `chrome-devtools` sin herramientas disponibles desde la sesión 6, desactivado por el usuario según lo observado); **arquitectura aprobada y `docs/adr/` creado** (sin commit).
-- **Fase 0 aprobada (D-38) y en curso por etapas** en la rama local `feat/fase-0`: F0-01–F0-05 hechas (146 tests en verde; puerto 8790, D-42; seguridad D-45); F0-06–F0-10 esperan autorización. Sesión: emparejamiento con código de un solo uso (D-39). Test sellado fuera del repo (D-40).
-- **Pendiente:** revisión de F0-01/F0-02 · ubicación del test sellado (T-14) · modelo Opus/Sonnet (T-11) · commit de la sesión 6 y primer push · cuenta Gmail + GCP (B-04) · hora de cierre (Q-01) · clave y presupuesto de Anthropic (Q-25, T-06) · bancos del directorio (T-10).
-- **Sin código** (D-10). Siguiente fase tras aprobación: **Fase 0 técnica** (`14` §11.2).
+- **Implementado:** memoria propia del repo; ECC instalado (local, hooks off; MCP `chrome-devtools` sin herramientas desde la sesión 6); arquitectura aprobada (`docs/adr/`). Commits locales en `feat/fase-0`: `2f27d7f` (docs) y **`28cdc3d`** (backend seguro hasta F0-05, D-46). **Sin push.**
+- **Fase 0 (D-38), por etapas:** F0-01–F0-05 **aprobadas** (Python 3.12.10, dependencias fijadas, esqueleto, contratos, seguridad de la API local con 146 tests); **F0-06 aprobada** (interfaz Jinja + htmx; prueba manual del usuario OK; CSP/teclado/zoom/contraste pendientes, V-26); **F0-07 aprobada** (`.env.example`, `docs/CONFIGURACION.md`, registros privados, D-49/D-50; 190 tests); commit local de F0-06+F0-07. **F0-08 autorizada** (banco de evaluación). F0-09–F0-10 esperan autorización. Test sellado fuera del repo (D-40).
+- **Pendiente:** F0-08 en curso · ubicación del test sellado (T-14) · modelo Opus/Sonnet (T-11) · primer push · cuenta Gmail + GCP (B-04) · hora de cierre (Q-01) · clave y presupuesto de Anthropic (Q-25, T-06) · bancos del directorio (T-10).
+- Aún **sin detector de fraude, sin Claude y sin Gmail**. Siguiente etapa tras aprobación: F0-07 (`14` §11.2).
 
 ## 9. Protocolo de desarrollo
 1. **Fases:** Plan → Contrato → Código → Pruebas → Revisión → Documentación → **aprobación del usuario** antes de la siguiente fase (D-20). Autonomía solo dentro de una fase aprobada.
@@ -73,7 +73,7 @@ Los puntos ⏳ de los ADR **no están verificados**. Cambiar un ADR exige uno nu
 4. **Git:** ramas `feat/<modulo>-<tema>`, `fix/…`, `docs/…`; PR pequeños; sin force-push, sin borrar ramas, sin reescribir historial; **pedir autorización antes de commits, pushes, PR o cualquier operación remota**.
 5. **Contratos** Pydantic como fuente única (propuesta `13` §4); cambios solo por PR revisado.
 6. **Dependencias:** cada librería se justifica (ADR o PR); verificar versión, licencia y compatibilidad al instalar; no instalar nada sin aprobación de la fase.
-7. **Secretos:** `.env` local (nunca versionado) + `.env.example` sin valores; `client_secret*.json` fuera del repo; tokens OAuth en keyring; logs sin contenido de mensajes.
+7. **Secretos:** variables de entorno en PowerShell (no se carga `.env`; ver `docs/CONFIGURACION.md`) + `.env.example` sin valores; `client_secret*.json` fuera del repo; tokens OAuth en keyring; logs sin contenido de mensajes.
 8. **Costes:** pedir autorización antes de ejecuciones de pago masivas (p. ej. banco completo con Claude real); registrar `usage` por análisis.
 
 ## 10. Reglas de colaboración

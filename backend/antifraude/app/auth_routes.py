@@ -35,16 +35,24 @@ def _set_session_cookie(response: Response, raw_id: str) -> None:
     )
 
 
+def _is_htmx(request: Request) -> bool:
+    return request.headers.get("hx-request") == "true"
+
+
 @router.post("/pairing", status_code=204)
 def pair(
+    request: Request,
     code: Annotated[str, Form(max_length=PAIRING_MAX_INPUT_CHARS)],
     response: Response,
     security: SecurityDep,
 ) -> None:
+    """El código llega SOLO en el cuerpo del POST; nunca en la URL ni en la respuesta."""
     result = security.pairing.verify(code)
     if result.outcome is VerifyOutcome.SUCCESS:
         raw_id, _ = security.sessions.create()
         _set_session_cookie(response, raw_id)
+        if _is_htmx(request):
+            response.headers["HX-Redirect"] = "/panel"  # navegación de la interfaz (F0-06)
         response.status_code = 204
         return
     if result.outcome is VerifyOutcome.INVALID:
@@ -94,4 +102,6 @@ def session_info(session: SessionDep) -> SessionInfo:
 def logout(request: Request, response: Response, _: CsrfSessionDep, security: SecurityDep) -> None:
     security.sessions.revoke(request.cookies.get(SESSION_COOKIE_NAME))
     response.delete_cookie(SESSION_COOKIE_NAME, path="/", httponly=True, samesite="strict")
+    if _is_htmx(request):
+        response.headers["HX-Redirect"] = "/"
     response.status_code = 204

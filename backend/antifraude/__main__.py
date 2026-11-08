@@ -1,21 +1,49 @@
 """Arranque local: ``python -m antifraude`` (desde la carpeta ``backend``).
 
-Escucha únicamente en 127.0.0.1 (ADR-0013).
+Escucha únicamente en 127.0.0.1 (ADR-0013). La configuración se toma de
+variables de entorno (ver ``.env.example`` y ``docs/CONFIGURACION.md``); no se
+carga ningún archivo ``.env`` automáticamente.
 """
 
 from __future__ import annotations
 
 import sys
+from collections.abc import Mapping
 
 import uvicorn
+from pydantic import ValidationError
 
 from antifraude.app.main import create_app
-from antifraude.core.config import ensure_loopback_host, get_settings
+from antifraude.core.config import Settings, ensure_loopback_host
+from antifraude.core.logging import build_log_config
 from antifraude.core.network import PortUnavailableError, ensure_port_available
+
+#: Explicación de cada ajuste para el usuario. Nunca se muestra el valor recibido.
+CONFIG_HELP: dict[str, str] = {
+    "port": "APP_PORT debe ser un número entero entre 1024 y 65535 (por defecto, 8790).",
+    "log_level": "APP_LOG_LEVEL debe ser DEBUG, INFO, WARNING o ERROR (por defecto, INFO).",
+    "anthropic_api_key": "ANTHROPIC_API_KEY no tiene un formato válido.",
+    "claude_model": "CLAUDE_MODEL no tiene un formato válido.",
+}
+
+
+def load_settings(environ: Mapping[str, str] | None = None) -> Settings | None:
+    """Carga los ajustes o explica en español qué variable revisar (sin mostrar valores)."""
+    try:
+        return Settings.from_env(environ)
+    except ValidationError as exc:
+        print("ERROR: la configuración del asistente no es válida.", file=sys.stderr)
+        campos = sorted({str(err["loc"][0]) for err in exc.errors() if err.get("loc")})
+        for campo in campos:
+            print(f"  - {CONFIG_HELP.get(campo, 'Hay una variable de entorno no válida.')}", file=sys.stderr)
+        print("Consulte docs/CONFIGURACION.md.", file=sys.stderr)
+        return None
 
 
 def main() -> int:
-    settings = get_settings()
+    settings = load_settings()
+    if settings is None:
+        return 2
     host = ensure_loopback_host(settings.host)
     try:
         ensure_port_available(host, settings.port)
@@ -27,6 +55,7 @@ def main() -> int:
         host=host,
         port=settings.port,
         log_level=settings.log_level.lower(),
+        log_config=build_log_config(settings.log_level),
         access_log=False,  # sin registro de rutas ni parámetros (logs mínimos)
         proxy_headers=False,  # no confiar en cabeceras X-Forwarded-*
         server_header=False,  # no anunciar el servidor
