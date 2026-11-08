@@ -36,8 +36,11 @@ def parse_env_example() -> dict[str, str]:
 
 # --- .env.example ---------------------------------------------------------------
 def test_env_example_cubre_todas_las_variables_leidas() -> None:
-    leidas = set(re.findall(r'"([A-Z][A-Z0-9_]+)" in env', CONFIG_SRC.read_text(encoding="utf-8")))
-    assert leidas == {"APP_PORT", "APP_LOG_LEVEL", "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "APP_DEMO_MODE"}
+    fuente = CONFIG_SRC.read_text(encoding="utf-8")
+    leidas = set(re.findall(r'"([A-Z][A-Z0-9_]+)" in env', fuente)) | set(re.findall(r'\("(AI_[A-Z_]+)", "', fuente))
+    assert leidas == {"APP_PORT", "APP_LOG_LEVEL", "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "APP_DEMO_MODE",
+                      "AI_ENABLED", "AI_ALLOW_OPUS", "AI_BUDGET_USD", "AI_MAX_INPUT_TOKENS", "AI_MAX_OUTPUT_TOKENS",
+                      "AI_MAX_REQUESTS", "AI_THINKING", "AI_EFFORT", "AI_LEDGER_PATH"}
     assert set(parse_env_example()) == leidas
 
 
@@ -45,6 +48,8 @@ def test_env_example_sin_secretos_ni_modelo_decidido() -> None:
     valores = parse_env_example()
     assert valores["ANTHROPIC_API_KEY"] == ""
     assert valores["CLAUDE_MODEL"] == ""  # elección pendiente (D-24, D-32)
+    # Control de gasto (misión 3): todo cerrado por defecto en el ejemplo.
+    assert valores["AI_ENABLED"] == "0" and valores["AI_ALLOW_OPUS"] == "0" and valores["AI_BUDGET_USD"] == "0"
     texto = ENV_EXAMPLE.read_text(encoding="utf-8")
     assert not re.search(r"sk-ant-[A-Za-z0-9]", texto)
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Sequence
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -25,6 +26,8 @@ from antifraude.contracts.input_adapter import InputAdapter
 from antifraude.contracts.messages import Channel, RawFormat, RawMessage
 
 MAX_MESSAGES_PER_POLL = 50
+#: Memoria de identificadores ya entregados (evita duplicados sin crecer sin límite).
+MAX_SEEN_IDS = 10_000
 RESYNC_RECENT = 20
 
 
@@ -63,6 +66,15 @@ class ConnectorStatus(StrEnum):
 class GmailState:
     history_id: str | None = None
     seen_ids: set[str] = field(default_factory=set)
+    _order: deque[str] = field(default_factory=deque, repr=False)
+
+    def mark_seen(self, message_id: str) -> None:
+        if message_id in self.seen_ids:
+            return
+        self.seen_ids.add(message_id)
+        self._order.append(message_id)
+        while len(self._order) > MAX_SEEN_IDS:
+            self.seen_ids.discard(self._order.popleft())
 
 
 class GmailConnector(InputAdapter):
@@ -73,6 +85,9 @@ class GmailConnector(InputAdapter):
         self.state = state or GmailState()
         self.status = ConnectorStatus.NOT_STARTED
         self.last_error: str | None = None
+        #: Mensajes recibidos que NO se pueden analizar (vacíos o demasiado grandes): nunca se descartan en
+        #: silencio; el sondeo los comunica para mostrar un aviso «no se pudo analizar» (revisión de seguridad A2).
+        self.unanalyzable: list[str] = []
 
     def _collect(self) -> list[str]:
         if self.state.history_id is None:
@@ -108,8 +123,9 @@ class GmailConnector(InputAdapter):
                 return out
             except Exception:
                 continue  # se reintentará en la siguiente consulta (no se marca como visto)
-            self.state.seen_ids.add(mid)
+            self.state.mark_seen(mid)
             if not raw or len(raw) > MAX_RAW_BYTES:
+                self.unanalyzable.append(mid[:256])
                 continue
             out.append(RawMessage(channel=Channel.GMAIL, raw_format=RawFormat.RFC822, payload=raw,
                                   received_at=received or datetime.now(timezone.utc),

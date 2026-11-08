@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -84,8 +86,11 @@ def create_app(
     # Pipeline de análisis: entidades ficticias solo en modo demostración (R-54); IA solo si se configura.
     directory = EntityDirectory.load_default(include_fictitious=settings.demo_mode)
     api_key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
-    analyzer = ClaudeAnalyzer(model=settings.claude_model, api_key=api_key)
+    analyzer = ClaudeAnalyzer(policy=settings.ai_policy(), api_key=api_key)
     app.state.ai_configured = analyzer.configured and _sdk_available()
+    if not app.state.ai_configured:  # motivo sin datos sensibles (nunca la clave)
+        logging.getLogger("antifraude.ai").info("IA no activa: %s", analyzer.blocked_reason
+                                                or "la librería oficial «anthropic» no está instalada.")
     app.state.pipeline = AnalysisPipeline(directory, analyzer)
     if not (VENDOR_HTMX_DIR / "htmx.min.js").is_file():
         raise RuntimeError(f"No se encuentra htmx en {VENDOR_HTMX_DIR}; revise la instalación (vendor/htmx).")

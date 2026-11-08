@@ -8,8 +8,17 @@
 |---|---|---|---|
 | `APP_PORT` | Puerto local (siempre en `127.0.0.1`). Entero 1024–65535 | `8790` | No |
 | `APP_LOG_LEVEL` | Detalle de los registros: `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` | No |
-| `ANTHROPIC_API_KEY` | Clave de la API de Anthropic (fase d; **aún no se usa**) | vacía → IA «no configurada» | **Sí** |
-| `CLAUDE_MODEL` | Modelo de Claude (fase d; **aún no se usa**). Elección pendiente (D-24, D-32) | vacío | No |
+| `ANTHROPIC_API_KEY` | Clave de la API de Anthropic (**no autorizada aún**) | vacía → IA «no configurada» | **Sí** |
+| `CLAUDE_MODEL` | Modelo de Claude: `claude-sonnet-5-5` (previsto para las primeras pruebas) o `claude-opus-5-5` (requiere `AI_ALLOW_OPUS=1`) | vacío | No |
+| `AI_ENABLED` | Permite usar la IA. Sin él no se envía nada | `0` | No |
+| `AI_ALLOW_OPUS` | Permiso expreso para Opus 5.5 (más caro) | `0` | No |
+| `AI_BUDGET_USD` | Presupuesto **autorizado** (límite preventivo local, máx. 10). Previsto: 0,50, **no autorizado** | `0` | No |
+| `AI_MAX_INPUT_TOKENS` / `AI_MAX_OUTPUT_TOKENS` | Límites por solicitud | `6000` / `4000` | No |
+| `AI_MAX_REQUESTS` | Solicitudes por sesión (proceso) | `20` | No |
+| `AI_THINKING` / `AI_EFFORT` | `adaptive`/`off` (off solo Sonnet) · `low`/`medium`/`high` | `adaptive` / `low` | No |
+| `AI_LEDGER_PATH` | Libro de gasto (fuera del repositorio) | `%LOCALAPPDATA%\antifraude\gasto_ia.json` | No |
+
+Detalle del control de gasto: `docs/CONTROL_COSTES_IA.md`.
 
 La dirección de escucha **no** es configurable: siempre `127.0.0.1` (ADR-0013).
 

@@ -12,10 +12,15 @@ from __future__ import annotations
 import ipaddress
 import os
 from collections.abc import Mapping
+from decimal import Decimal
+from pathlib import Path
 from functools import lru_cache
 from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+
+from antifraude.ai.budget import (DEFAULT_MAX_INPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MAX_REQUESTS,
+                                  HARD_BUDGET_CAP_USD, AiPolicy)
 
 #: Única dirección de escucha permitida (loopback IPv4).
 LOOPBACK_HOST: Final[str] = "127.0.0.1"
@@ -54,6 +59,16 @@ class Settings(BaseModel):
     claude_model: str | None = None
     # Modo demostración: carga la entidad ficticia y los ejemplos sintéticos (siempre etiquetados).
     demo_mode: bool = False
+    # Control de gasto de la IA (misión 3). TODO cerrado por defecto: IA desactivada y 0 USD autorizados.
+    ai_enabled: bool = False
+    ai_allow_opus: bool = False
+    ai_budget_usd: Decimal = Field(default=Decimal("0"), ge=0, le=HARD_BUDGET_CAP_USD)
+    ai_max_input_tokens: int = Field(default=DEFAULT_MAX_INPUT_TOKENS, ge=500, le=50_000)
+    ai_max_output_tokens: int = Field(default=DEFAULT_MAX_OUTPUT_TOKENS, ge=256, le=16_000)
+    ai_max_requests: int = Field(default=DEFAULT_MAX_REQUESTS, ge=0, le=1000)
+    ai_thinking: Literal["adaptive", "off"] = "adaptive"
+    ai_effort: Literal["low", "medium", "high"] = "low"
+    ai_ledger_path: Path | None = None
 
     @property
     def host(self) -> str:
@@ -72,6 +87,13 @@ class Settings(BaseModel):
     def _strip_model(cls, value: str | None) -> str | None:
         return value.strip() if value is not None else None
 
+    def ai_policy(self) -> AiPolicy:
+        """Política de gasto de la IA derivada de la configuración (sin la clave)."""
+        return AiPolicy(enabled=self.ai_enabled, model=self.claude_model, allow_expensive=self.ai_allow_opus,
+                        budget_usd=self.ai_budget_usd, max_input_tokens=self.ai_max_input_tokens,
+                        max_output_tokens=self.ai_max_output_tokens, max_requests=self.ai_max_requests,
+                        thinking=self.ai_thinking, effort=self.ai_effort, ledger_path=self.ai_ledger_path)
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
         """Construye los ajustes a partir de variables de entorno."""
@@ -86,8 +108,23 @@ class Settings(BaseModel):
         if "CLAUDE_MODEL" in env:
             raw["claude_model"] = env["CLAUDE_MODEL"]
         if "APP_DEMO_MODE" in env:
-            raw["demo_mode"] = env["APP_DEMO_MODE"].strip().lower() in ("1", "true", "si", "sí", "yes")
+            raw["demo_mode"] = _flag(env["APP_DEMO_MODE"])
+        for var, field in (("AI_ENABLED", "ai_enabled"), ("AI_ALLOW_OPUS", "ai_allow_opus")):
+            if var in env:
+                raw[field] = _flag(env[var])
+        for var, field in (("AI_BUDGET_USD", "ai_budget_usd"), ("AI_MAX_INPUT_TOKENS", "ai_max_input_tokens"),
+                           ("AI_MAX_OUTPUT_TOKENS", "ai_max_output_tokens"), ("AI_MAX_REQUESTS", "ai_max_requests"),
+                           ("AI_LEDGER_PATH", "ai_ledger_path")):
+            if env.get(var, "").strip():
+                raw[field] = env[var].strip().replace(",", ".") if var == "AI_BUDGET_USD" else env[var].strip()
+        for var, field in (("AI_THINKING", "ai_thinking"), ("AI_EFFORT", "ai_effort")):
+            if env.get(var, "").strip():
+                raw[field] = env[var].strip().lower()
         return cls.model_validate(raw)
+
+
+def _flag(value: str) -> bool:
+    return value.strip().lower() in ("1", "true", "si", "sí", "yes")
 
 
 @lru_cache(maxsize=1)

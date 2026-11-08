@@ -128,6 +128,7 @@ def build_gmail_service(client_secret_path: Path) -> Any:  # pragma: no cover - 
         raise GmailSetupError("Faltan las librerías de Google o keyring (instalación pendiente de autorización).") from exc
     if not client_secret_path.is_file():
         raise GmailSetupError("No se encuentra el archivo del cliente OAuth (client_secret*.json, fuera del repositorio).")
+    ensure_secure_keyring(keyring)
     creds = None
     refresh = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
     if refresh:
@@ -147,25 +148,54 @@ def build_gmail_service(client_secret_path: Path) -> Any:  # pragma: no cover - 
     return build("gmail", "v1", credentials=creds, cache_discovery=False)
 
 
-def forget_local_token() -> None:  # pragma: no cover - requiere keyring
-    """Borra el token local. La revocación en Google se hace desde la cuenta (ver la guía)."""
+#: Almacenes de keyring que NO protegen el token (texto plano, nulos o «fallo»).
+_INSECURE_KEYRING = ("plaintext", "fail", "null", "uncrypted", "unencrypted", "chainer")
+
+
+def ensure_secure_keyring(keyring_module: Any) -> None:
+    """Rechaza almacenes de keyring inseguros: el token de Gmail nunca se guarda en texto plano."""
+    backend = keyring_module.get_keyring()
+    name = f"{type(backend).__module__}.{type(backend).__name__}".lower()
+    priority = getattr(backend, "priority", 0)
     try:
-        import keyring  # type: ignore[import-not-found]
-    except ImportError:
-        return
+        priority = float(priority)
+    except (TypeError, ValueError):
+        priority = 0.0
+    if any(tag in name for tag in _INSECURE_KEYRING) or priority < 1:
+        raise GmailSetupError("El almacén seguro de credenciales del sistema no está disponible; "
+                              "no se guardará el token de Gmail.")
+
+
+def forget_local_token(keyring_module: Any | None = None) -> bool:
+    """Borra el token local. ``True`` si se borró o no existía; ``False`` si no se pudo (avisar al usuario).
+
+    La revocación del acceso en Google se hace además desde la cuenta (ver la guía).
+    """
+    if keyring_module is None:
+        try:
+            import keyring as keyring_module  # type: ignore[import-not-found,no-redef]
+        except ImportError:
+            return True  # sin keyring nunca se guardó ningún token
     try:
-        keyring.delete_password(KEYRING_SERVICE, KEYRING_USER)
+        if keyring_module.get_password(KEYRING_SERVICE, KEYRING_USER) is None:
+            return True
+        keyring_module.delete_password(KEYRING_SERVICE, KEYRING_USER)
+        return keyring_module.get_password(KEYRING_SERVICE, KEYRING_USER) is None
     except Exception:
-        pass
+        return False
 
 
 class GmailPoller:
     """Consulta periódica en un hilo: entrega cada mensaje nuevo a ``on_message``. Se detiene limpiamente."""
 
     def __init__(self, connector: GmailConnector, on_message: Callable[[RawMessage], None],
-                 interval_s: float = 30.0) -> None:
+                 interval_s: float = 30.0, on_failure: Callable[[str | None], None] | None = None) -> None:
         self.connector = connector
         self.on_message = on_message
+        #: Recibe el identificador (nunca el contenido) de un mensaje que no se pudo analizar, para avisar al
+        #: usuario con un resultado «no se pudo analizar» en vez de perderlo en silencio.
+        self.on_failure = on_failure
+        self.failures = 0
         self.interval_s = interval_s
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -176,10 +206,23 @@ class GmailPoller:
         for raw in nuevos:
             try:
                 self.on_message(raw)
-            except Exception:
-                continue  # un mensaje que falla no detiene el resto; el pipeline ya declara sus errores
+            except Exception:  # un mensaje que falla no detiene el resto, pero se comunica
+                self._report_failure(raw.source_message_id)
+        pendientes: list[str] = list(getattr(self.connector, "unanalyzable", []))
+        if pendientes:
+            self.connector.unanalyzable = []
+        for mid in pendientes:
+            self._report_failure(mid)
         self.cycles += 1
         return len(nuevos)
+
+    def _report_failure(self, message_id: str | None) -> None:
+        self.failures += 1
+        if self.on_failure is not None:
+            try:
+                self.on_failure(message_id)
+            except Exception:
+                pass
 
     def _run(self) -> None:
         while not self._stop.is_set():

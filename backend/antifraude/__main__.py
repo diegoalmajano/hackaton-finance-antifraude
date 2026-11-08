@@ -25,6 +25,15 @@ CONFIG_HELP: dict[str, str] = {
     "anthropic_api_key": "ANTHROPIC_API_KEY no tiene un formato válido.",
     "claude_model": "CLAUDE_MODEL no tiene un formato válido.",
     "demo_mode": "APP_DEMO_MODE debe ser 1 (activado) o 0 (desactivado).",
+    "ai_enabled": "AI_ENABLED debe ser 1 (activada) o 0 (desactivada, por defecto).",
+    "ai_allow_opus": "AI_ALLOW_OPUS debe ser 1 o 0 (por defecto, 0: Opus bloqueado).",
+    "ai_budget_usd": "AI_BUDGET_USD debe ser un importe en USD entre 0 y 10 (por defecto, 0: sin gasto autorizado).",
+    "ai_max_input_tokens": "AI_MAX_INPUT_TOKENS debe ser un entero entre 500 y 50000.",
+    "ai_max_output_tokens": "AI_MAX_OUTPUT_TOKENS debe ser un entero entre 256 y 16000.",
+    "ai_max_requests": "AI_MAX_REQUESTS debe ser un entero entre 0 y 1000.",
+    "ai_thinking": "AI_THINKING debe ser «adaptive» u «off» (off solo con Sonnet 5.5).",
+    "ai_effort": "AI_EFFORT debe ser low, medium o high.",
+    "ai_ledger_path": "AI_LEDGER_PATH debe ser una ruta de archivo válida (fuera del repositorio).",
 }
 
 

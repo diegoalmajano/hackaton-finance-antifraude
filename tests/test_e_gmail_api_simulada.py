@@ -136,3 +136,98 @@ def test_un_mensaje_que_falla_no_detiene_el_sondeo() -> None:
 
     assert GmailPoller(ConectorFalso(), procesar).poll_once() == 3  # type: ignore[arg-type]
     assert vistos == ["0", "2"]
+
+
+# --- Misión 3: duplicados, mensajes no analizables, keyring seguro y desconexión (SIMULADO) ---------
+def test_duplicados_no_se_entregan_dos_veces_y_la_memoria_esta_acotada() -> None:
+    from antifraude.connectors import gmail as g
+    s = ServicioSimulado()
+    s.paginas = [{"history": [{"messagesAdded": [{"message": {"id": "m1"}}]}], "historyId": "601"},
+                 {"history": [{"messagesAdded": [{"message": {"id": "m1"}}]}], "historyId": "602"}]
+    con = GmailConnector(GmailApiClient(s))
+    con.fetch_new()
+    assert len(con.fetch_new()) == 1 and con.fetch_new() == []  # el mismo id en otra página de historial
+    estado = g.GmailState()
+    for i in range(g.MAX_SEEN_IDS + 50):
+        estado.mark_seen(str(i))
+    assert len(estado.seen_ids) == g.MAX_SEEN_IDS and "0" not in estado.seen_ids
+
+
+def test_mensaje_demasiado_grande_se_comunica_no_se_pierde(monkeypatch: pytest.MonkeyPatch) -> None:
+    from antifraude.connectors import gmail as g
+    monkeypatch.setattr(g, "MAX_RAW_BYTES", 10)  # el EML de prueba supera 10 bytes
+    s = ServicioSimulado()
+    s.paginas = [{"history": [{"messagesAdded": [{"message": {"id": "grande"}}]}], "historyId": "700"}]
+    con = GmailConnector(GmailApiClient(s))
+    con.fetch_new()
+    fallos: list[str | None] = []
+    poller = GmailPoller(con, lambda raw: None, on_failure=fallos.append)
+    assert poller.poll_once() == 0
+    assert fallos == ["grande"] and poller.failures == 1 and con.unanalyzable == []
+
+
+def test_fallo_al_analizar_se_comunica_con_el_id_y_sin_contenido() -> None:
+    from datetime import datetime, timezone
+    from antifraude.contracts.messages import Channel, RawFormat
+    raw = RawMessage(channel=Channel.GMAIL, raw_format=RawFormat.RFC822, payload=EML,
+                     received_at=datetime.now(timezone.utc), source_message_id="id-7")
+
+    class ConectorFalso:
+        def fetch_new(self) -> list[RawMessage]:
+            return [raw]
+
+    def falla(_: RawMessage) -> None:
+        raise ValueError("cabecera rota")
+
+    fallos: list[str | None] = []
+    GmailPoller(ConectorFalso(), falla, on_failure=fallos.append).poll_once()  # type: ignore[arg-type]
+    assert fallos == ["id-7"]
+
+
+class _KeyringFalso:
+    """SIMULADO: imita el módulo keyring con un almacén en memoria."""
+
+    def __init__(self, backend: object, falla_al_borrar: bool = False) -> None:
+        self._backend = backend
+        self._datos: dict[tuple[str, str], str] = {}
+        self._falla = falla_al_borrar
+
+    def get_keyring(self) -> object:
+        return self._backend
+
+    def get_password(self, s: str, u: str) -> str | None:
+        return self._datos.get((s, u))
+
+    def set_password(self, s: str, u: str, p: str) -> None:
+        self._datos[(s, u)] = p
+
+    def delete_password(self, s: str, u: str) -> None:
+        if self._falla:
+            raise RuntimeError("no se pudo")
+        self._datos.pop((s, u), None)
+
+
+class WinVaultKeyring:
+    priority = 5
+
+
+class PlaintextKeyring:
+    priority = 0.5
+
+
+def test_keyring_inseguro_se_rechaza() -> None:
+    from antifraude.connectors.gmail_api import GmailSetupError, ensure_secure_keyring
+    ensure_secure_keyring(_KeyringFalso(WinVaultKeyring()))
+    with pytest.raises(GmailSetupError):
+        ensure_secure_keyring(_KeyringFalso(PlaintextKeyring()))
+
+
+def test_desconexion_informa_si_no_pudo_borrar_el_token() -> None:
+    from antifraude.connectors.gmail_api import KEYRING_SERVICE, KEYRING_USER, forget_local_token
+    k = _KeyringFalso(WinVaultKeyring())
+    assert forget_local_token(k) is True  # no había token
+    k.set_password(KEYRING_SERVICE, KEYRING_USER, "token-de-prueba")
+    assert forget_local_token(k) is True and k.get_password(KEYRING_SERVICE, KEYRING_USER) is None
+    roto = _KeyringFalso(WinVaultKeyring(), falla_al_borrar=True)
+    roto.set_password(KEYRING_SERVICE, KEYRING_USER, "token-de-prueba")
+    assert forget_local_token(roto) is False

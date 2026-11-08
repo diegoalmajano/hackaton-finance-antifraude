@@ -58,11 +58,19 @@ class AiFailureReason(StrEnum):
     TIMEOUT = "timeout"
     INVALID_OUTPUT = "invalid_output"
     API_ERROR = "api_error"
+    # Control de gasto (misión 3): la solicitud NO se envió.
+    BUDGET_BLOCKED = "budget_blocked"  # presupuesto agotado o política que no permite gastar
+    LIMIT_EXCEEDED = "limit_exceeded"  # límite de tokens de entrada o de solicitudes por sesión
+    BUSY = "busy"  # ya había una solicitud de pago en curso
 
 
 class AiUsage(ContractModel):
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)
+    cache_creation_input_tokens: int = Field(default=0, ge=0)
+    cache_read_input_tokens: int = Field(default=0, ge=0)
+    #: Coste calculado con la tarifa publicada (no es la factura; ver docs/CONTROL_COSTES_IA.md).
+    cost_usd: float | None = Field(default=None, ge=0)
 
 
 class AiFindings(ContractModel):
