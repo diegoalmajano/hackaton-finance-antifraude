@@ -55,3 +55,9 @@ Ubicación provisional `vendor/htmx/`; en F0-06 se servirá como estático local
 
 ## No instalado (se pedirá en su fase)
 `anthropic` (d) · `tldextract` + PSL local, `rapidfuzz`, `beautifulsoup4` (b) · extensión SSE de htmx (e) · `keyring`, `google-auth-oauthlib`, `google-api-python-client` (f) · `pywebview`, `pystray`, `win11toast` (g).
+
+## Auditoría de vulnerabilidades conocidas (misión 3, 2026-11-08)
+- Método: consulta de las 26 versiones de `requirements.lock` a la base pública **OSV** (`https://api.osv.dev/v1/querybatch`, ecosistema PyPI) con `curl`. Solo se enviaron nombres y versiones. No se instaló `pip-audit` (no autorizado).
+- Control positivo: la misma consulta para `Jinja2==2.10` devuelve 12 vulnerabilidades, así que la consulta funciona.
+- Resultado: **0 vulnerabilidades conocidas** en las 26 dependencias fijadas a esta fecha.
+- Limitación: es una foto del momento. Repetirla antes de la entrega y cuando se añadan `anthropic` o las librerías de Google (R-37 queda mitigado, no cerrado).

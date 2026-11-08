@@ -27,9 +27,19 @@ class DisabledAi:
         return AiFindings(status=CheckStatus.NOT_CONFIGURED)
 
 
+#: Una cita de 1–2 caracteres («a») estaría siempre en el texto: se exige un fragmento con contenido.
+MIN_QUOTE_CHARS = 8
+
+
+def _meaningful(quote: str) -> bool:
+    letters = sum(ch.isalpha() for ch in quote)
+    return len(quote.strip()) >= MIN_QUOTE_CHARS and letters >= 5
+
+
 def verified_quotes(output: AiOutput | None, message: IncomingMessage) -> set[str]:
-    """Citas de la IA que aparecen **literalmente** en el asunto o el texto (minimizados) del mensaje."""
+    """Citas de la IA que aparecen **literalmente** en el asunto o el texto (minimizados) del mensaje
+    y tienen contenido suficiente (revisión de seguridad M3)."""
     if output is None:
         return set()
     visible = (message.subject or "") + "\n" + message.text
-    return {t.quote for t in output.tactics if t.quote and t.quote in visible}
+    return {t.quote for t in output.tactics if t.quote and _meaningful(t.quote) and t.quote in visible}

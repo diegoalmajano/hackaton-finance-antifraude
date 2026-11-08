@@ -235,6 +235,10 @@ def assess(
 
     # --- comprobaciones ---------------------------------------------------------
     checks: list[CheckResult] = [CheckResult(name="screening.rules", required=True, status=screening.status)]
+    # Contenido recortado o dañado: lo no revisado puede esconder la estafa → nunca BAJO (revisión de seguridad A1).
+    incomplete = any(w.startswith("Análisis parcial") for w in message.parse_warnings)
+    checks.append(CheckResult(name="ingest.complete", required=True,
+                              status=CheckStatus.FAILED if incomplete else CheckStatus.DONE))
     if url_analyses:
         url_failed = any(c.name == "intel.url_passive" and c.status is CheckStatus.FAILED
                          for ua in url_analyses for c in ua.checks)
@@ -274,6 +278,8 @@ def assess(
         if c.required and not c.is_complete:
             if c.name == "ai.analysis":
                 uncertainties.append("Análisis parcial: el análisis con inteligencia artificial no estaba disponible.")
+            elif c.name == "ingest.complete":
+                uncertainties.append("Análisis parcial: el mensaje era muy largo o estaba dañado y no se revisó entero.")
             else:
                 uncertainties.append(f"No se pudo completar la comprobación «{c.name}».")
     for ua in url_analyses:

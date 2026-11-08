@@ -16,6 +16,7 @@ import hmac
 import re
 import secrets
 import unicodedata
+from typing import Any
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -132,6 +133,42 @@ def _dedupe(urls: list[ExtractedUrl]) -> list[ExtractedUrl]:
     return out
 
 
+#: Prefijo de los avisos que impiden considerar completo el análisis (el motor los declara como parcial).
+PARTIAL_PREFIX = "Análisis parcial: "
+#: Límite del texto limpio antes de minimizar y extraer enlaces (evita bloquear el proceso con 5 MiB).
+MAX_CLEAN_CHARS = 300_000
+_OMITTED = "\n[… parte central omitida por longitud …]\n"
+
+
+def _head_tail(text: str, limit: int) -> tuple[str, bool]:
+    """Si ``text`` supera ``limit``, conserva el principio (60 %) y el final; devuelve (texto, recortado)."""
+    if len(text) <= limit:
+        return text, False
+    head = limit * 6 // 10
+    tail = limit - head - len(_OMITTED)
+    return text[:head] + _OMITTED + text[-tail:], True
+
+
+def _header(msg: Any, name: str) -> str:
+    """Cabecera como texto. Cabeceras malformadas (p. ej. CR/LF codificados) no rompen la ingesta."""
+    try:
+        value = msg.get(name)
+        return "" if value is None else re.sub(r"[\r\n]+", " ", str(value))
+    except Exception:
+        for key, raw in getattr(msg, "raw_items", lambda: [])():
+            if key.lower() == name.lower():
+                return re.sub(r"[\r\n]+", " ", str(raw))[:2000]
+        return ""
+
+
+def _header_all(msg: Any, name: str) -> list[str]:
+    try:
+        return [str(v) for v in msg.get_all(name, [])]
+    except Exception:
+        return [re.sub(r"[\r\n]+", " ", str(v))[:2000] for k, v in getattr(msg, "raw_items", lambda: [])()
+                if k.lower() == name.lower()]
+
+
 def build_message(
     *,
     user_id: UUID,
@@ -163,14 +200,18 @@ def build_message(
     cleaned, invisibles = clean_text(base_text)
     if not cleaned:
         raise IngestError("El mensaje está vacío.")
+    # Seguridad (misión 3): acotar ANTES de minimizar y extraer enlaces (coste lineal acotado) y conservar
+    # principio y final: un relleno inicial no puede esconder la petición fraudulenta del final.
+    cleaned, cut_clean = _head_tail(cleaned, MAX_CLEAN_CHARS)
     if invisibles:
         warnings.append(f"Se eliminaron {invisibles} caracteres invisibles.")
     if has_mixed_script((subject or "") + " " + cleaned):
         warnings.append("Texto oculto: hay palabras que mezclan letras de distintos alfabetos para disimularse.")
     text = minimize(cleaned)  # minimizar ANTES de recortar: la máscara puede alargar el texto
-    if len(text) > MAX_TEXT_CHARS:
-        text = text[:MAX_TEXT_CHARS]
-        warnings.append("El texto se ha recortado por su longitud.")
+    text, cut_text = _head_tail(text, MAX_TEXT_CHARS)
+    if cut_clean or cut_text:
+        warnings.append(PARTIAL_PREFIX + "el mensaje es muy largo; se revisaron el principio y el final, "
+                        "no la parte central.")
 
     subj_clean = None
     if subject:
@@ -281,6 +322,19 @@ def _part_text(part: EmailMessage) -> str:
 
 def from_eml(raw: bytes, user_id: UUID, *, channel: Channel = Channel.MANUAL, source_message_id: str | None = None,
              is_simulated: bool = False) -> IngestResult:
+    """Lee un correo RFC 822. Cualquier fallo inesperado del análisis MIME se convierte en ``IngestError``
+    (mensaje controlado en español), nunca en un error 500 ni en un mensaje perdido en silencio."""
+    try:
+        return _from_eml(raw, user_id, channel=channel, source_message_id=source_message_id,
+                         is_simulated=is_simulated)
+    except IngestError:
+        raise
+    except Exception as exc:  # cabeceras o partes malformadas que la librería estándar no tolera
+        raise IngestError("No se pudo leer el correo: su formato está dañado.") from exc
+
+
+def _from_eml(raw: bytes, user_id: UUID, *, channel: Channel, source_message_id: str | None,
+              is_simulated: bool) -> IngestResult:
     if not raw or len(raw) > MAX_RAW_BYTES:
         raise IngestError("El archivo está vacío o es demasiado grande.")
     # Pre-comprobación lineal: miles de partes MIME harían el análisis muy lento (revisión de seguridad).
@@ -306,16 +360,18 @@ def from_eml(raw: bytes, user_id: UUID, *, channel: Channel = Channel.MANUAL, so
             text_parts.append(_part_text(part))
         elif ctype == "text/html":
             html_parts.append(_part_text(part))
-    name, addr = parseaddr(str(msg.get("From", "")))
-    _, reply = parseaddr(str(msg.get("Reply-To", ""))) if msg.get("Reply-To") else ("", "")
-    auth = parse_auth_results([str(v) for v in msg.get_all("Authentication-Results", [])])
+    name, addr = parseaddr(_header(msg, "From"))
+    reply_raw = _header(msg, "Reply-To")
+    _, reply = parseaddr(reply_raw) if reply_raw else ("", "")
+    auth = parse_auth_results(_header_all(msg, "Authentication-Results"))
     received_at = None
-    if msg.get("Date"):
+    date_raw = _header(msg, "Date")
+    if date_raw:
         try:
-            received_at = parsedate_to_datetime(str(msg["Date"]))
+            received_at = parsedate_to_datetime(date_raw)
             if received_at.tzinfo is None:
                 received_at = received_at.replace(tzinfo=timezone.utc)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, IndexError, OverflowError):
             received_at = None
     return build_message(
         user_id=user_id,
@@ -324,7 +380,7 @@ def from_eml(raw: bytes, user_id: UUID, *, channel: Channel = Channel.MANUAL, so
         is_simulated=is_simulated,
         body_text="\n".join(text_parts),
         body_html="\n".join(html_parts) or None,
-        subject=str(msg.get("Subject", "")) or None,
+        subject=_header(msg, "Subject") or None,
         sender=make_sender(name, addr, auth),
         reply_to=make_sender(None, reply) if reply else None,
         received_at=received_at,

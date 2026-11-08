@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import secrets
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
@@ -99,18 +100,34 @@ def _clip(value: Any, limit: int) -> Any:
     return value[:limit] if isinstance(value, str) else value
 
 
+#: Contactos en el texto LIBRE de la IA (explicaciones): una inyección podría hacer que la IA «recomiende»
+#: un teléfono, web o correo del estafador con el sello del asistente. Se eliminan antes de mostrarlo (M3).
+_CONTACT = re.compile(
+    r"(https?://\S+|www\.\S+|[\w.+-]+@[\w-]+(\.[\w-]+)+|\+?\d[\d\s.\-]{6,}\d|"
+    r"\b[\w-]+(\.[\w-]+)*\.(com|es|net|org|info|io|app|xyz|top|online|site|test|example|eu)\b\S*)",
+    re.IGNORECASE)
+
+
+def _scrub(value: Any) -> Any:
+    return _CONTACT.sub("[dato omitido]", value) if isinstance(value, str) else value
+
+
 def _sanitize(data: Any) -> Any:
-    """Acota longitudes y número de elementos antes de validar (sin inventar contenido)."""
+    """Acota longitudes y número de elementos y quita contactos del texto libre (sin inventar contenido).
+
+    Las citas (``quote``) NO se tocan: deben coincidir literalmente con el mensaje.
+    """
     if not isinstance(data, dict):
         return data
     tactics = []
     for t in data.get("tactics") or []:
         if isinstance(t, dict) and isinstance(t.get("quote"), str) and t["quote"].strip():
-            tactics.append({**t, "quote": _clip(t["quote"], 500), "explanation": _clip(t.get("explanation"), 500)})
+            tactics.append({**t, "quote": _clip(t["quote"], 500),
+                            "explanation": _clip(_scrub(t.get("explanation")), 500)})
     data["tactics"] = tactics[:20]
     for key in ("inconsistencies", "uncertainties"):
         items = data.get(key) or []
-        data[key] = [_clip(i, 500) for i in items if isinstance(i, str) and i.strip()][:20]
+        data[key] = [_clip(_scrub(i), 500) for i in items if isinstance(i, str) and i.strip()][:20]
     data["claimed_entity"] = _clip(data.get("claimed_entity"), 256) or None
     return data
 

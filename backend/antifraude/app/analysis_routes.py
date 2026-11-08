@@ -9,6 +9,8 @@ historial de la sesión solo conserva el nivel, el título y la hora.
 
 from __future__ import annotations
 
+import threading
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any
@@ -60,13 +62,17 @@ CHECK_VIEW = {
 MAX_ANALYSES_PER_MINUTE = 30
 
 
+_RATE_LOCK = threading.Lock()  # las rutas síncronas corren en varios hilos: comprobar y apuntar es atómico
+
+
 def _check_rate(request: Request, session: Session) -> None:
     now = request.app.state.security.sessions.now()
-    session.recent_analyses[:] = [t for t in session.recent_analyses if now - t < 60.0]
-    if len(session.recent_analyses) >= MAX_ANALYSES_PER_MINUTE:
-        raise UserFacingError(429, "Ha hecho muchas comprobaciones seguidas. Espere un minuto y vuelva a intentarlo.",
-                              {"Retry-After": "60"})
-    session.recent_analyses.append(now)
+    with _RATE_LOCK:
+        session.recent_analyses[:] = [t for t in session.recent_analyses if now - t < 60.0]
+        if len(session.recent_analyses) >= MAX_ANALYSES_PER_MINUTE:
+            raise UserFacingError(429, "Ha hecho muchas comprobaciones seguidas. Espere un minuto y vuelva a "
+                                       "intentarlo.", {"Retry-After": "60"})
+        session.recent_analyses.append(now)
 
 
 def _pipeline(request: Request) -> AnalysisPipeline:

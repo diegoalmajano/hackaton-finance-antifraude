@@ -138,11 +138,11 @@ def html_to_text_and_anchors(html: str, warnings: list[str] | None = None) -> tu
         parser.close()
     except Exception:  # HTML roto: se devuelve lo extraído hasta el error, con aviso
         if warnings is not None:
-            warnings.append("El contenido HTML del mensaje estaba dañado; se analizó solo una parte.")
+            warnings.append("Análisis parcial: el contenido HTML del mensaje estaba dañado; se analizó solo una parte.")
     parser._flush_anchor()  # enlace final sin cerrar
     if warnings is not None:
         if truncated:
-            warnings.append("El contenido HTML era muy extenso; solo se analizó una parte.")
+            warnings.append("Análisis parcial: el contenido HTML era muy extenso; solo se analizó una parte.")
         if parser.hidden_chars > 20:
             warnings.append("Texto oculto: el mensaje contiene texto escondido al lector.")
         if parser.script_links:
