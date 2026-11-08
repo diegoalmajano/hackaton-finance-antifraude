@@ -29,7 +29,9 @@ from antifraude.contracts.messages import IncomingMessage
 ALLOWED_MODELS = frozenset({"claude-opus-5-5", "claude-sonnet-5-5"})
 #: Esfuerzo inicial para clasificación (se ajustará con la comparativa medida).
 DEFAULT_EFFORT = "low"
-MAX_TOKENS = 4000
+#: Auditoría: el razonamiento (siempre activo en Opus 5.5) consume tokens de salida; 16 000 es el valor
+#: recomendado para peticiones sin streaming. Solo se factura lo que realmente se genera.
+MAX_TOKENS = 16000
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 REQUEST_TIMEOUT_S = 60.0
 
@@ -54,8 +56,16 @@ def sdk_transport(api_key: str, timeout_s: float = REQUEST_TIMEOUT_S) -> Transpo
     client = anthropic.Anthropic(api_key=api_key, timeout=timeout_s, max_retries=1)
 
     def send(params: Mapping[str, Any]) -> Mapping[str, Any]:
+        kwargs = dict(params)
         try:
-            response = client.beta.messages.create(**dict(params))
+            try:
+                response = client.beta.messages.create(**kwargs)
+            except TypeError:
+                # Auditoría: si la versión del SDK no acepta «fallbacks» como argumento, se envía por extra_body.
+                if "fallbacks" not in kwargs:
+                    raise
+                extra = {"fallbacks": kwargs.pop("fallbacks")}
+                response = client.beta.messages.create(**kwargs, extra_body=extra)
         except anthropic.APITimeoutError as exc:
             raise AiTimeout("tiempo de espera agotado") from exc
         result: Mapping[str, Any] = response.to_dict()

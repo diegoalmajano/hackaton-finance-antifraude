@@ -181,3 +181,69 @@ def test_ia_corrobora_y_eleva() -> None:
     assert out.assessment.risk_level in (RiskLevel.MEDIUM, RiskLevel.HIGH)
     assert any(e.source.value == "ai" and e.quote for e in out.assessment.evidence)
     assert out.assessment.model_id == MODEL and out.assessment.ai_usage is not None
+
+
+# --- Auditoría frente a la documentación oficial (sin llamadas reales) ----------------------
+def _nodos(schema: Any) -> list[dict[str, Any]]:
+    salida: list[dict[str, Any]] = []
+    if isinstance(schema, dict):
+        salida.append(schema)
+        for v in schema.values():
+            salida += _nodos(v)
+    elif isinstance(schema, list):
+        for v in schema:
+            salida += _nodos(v)
+    return salida
+
+
+def test_esquema_solo_usa_construcciones_soportadas() -> None:
+    from antifraude.ai.prompt import output_schema
+    nodos = _nodos(output_schema())
+    prohibidas = {"minLength", "maxLength", "minimum", "maximum", "multipleOf", "minItems", "maxItems", "pattern"}
+    for n in nodos:
+        assert not prohibidas & set(n), n
+        assert not isinstance(n.get("type"), list), "usar anyOf en lugar de listas de tipos"
+        if n.get("type") == "object":
+            assert n.get("additionalProperties") is False
+            assert set(n.get("required", [])) == set(n.get("properties", {}))
+        if "enum" in n:
+            assert None not in n["enum"]
+
+
+def test_max_tokens_suficiente_para_razonamiento() -> None:
+    from antifraude.ai.claude import MAX_TOKENS
+    assert MAX_TOKENS >= 16000
+
+
+def test_fallback_por_extra_body_si_el_sdk_no_acepta_el_argumento() -> None:
+    import antifraude.ai.claude as mod
+    llamadas: list[dict[str, Any]] = []
+
+    class Mensajes:
+        def create(self, **kw: Any) -> Any:
+            llamadas.append(kw)
+            if "fallbacks" in kw:
+                raise TypeError("unexpected keyword argument 'fallbacks'")
+            class R:
+                def to_dict(self) -> dict[str, Any]:
+                    return respuesta(salida())
+            return R()
+
+    class Cliente:
+        def __init__(self, **kw: Any) -> None:
+            self.beta = type("B", (), {"messages": Mensajes()})()
+
+    class SdkFalso:  # SIMULADO: sustituye al SDK oficial (no instalado)
+        Anthropic = Cliente
+        class APITimeoutError(Exception):
+            pass
+
+    import sys
+    sys.modules["anthropic"] = SdkFalso  # type: ignore[assignment]
+    try:
+        send = mod.sdk_transport("clave-de-prueba-no-real")
+        r = send(build_request(MODEL, from_manual_text("hola", USER).message, []))
+    finally:
+        del sys.modules["anthropic"]
+    assert r["stop_reason"] == "end_turn"
+    assert "fallbacks" not in llamadas[1] and llamadas[1]["extra_body"] == {"fallbacks": "default"}

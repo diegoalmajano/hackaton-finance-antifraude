@@ -89,7 +89,8 @@ def output_schema() -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "claimed_entity": {"type": ["string", "null"]},
+            # Auditoría (docs oficiales): se usa anyOf + null, la forma listada como soportada.
+            "claimed_entity": {"anyOf": [{"type": "string"}, {"type": "null"}]},
             "tactics": {
                 "type": "array",
                 "items": {
@@ -104,13 +105,14 @@ def output_schema() -> dict[str, Any]:
                 },
             },
             "inconsistencies": {"type": "array", "items": {"type": "string"}},
-            "financial_request": {
-                "type": ["string", "null"],
-                "enum": ["credentials", "otp", "card_data", "transfer", "payment_details_change", "other", None],
-            },
+            "financial_request": {"anyOf": [
+                {"type": "string", "enum": ["credentials", "otp", "card_data", "transfer",
+                                            "payment_details_change", "other"]},
+                {"type": "null"}]},
             "injection_attempt": {"type": "boolean"},
             "uncertainties": {"type": "array", "items": {"type": "string"}},
-            "suggested_level": {"type": ["string", "null"], "enum": ["low", "medium", "high", "inconclusive", None]},
+            "suggested_level": {"anyOf": [{"type": "string", "enum": ["low", "medium", "high", "inconclusive"]},
+                                          {"type": "null"}]},
         },
         "required": ["claimed_entity", "tactics", "inconsistencies", "financial_request", "injection_attempt",
                      "uncertainties", "suggested_level"],
