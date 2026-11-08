@@ -1,4 +1,7 @@
-# 13 — Arquitectura técnica del MVP antifraude (propuesta, pendiente de aprobación)
+# 13 — Arquitectura técnica del MVP antifraude (**APROBADA con modificaciones**, D-26)
+
+> **Sesión 6 (2026-11-08): la arquitectura queda APROBADA** con las modificaciones de la auditoría ECC. **Fuente de verdad de las decisiones: `docs/adr/` (ADR-0001 a ADR-0015)**; si algo de este documento contradice un ADR, **prevalece el ADR**. Los puntos ⏳ siguen sin verificar.
+> **Cambios aprobados respecto a lo que sigue (resumen):** 6 paquetes en lugar de 12 módulos (ADR-0001) · web local en navegador primero, pywebview/bandeja/toasts solo en la fase g; Electron descartado (ADR-0002) · sin generación de TypeScript (ADR-0003) · no resolver DNS de dominios sospechosos ni seguir acortadores (ADR-0005) · estados `done`/`failed`/`not_configured` y credenciales/OTP desde dominio oficial = mínimo MEDIO (ADR-0006, §6.1 actualizado) · modelo por medición de calidad, coste y latencia (ADR-0007) · purga al arrancar (ADR-0008) · reputación opcional (ADR-0009) · Python 3.12 (ADR-0011) · nuevos: UI HTML+Jinja+htmx (0012), seguridad de la API local (0013), venv + dependencias fijadas (0014), modo degradado sin IA (0015). Un solo desarrollador (D-33); orden de prioridad D-28.
 
 > **Copia de trabajo del repositorio** (2026-11-08, sesión 5): adaptada del documento homónimo de la memoria original; referencias ajustadas para no depender de carpetas externas. Cambios marcados con «(sesión 5)».
 
@@ -12,6 +15,7 @@ Sesión 4 (2026-11-08). Basado en `11_PRODUCTO_ANTIFRAUDE.md` v2. Hechos verific
 - ⚠ Python 3.14 es muy reciente: algunas dependencias con extensiones nativas (p. ej. `pythonnet`, que usa pywebview en Windows) pueden no tener soporte ⏳ → **propuesta: fijar Python 3.12 o 3.13** para todo el equipo.
 
 ## 2. Selección tecnológica de escritorio
+> **Histórico parcial (sesión 6):** la decisión vigente es ADR-0002 (web local primero; pywebview/bandeja después; Electron descartado) y ADR-0012 (HTML + Jinja + htmx; sin React). El token en la URL (`?token=`) mencionado abajo queda **descartado** por ADR-0013. La tabla se conserva por trazabilidad.
 | Opción | Pros | Contras para nosotros (equipo Python/IA, ~4 días, 3–5 h/día) | Veredicto ⚖ |
 |---|---|---|---|
 | **Tauri 2** + React/TS + Python *sidecar* | Ligero, seguro, bandeja y notificaciones vía plugins | Requiere **Rust + MSVC Build Tools** (no instalados) ✅; sidecar Python empaquetado con PyInstaller, con problemas conocidos de cierre del proceso 🟡; tres lenguajes | **Descartado para el MVP** (riesgo de integración) |
@@ -26,6 +30,7 @@ FastAPI + Pydantic v2 (MIT) · Uvicorn · `anthropic` SDK (MIT) · `google-auth-
 No se añaden librerías por popularidad: cada una debe justificar su uso en un ADR o en el PR.
 
 ## 3. Monolito modular: módulos
+> **Sesión 6 (ADR-0001):** los módulos A–L se agrupan en **6 paquetes**: `connectors` (A) · `analysis` (B + C) · `intel` (D) · `ai` (E) · `risk` (F + explicaciones) · `app` (G, H, I, J y API). Comunes: `contracts` y `core/security` (L). La columna «Resp.» (P1–P5) es **histórica** (D-33: un desarrollador). K (evaluación) vive en `eval/`.
 | Mód. | Responsabilidad | Entrada → Salida | Depende de | Errores | Tests | Resp. |
 |---|---|---|---|---|---|---|
 | **A Connectors** | Gmail (P1); `ManualInput` (pegar/importar .txt/.eml, P0); `SimulatedConnector` etiquetado (tests/demo); futuro Telegram/Outlook/voz por el mismo `InputAdapter` | evento externo → `RawMessage` | L (tokens), J (estado historyId) | auth caducada, cuota, red → estado del conector «degradado», nunca silencioso | mocks del servicio Gmail | P5 |
@@ -44,6 +49,7 @@ No se añaden librerías por popularidad: cada una debe justificar su uso en un 
 **Futuro módulo de voz:** implementará `InputAdapter` y emitirá `IncomingMessage(channel="voice_transcript", …)` → sin rehacer el motor.
 
 ## 4. Contratos de datos (revisión de la propuesta del usuario)
+> **Sesión 6, F0-04 — histórico de diseño.** La **fuente única y autoritativa** de los contratos es ahora el código `backend/antifraude/contracts/` (versión `0.1.0`, protocolo *contract-first*: cualquier cambio se hace primero allí, con tests). Lo que sigue se conserva solo como trazabilidad. Diferencias principales: `Channel` = `manual | gmail | simulated | voice_transcript` (telegram/outlook fuera del MVP); `RawMessage` + `InputAdapter.fetch_new()`; `CheckResult.required` y estado `not_configured`; `AiOutput` (salida del modelo, citas **sin verificar**) separado de `Evidence` (solo verificadas; las de IA exigen cita); `Alert` (preventiva/definitiva); `is_partial` **calculado** a partir de las comprobaciones; `ConsentContext`, `headers_subset`, `UserProfile` y `UserFeedback` **aplazados** a sus fases (f, personalización).
 Pydantic v2 en `backend/app/contracts/` (fuente única); tipos TS generados o mantenidos a mano desde el **OpenAPI** de FastAPI. Cambios solo por PR revisado por P1. Fechas en UTC ISO-8601; ids UUID; enums en `snake_case` en inglés, textos al usuario en español.
 ```
 Channel = gmail | manual | simulated | telegram | outlook | voice_transcript(futuro)
@@ -56,7 +62,7 @@ IncomingMessage { id, user_id, channel, source_message_id, received_at, sender: 
 Signal { code, family: content|sender|url|context, severity: critical|high|medium|low, description_user, description_tech, span?: {start,end}, source: rule }
 ScreeningResult { message_id, suspicion_detected, detected_signals: [Signal], severity: none|low|medium|high|critical,
   needs_deep_analysis, preliminary_alert_required, status: ok|partial|error, rule_version, latency_ms }
-CheckResult { name, status: done|failed|skipped|not_applicable, detail?, duration_ms? }
+CheckResult { name, required: bool, status: done|failed|not_configured|skipped|not_applicable, detail?, duration_ms? }   (sesión 6: `required` y `not_configured`, ADR-0006)
 UrlAnalysis { url_id, original_url, normalized_url, registrable_domain, claimed_entity?, official_domains_for_claimed: [str],
   comparison: official|lookalike|unrelated|unknown, lookalike_of?, display_href_mismatch: bool, is_shortener, punycode_or_confusable: bool,
   domain_age_days?, reputation_findings: [{source, verdict: listed|not_listed|error, detail}], domain_findings: [Signal],
@@ -88,8 +94,10 @@ D (técnico) y E (IA) en paralelo; sus resultados se guardan **separados** (`sou
 ### 6.1 Reglas de decisión
 1. **ALTO** si hay ≥1 evidencia **crítica verificada**: (a) petición de credenciales/OTP/tarjeta + enlace o canal de respuesta fuera de dominios oficiales de la entidad declarada; (b) dominio parecido (lookalike) a una entidad del directorio; (c) URL en lista de reputación; (d) evidencia IA de categoría `credential_theft` o `payment_redirection` con cita verificada **y** al menos una evidencia de otra fuente (regla/técnica/correlación).
 2. **MEDIO** si: ≥1 evidencia alta, o ≥2 medias de fuentes distintas, o evidencia IA alta sin corroboración, o cambio de datos de pago sin otros indicios.
-3. **BAJO** solo si **todas las comprobaciones obligatorias se completaron** (filtro; análisis de todas las URLs; IA si se escaló) y no hay evidencias ≥ media. Evidencias de legitimidad (dominio oficial + DMARC pass + remitente habitual) pueden bajar MEDIO→BAJO **solo** sin evidencias críticas/altas.
-4. **NO CONCLUYENTE** si falta una comprobación obligatoria (IA fallida/refusal, RDAP/reputación caídos con URL no oficial, acortador no resoluble) y las evidencias disponibles no alcanzan ALTO; o si hay contradicción fuerte (p. ej. dominio oficial + petición de OTP). **Errores → NO CONCLUYENTE o el nivel que justifiquen las evidencias existentes, nunca BAJO.**
+0. **(Sesión 6, ADR-0006/D-29)** Cada comprobación tiene estado `done` | `failed` | `not_configured` (o `skipped`/`not_applicable`). **Obligatorias en el MVP:** filtro por reglas, análisis pasivo de todas las URLs e IA si el filtro escaló. RDAP y reputación son **complementarias**: si están `not_configured` se declaran en «lo que no se pudo comprobar», pero **no** fuerzan NO CONCLUYENTE.
+3. **BAJO** solo si **todas las comprobaciones obligatorias están en `done`** y no hay evidencias ≥ media. Evidencias de legitimidad (dominio oficial + DMARC pass + remitente habitual) pueden bajar MEDIO→BAJO **solo** sin evidencias críticas/altas **y nunca si hay petición de credenciales/OTP/tarjeta**.
+4. **NO CONCLUYENTE** si una comprobación **obligatoria** está en `failed` (IA fallida/refusal/timeout) y las evidencias disponibles no alcanzan ALTO. ~~RDAP/reputación caídos con URL no oficial~~ y ~~acortador no resoluble~~ ya no fuerzan NO CONCLUYENTE por sí solos (el acortador es una señal y una incertidumbre declarada). **Errores → NO CONCLUYENTE o el nivel que justifiquen las evidencias existentes, nunca BAJO.**
+4 bis. **(Sesión 6, D-29)** ~~«dominio oficial + petición de OTP» → NO CONCLUYENTE~~ → **una petición de credenciales, contraseña, PIN, OTP o datos de tarjeta nunca es segura por venir de un dominio aparentemente oficial: mínimo MEDIO** (ALTO si se suma otra evidencia crítica), con la recomendación de verificar por el canal oficial del directorio.
 5. Si se alcanzó ALTO con comprobaciones fallidas → ALTO con `is_partial=true`.
 ### 6.2 Sensibilidad
 `low|normal|high` desplaza el umbral de **alerta preventiva** y si MEDIO genera notificación emergente o solo aparece en el panel. **No** modifica las reglas críticas.
@@ -99,6 +107,7 @@ Remitente de confianza = evidencia de legitimidad **solo si** el dominio autenti
 Datos etiquetados representativos (≥ cientos por clase, reales y consentidos + conjuntos públicos con licencia) → modelo (p. ej. regresión logística sobre rasgos) → calibración (Platt/isotónica) en validación → Brier, ECE, diagrama de fiabilidad en test independiente → corrección por **prevalencia** → recalibración periódica.
 
 ## 7. Inteligencia de enlaces (D)
+**(Sesión 6, ADR-0005/D-31)** Estrictamente pasivo: **no se visita ninguna URL, no se resuelven por DNS los dominios sospechosos y no se siguen acortadores**. RDAP y reputación: complementarias (ADR-0009). ⏳ Cobertura RDAP de `.es` (V-18).
 **Pasivo (MVP):** normalización (minúsculas, punycode→Unicode para mostrar, quitar credenciales `user@host`, decodificar porcentajes), dominio registrable con PSL local, subdominios con marca (`bbva.seguridad-x.com`), confusables/homoglifos, similitud con dominios oficiales (rapidfuzz), TLD, IP literal, puerto no estándar, acortadores conocidos (destino **no** resuelto → incertidumbre), discrepancia texto visible/`href`, edad de dominio por **RDAP** (consulta a registro, no a la web sospechosa), reputación.
 **Reputación — opciones:** Google **Web Risk** (uso comercial; Lookup gratis hasta 100 000/mes 🟡; requiere proyecto GCP, probablemente facturación ⏳) · Google **Safe Browsing v5** (gratis, **solo no comercial** ✅; v4 obsoleta, fin de soporte 31-mar-2027 🟡) · feeds CC0 (TweetFeed) como señal secundaria. **Propuesta:** Web Risk si se puede habilitar sin coste en el proyecto GCP del equipo; si no, Safe Browsing v5 declarando su uso no comercial en el prototipo. VirusTotal público y urlscan: **no** (licencia no comercial / privacidad).
 **Activo (P2, no MVP):** solo en sandbox aislado (contenedor sin credenciales, egress filtrado, bloqueo de IP privadas/loopback/link-local/metadatos tras **cada** resolución DNS (anti-rebinding: conectar a la IP validada), máx. redirecciones, timeout, tamaño, tipos permitidos, sin descargas ni JS de terceros salvo navegador aislado).
@@ -131,15 +140,19 @@ Datos etiquetados representativos (≥ cientos por clase, reales y consentidos +
 **Datos y Anthropic:** las fuentes secundarias indican que las condiciones comerciales de la API **no permiten entrenar con el contenido del cliente** y que la retención por defecto ronda 30 días 🟡 — ⏳ verificar en la documentación oficial de Anthropic antes de afirmarlo en la presentación.
 **Legal:** prototipo académico ≠ producto comercial (RGPD: base jurídica, roles responsable/encargado con el banco, EIPD, transferencias; AI Act ⏳). No afirmar cumplimiento certificado.
 
-## 11. Estructura de repositorio propuesta
+## 11. Estructura de repositorio
+**Vigente (sesión 6, ADR-0001/0012/0014; se crea en la Fase 0, `14` §11):**
 ```
-backend/app/{contracts,connectors/{gmail,manual,simulated},ingestion,screening,threat_intel,ai_analysis,risk,personalization,notifications,persistence,security,api}
-backend/data/entities_es.json      desktop/ (pywebview + bandeja + toasts)      frontend/ (UI)
-eval/{datasets/dev,datasets/test_sealed,runner}      tests/{unit,integration,e2e,adversarial}
-docs/adr/      .env.example      README.md
+backend/antifraude/{contracts,core,connectors,analysis,intel,ai,risk,app}   (F0-03: raíz `antifraude` en lugar de `app` para evitar `app.app`)
+backend/antifraude/app/{templates,static}        (Jinja + htmx vendorizado)
+pyproject.toml (solo configuración de pytest)    arranque: `cd backend && ..\.venv\Scripts\python -m antifraude`
+backend/data/entities_es.json
+eval/{datasets/dev,runner,SELLADO.md (procedimiento + metadatos + SHA-256; el conjunto sellado vive FUERA del repo, D-40)}      tests/{unit,integration,adversarial}
+vendor/htmx/      docs/adr/      docs/DEPENDENCIAS.md      .env.example      requirements.txt      requirements-dev.txt      requirements.lock      README.md
 ```
+Histórico (sesión 4): `backend/app/{contracts,connectors/{gmail,manual,simulated},ingestion,screening,threat_intel,ai_analysis,risk,personalization,notifications,persistence,security,api}` + `desktop/` + `frontend/`.
 
-## 12. ADR (registros de decisión; estado = Propuesto hasta aprobación)
+## 12. ADR — **histórico** (sesión 4–5). Vigentes y aprobados: `docs/adr/` (D-26)
 | ADR | Decisión | Motivo principal |
 |---|---|---|
 | 001 | Monolito modular, un proceso | Plazo y equipo; sin microservicios |

@@ -1,0 +1,5 @@
+# Solo configuración de herramientas (sin sistema de build). Dependencias: requirements*.txt (ADR-0014).
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["tests"]
+addopts = "-q"

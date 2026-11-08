@@ -3,15 +3,16 @@
 > Adaptado (sesión 5) del documento homónimo de la memoria original: solo lo vigente para el asistente antifraude (las preguntas y riesgos de la idea fiscal son históricos y se omiten). Identificadores originales conservados. Cerrar una entrada = anotarlo aquí con fecha y fuente.
 
 ## 1. Bloqueantes para empezar a programar
-- B-01 **Aprobación** del MVP, de los ADR (`13` §12) y del plan (`14`) (D-25).
+- B-01 (actualizado sesión 6) ~~Aprobación del MVP y de los ADR~~ ✅ (D-26, `docs/adr/`). Pendiente: **aprobación del plan de la Fase 0** (`14` §11, P-16) y de sus instalaciones (Python 3.12 + dependencias de `14` §11.4).
 - B-02 (actualizado sesión 5) Repositorio: ✅ creado e independiente (D-23). ~~Traslado~~ ✅ hecho y verificado (sesión 6, 2026-11-08) · remoto ✅ comprobado (accesible, vacío) · primer commit ✅ local (sesión 6). Pendiente: **primer push** (con autorización).
 - B-03 **Hora exacta de cierre** (no publicada; preguntar a BEST UC3M) = Q-01.
 - B-04 Cuenta **Gmail de pruebas** (+ cuenta emisora) y proyecto **Google Cloud** (consentimiento OAuth External/Testing, usuarios de prueba, cliente «Desktop»); conectar solo con autorización.
 
 ## 2. Decisiones técnicas abiertas
-- T-01 Stack de UI: React/TS (Vite) vs htmx · T-02 resultado del spike pywebview/pystray/win11toast · T-03 versión de Python común (3.12/3.13; la máquina tiene 3.14) · T-04 reputación: Web Risk (¿facturación GCP?) vs Safe Browsing v5 · T-05 retención inicial (propuesta 30 días, sin cuerpo completo) · T-06 presupuesto de API y límite de gasto · T-07 segundo canal (Telegram bot recomendado, P2) · T-08 empaquetado (venv + README vs PyInstaller) · T-09 ¿test sellado dentro del repo o fuera? · T-10 bancos del directorio inicial y quién verifica sus dominios.
-- **T-11 (sesión 5) Modelo de Claude para el análisis profundo: `claude-opus-5-5` vs `claude-sonnet-5-5`** según calidad (detección y evidencias en dev), coste por análisis y finalidad (también refusals, V-17). Decide el usuario (D-24).
-- **T-12 (sesión 5)** ¿Quiénes trabajan en este repositorio independiente? ¿Sigue vigente el reparto P1–P5 de `14` §1?
+- ~~T-01 Stack de UI~~ ✅ HTML + Jinja + htmx (D-35) · T-02 resultado del spike pywebview/pystray/win11toast (ahora en la fase g) · ~~T-03 versión de Python~~ ✅ 3.12 (D-27; instalación pendiente de autorización) · T-04 reputación: **opcional** (ADR-0009); queda decidir si se intenta Web Risk o Safe Browsing v5 · T-05 retención inicial (propuesta 30 días, sin cuerpo completo; ADR-0008) · T-06 presupuesto de API y límite de gasto · T-07 segundo canal (P2) · ~~T-08 empaquetado~~ ✅ venv + dependencias fijadas (D-36) · ~~T-09 test sellado~~ ✅ **fuera del repo**, no consultable por agentes; en el repo solo procedimiento, metadatos y SHA-256 (D-40). **Nuevo T-14: acordar la ubicación del conjunto final sellado** antes de crearlo · T-10 bancos del directorio inicial (~5) y verificación de sus dominios con fuente oficial.
+- **T-11 (sesión 5) Modelo de Claude para el análisis profundo: `claude-opus-5-5` vs `claude-sonnet-5-5`** según calidad, coste y **latencia** (D-32), con presupuesto autorizado (también refusals, V-17). Decide el usuario (D-24).
+- ~~T-12 composición del equipo~~ ✅ **un desarrollador** asistido por Claude Code y ECC (D-33).
+- ~~T-13 Cómo obtiene la sesión el navegador~~ ✅ **opción A**: código de emparejamiento aleatorio de un solo uso, con caducidad y límite de intentos; cookie segura; nunca tokens en URLs (D-39, ADR-0013).
 - A-07 Nombre del producto.
 
 ## 3. Preguntas a la organización (BEST UC3M)
@@ -27,6 +28,10 @@
 ## 5. Verificaciones técnicas (⏳)
 - V-03 Telegram Business: ¿requiere Premium? · V-05 competidores en español y si alertan proactivamente (para afirmar diferenciación) · V-07 balance oficial INCIBE 2025 antes de citar cifras · V-08 marco jurídico (RGPD: rol, base jurídica, EIPD; AI Act).
 - V-10 `Authentication-Results` en `payload.headers` de Gmail · V-11 caducidad de 7 días del refresh token en Testing (doc. OAuth principal) · V-12 Python 3.14 con pythonnet/pywebview · V-13 licencia de pystray · V-14 términos oficiales de Anthropic sobre entrenamiento/retención · V-15 si enviar fragmentos de Gmail a Anthropic cuenta como «transmisión» para Google + política de Uso Limitado · V-16 Web Risk: requisitos de facturación · V-17 refusals del modelo elegido con contenido de phishing (medir en dev).
+- (sesión 6) V-18 **Cobertura RDAP de dominios `.es`** (y otros ccTLD frecuentes) · V-19 **parámetros actuales de la API de Claude** (salida estructurada, `stop_reason: "refusal"`, *fallbacks*, temperatura, `effort`, caché) en la documentación oficial al implementar la fase d · V-20 compatibilidad de htmx con CSP estricta (sin `eval` ni estilos en línea) · ~~V-21 versiones y licencias~~ ✅ registradas en `docs/DEPENDENCIAS.md` (F0-02).
+- (F0-03) ~~V-22 Puerto 8765 ocupado~~ ✅ resuelto con D-42 (8790 + error claro) · V-23 aviso de Starlette: «usar `httpx` con `starlette.testclient` está obsoleto; instalar `httpx2`» → no se instala nada sin autorización; las pruebas funcionan · V-24 sin carga automática de `.env` (no hay dependencia autorizada): las variables se definen en el entorno; documentarlo en README (F0-07/F0-10).
+- (F0-04) T-15 **Límites de tamaño** de los contratos propuestos sin medir (mensaje original 5 MiB, cuerpo normalizado 100 000 caracteres, 200 URLs, URL 8 192, cita 500): revisar con casos reales; un correo con adjuntos puede superar 5 MiB → la ingesta deberá descartar el contenido de adjuntos y avisar (`parse_warnings`). · T-16 `ConsentContext`, `UserProfile`, `UserFeedback` y cabeceras completas **aplazados** a sus fases (f y personalización) por mínimo MVP. · T-17 `fetch_new()` es síncrono; confirmar en la fase f que encaja con el polling de Gmail en un hilo.
+- (F0-05) R-32 **El código de emparejamiento se imprime en la consola**: si alguien redirige la salida a un archivo, quedará en disco (un solo uso, 5 min). · R-33 Un proceso local malicioso podría agotar los 5 intentos (denegación de servicio del emparejamiento; se recupera reiniciando). · R-34 Cookie sin `Secure` (HTTP en loopback, sin TLS). · R-35 SSE: la sesión se comprueba al conectar; en la fase e hay que **revalidarla periódicamente** en conexiones largas. · R-36 Sin limitación general de peticiones salvo en el emparejamiento (riesgo bajo en loopback). · R-37 Sin auditoría automática de vulnerabilidades de dependencias (`pip-audit` no autorizado). · R-38 UX: con 30 min de inactividad, una persona mayor tendrá que reemparejar a menudo en modo navegador; con pywebview (fase g) la sesión podrá inyectarse sin código. · V-25 Comprobar en F0-06 que htmx envía `X-CSRF-Token` y que el navegador real manda `Origin` en POST y `Sec-Fetch-Site` como se espera.
 
 ## 6. Contradicciones
 | ID | Contradicción | Tratamiento |
@@ -35,8 +40,10 @@
 | C-02 | El PDF no fija fecha; el 12-nov procede del equipo | Marcar 💬; confirmar (Q-01) |
 | C-16 (sesión 5) | P-13 proponía Opus 5.5 por defecto; ADR 007 proponía Sonnet 5.5 | **Resuelta como pendiente explícita** (D-24); `13` y `14` actualizados |
 | C-17 (sesión 5) | `12` §1 y §3 contemplan una demo con audio sintético y ElevenLabs | **Prevalece D-12** (voz en fase 2); `12` §5bis ya lo indica |
+| C-19 (sesión 6) | `11` §5 y §12 exigen «recepción **real** de correo» / «≥1 con Gmail real» en la demo; D-34 dice que la demo principal **no depende de Gmail** | ✅ **Resuelta** (D-41): `11` §5 y §12 corregidos en la sesión 6 |
 | C-18 (sesión 5) | La memoria original hablaba de un «repositorio compartido no clonado» | **Superada por D-23** (repositorio propio e independiente) |
 
 ## 7. Riesgos
+- (sesión 6) R-29 **Capacidad de un solo desarrollador** → orden D-28, recortar g y después f. · R-30 La seguridad de la API local retrasa el núcleo → límite de tiempo en F0-05. · R-31 Clasificación errónea en los 3 casos de demo (falsos positivos o NO CONCLUYENTE) → ADR-0006 y ensayo desde la fase c.
 - R-20 Novedad frente a competidores consolidados (30 %). · R-21 Prometer canales imposibles (`12` §1). · R-22 Porcentajes sin calibrar (prohibidos, D-14). · R-23 Prompt injection. · R-24 Privacidad de mensajes enviados a la nube. · R-25 Alcance vs 4 días. · R-26 Banco de pruebas circular (IA que escribe y detecta). · R-27 Demo dependiente de red/APIs → modo sin IA real etiquetado. · R-28 Correos de prueba en SPAM.
 - Registro completo con mitigaciones: `14` §7 (incluye la posible pérdida de puntos de IA frontera por no usar audio, aceptada).

@@ -13,8 +13,9 @@
 | `10_FUENTES.md` | Origen de cada documento, fuente oficial, qué no se copió | Citas o dudas de origen |
 | **`11_PRODUCTO_ANTIFRAUDE.md`** | **Producto vigente**: alcance, público, principios, MVP P0/P1/P2, UX, alertas, riesgo, enlaces, personalización, demo, éxito | Siempre que se diseñe, programe o presente |
 | `12_VIABILIDAD_PLATAFORMAS.md` | Límites reales por canal, inteligencia de URLs y licencias, costes de modelos, competencia, datos INCIBE, fuentes | Antes de prometer o implementar un canal |
-| **`13_ARQUITECTURA_TECNICA.md`** | **Propuesta** (no aprobada): entorno, stack, módulos A–L, contratos, pipeline, motor de riesgo, enlaces, Gmail, seguridad, ADR | Antes de programar cualquier módulo |
-| **`14_PLAN_EJECUCION.md`** | **Propuesta**: reparto, calendario, Git, pruebas, aceptación, riesgos, costes, entregables, Fase 0 | Planificar, repartir, cerrar fases |
+| **`../adr/README.md`** | **ADR-0001–0015 aprobados** (sesión 6, D-26): fuente de verdad de la arquitectura | Antes de programar cualquier módulo |
+| **`13_ARQUITECTURA_TECNICA.md`** | Arquitectura **aprobada con modificaciones** (ver resumen al inicio): entorno, contratos, pipeline, motor de riesgo, enlaces, Gmail, seguridad. Si contradice un ADR, prevalece el ADR | Detalle técnico de un módulo |
+| **`14_PLAN_EJECUCION.md`** | **§11: plan para un desarrollador y Fase 0** (propuesta P-16); Git, pruebas, aceptación, riesgos, costes, entregables | Planificar y cerrar fases |
 
 Numeración: se conservan los números de la memoria original para trazabilidad; 03–06 no existen aquí (histórico no copiado, ver `10` §3).
 

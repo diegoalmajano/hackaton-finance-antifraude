@@ -1,0 +1,9 @@
+# Dependencias de ejecución — Python 3.12 (ADR-0011, ADR-0014)
+# Solo las aprobadas para la Fase 0 (docs/contexto/14_PLAN_EJECUCION.md §11.4).
+# Versiones exactas; detalle de licencias y justificación en docs/DEPENDENCIAS.md.
+# Bloqueo completo (incluidas transitivas): requirements.lock
+fastapi==0.162.2
+pydantic==2.14.3
+uvicorn==0.54.0
+jinja2==3.1.6
+python-multipart==0.0.33

@@ -3,7 +3,7 @@
 > **Copia de trabajo del repositorio** (2026-11-08, sesión 5): adaptada del documento homónimo de la memoria original; referencias ajustadas para no depender de carpetas externas. Cambios marcados con «(sesión 5)».
 
 **Fuente:** «Prompt maestro definitivo v2.0» del usuario (2026-11-08, sesión 4). Sustituye a la v1 de la sesión 3 (que incluía voz, índice 0–100 y entidad ficticia). Arquitectura técnica y contratos: `13_ARQUITECTURA_TECNICA.md`. Plan, equipo, riesgos, tests: `14_PLAN_EJECUCION.md`. Límites por plataforma y fuentes: `12_VIABILIDAD_PLATAFORMAS.md`.
-Estado: **idea aprobada (D-09); arquitectura e implementación pendientes de aprobación** (D-10, D-25). Modelo de Claude pendiente (D-24) (sesión 5).
+Estado: **idea aprobada (D-09); arquitectura APROBADA con modificaciones (D-26, sesión 6; `docs/adr/`)**; Fase 0 aprobada (D-38) y en curso por etapas. Modelo de Claude pendiente (D-24, D-32). ~~arquitectura e implementación pendientes de aprobación (D-10, D-25)~~ (histórico).
 
 ## 1. Identidad
 **Asistente de IA que previene estafas financieras en mensajes y comunicaciones digitales escritas.** Capa de protección personal: el usuario autoriza canales y el agente analiza **proactivamente** los mensajes nuevos que puede recibir legal y técnicamente.
@@ -27,7 +27,7 @@ El verificador fiscal queda descartado (histórico).
 Consentimiento por canal · mínimo privilegio · detección proactiva donde la plataforma lo permita · análisis por etapas (filtrar antes de usar modelos avanzados) · explicabilidad (motivos + evidencias) · reconocer incertidumbre · personalización individual sin compartir aprendizajes entre usuarios · decisión humana · privacidad (minimizar lo enviado, procesado y conservado) · accesibilidad para mayores · todo mensaje y enlace = **dato no confiable**.
 
 ## 5. MVP (12-nov) — prioridades
-**Flujo a demostrar:** recepción **real** de correo → filtro → alerta preventiva → investigación → evaluación → notificación final → decisión del usuario.
+**Flujo a demostrar:** recepción de un mensaje → filtro → alerta preventiva → investigación → evaluación → notificación final → decisión del usuario. **(Sesión 6, D-34) La demo principal no depende de Gmail:** funciona con análisis manual y, como respaldo, con conectores simulados **etiquetados**. La recepción **real** por Gmail sigue siendo una integración **prioritaria** (fase f, D-28) y se mostrará si está disponible.
 ### P0 imprescindibles
 1 Motor de análisis de texto · 2 extracción y normalización de enlaces · 3 filtro rápido · 4 análisis contextual con IA · 5 motor de riesgo explicable · 6 niveles **BAJO / MEDIO / ALTO / NO CONCLUYENTE** · 7 alertas preventiva y definitiva · 8 interfaz en español · 9 análisis manual · 10 pruebas automatizadas · 11 demo reproducible (legítimos y fraudulentos).
 ### P1 prioritarias
@@ -68,7 +68,7 @@ Detectar fraudes en varias comunicaciones (verificar cuenta → enlace → presi
 1. **Correo legítimo** de pruebas → sin alerta injustificada.
 2. **Estafa evidente**: supuesto banco pide verificar credenciales con urgencia mediante enlace sospechoso → detecta, alerta, investiga el enlace, identifica suplantación, resultado explicado, actuación segura.
 3. **Estafa sofisticada**: correo profesional convincente pide una actuación financiera con incoherencias de identidad o enlaces (p. ej. texto visible del enlace = dominio oficial pero destino distinto; nombre mostrado de banco con dirección de otro dominio; cambio de cuenta de pago) → evidencias sin depender de faltas de ortografía; si faltan datos, **NO CONCLUYENTE**.
-Al menos uno con **recepción real vía Gmail**. Nada pregrabado presentado como ejecución real.
+Objetivo: al menos uno con **recepción real vía Gmail** si la integración está disponible (prioritaria, pero **no requisito** de la demo principal, D-34). Nada pregrabado presentado como ejecución real; lo simulado, siempre etiquetado.
 
 ## 13. Definición de éxito
 Un usuario conecta un canal permitido → recibe un mensaje → análisis automático → indicios → alerta preventiva → investigación de contenido y enlaces → evaluación explicada → evidencias → **qué no se pudo comprobar** → decide el usuario. Comprensible para una persona mayor. Sin afirmar detectar todo, sin porcentajes de eficacia inventados, sin simulaciones como reales, sin datos personales no autorizados.
