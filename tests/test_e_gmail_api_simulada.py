@@ -231,3 +231,46 @@ def test_desconexion_informa_si_no_pudo_borrar_el_token() -> None:
     roto = _KeyringFalso(WinVaultKeyring(), falla_al_borrar=True)
     roto.set_password(KEYRING_SERVICE, KEYRING_USER, "token-de-prueba")
     assert forget_local_token(roto) is False
+
+
+def test_mensajes_por_encima_del_maximo_no_se_pierden(monkeypatch: pytest.MonkeyPatch) -> None:
+    from antifraude.connectors import gmail as g
+    monkeypatch.setattr(g, "MAX_MESSAGES_PER_POLL", 2)
+    s = ServicioSimulado()
+    s.paginas = [{"history": [{"messagesAdded": [{"message": {"id": f"m{i}"}} for i in range(5)]}],
+                  "historyId": "800"},
+                 {"historyId": "801"}, {"historyId": "802"}]
+    con = GmailConnector(GmailApiClient(s))
+    con.fetch_new()  # primera consulta: solo historyId
+    entregados = [r.source_message_id for r in con.fetch_new()]
+    entregados += [r.source_message_id for r in con.fetch_new()]  # el historial ya avanzó: salen de pendientes
+    entregados += [r.source_message_id for r in con.fetch_new()]
+    assert entregados == ["m0", "m1", "m2", "m3", "m4"]
+
+
+def test_error_transitorio_se_reintenta_y_luego_se_comunica() -> None:
+    from antifraude.connectors import gmail as g
+
+    class ClienteFalso:
+        def __init__(self) -> None:
+            self.llamadas = 0
+
+        def get_profile_history_id(self) -> str:
+            return "1"
+
+        def list_history_message_ids(self, start: str) -> tuple[list[str], str]:
+            return (["roto"] if start == "1" else []), "2"
+
+        def list_recent_message_ids(self, n: int) -> list[str]:
+            return []
+
+        def get_raw_message(self, mid: str) -> tuple[bytes, None]:
+            self.llamadas += 1
+            raise RuntimeError("500")
+
+    cli = ClienteFalso()
+    con = GmailConnector(cli)  # type: ignore[arg-type]
+    con.fetch_new()
+    for _ in range(g.MAX_FETCH_ATTEMPTS):
+        assert con.fetch_new() == []
+    assert cli.llamadas == g.MAX_FETCH_ATTEMPTS and con.unanalyzable == ["roto"] and con.state.pending == []

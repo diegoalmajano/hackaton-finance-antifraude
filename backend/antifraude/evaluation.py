@@ -171,14 +171,208 @@ def report(results: list[CaseResult], m: Metrics) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
-    """``python -m antifraude.evaluation`` (desde ``backend``): métricas del conjunto de DESARROLLO."""
+_ROOT = Path(__file__).resolve().parents[2]
+RESULTS_DIR = _ROOT / "eval" / "results"  # ignorado por Git
+
+
+@dataclass
+class ConfigRun:
+    name: str
+    results: list[CaseResult]
+    metrics: Metrics
+    cost_usd: float = 0.0
+    ai_calls: int = 0
+    ai_failures: int = 0
+
+
+def evaluate_config(name: str, cases: list[EvalCase], pipeline: AnalysisPipeline) -> ConfigRun:
+    """Ejecuta una configuración y suma el coste REAL registrado en ``usage`` (0 si no hubo IA)."""
+    results: list[CaseResult] = []
+    cost, calls, failures = 0.0, 0, 0
+    for c in cases:
+        out = run_case(c, pipeline)
+        level = out.assessment.risk_level
+        results.append(CaseResult(c.case_id, c.expected.risk_level, list(c.expected.acceptable_levels), level,
+                                  c.expected.must_alert, level in _ALERT, out.latency_ms, c.origin.value))
+        if out.ai is not None and out.ai.status.value != "not_configured":
+            calls += 1
+            failures += out.ai.status.value == "failed"
+            if out.ai.usage is not None and out.ai.usage.cost_usd is not None:
+                cost += out.ai.usage.cost_usd
+    _, metrics = _metrics_from(results)
+    return ConfigRun(name, results, metrics, round(cost, 6), calls, failures)
+
+
+def _metrics_from(results: list[CaseResult]) -> tuple[list[CaseResult], Metrics]:
+    m = Metrics(n=len(results), tp=0, fp=0, fn=0, tn=0, inconclusive=0, level_ok=0,
+                latencies_ms=[r.latency_ms for r in results])
+    for r in results:
+        m.inconclusive += r.obtained is RiskLevel.INCONCLUSIVE
+        m.level_ok += r.level_ok
+        if r.expected is RiskLevel.INCONCLUSIVE:
+            m.ambiguous_n += 1
+            m.ambiguous_level_ok += r.level_ok
+            m.ambiguous_alerted += r.alerted
+            continue
+        if r.must_alert and r.alerted:
+            m.tp += 1
+        elif not r.must_alert and r.alerted:
+            m.fp += 1
+        elif r.must_alert and not r.alerted:
+            m.fn += 1
+        else:
+            m.tn += 1
+    return results, m
+
+
+def metrics_dict(run: ConfigRun) -> dict[str, object]:
+    m = run.metrics
+    pos, neg = m.tp + m.fn, m.fp + m.tn
+    return {
+        "configuracion": run.name, "casos": m.n, "deben_alertar": pos, "legitimos": neg, "ambiguos": m.ambiguous_n,
+        "vp": m.tp, "fp": m.fp, "fn": m.fn, "vn": m.tn, "no_concluyente": m.inconclusive, "nivel_aceptable": m.level_ok,
+        "precision": m.precision, "recall": m.recall, "f1": m.f1, "tasa_fp": m.false_positive_rate,
+        "recall_ic95_wilson": wilson(m.tp, pos), "tasa_fp_ic95_wilson": wilson(m.fp, neg),
+        "latencia_ms_p50": m.percentile(0.5), "latencia_ms_p95": m.percentile(0.95),
+        "llamadas_ia": run.ai_calls, "fallos_ia": run.ai_failures, "coste_real_usd": run.cost_usd,
+    }
+
+
+def _git_commit() -> str | None:
+    import subprocess
+    try:
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=_ROOT, capture_output=True, text=True,
+                           timeout=10)
+        return r.stdout.strip() or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _inside_repo(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(_ROOT)
+        return True
+    except ValueError:
+        return False
+
+
+def build_report(kind: str, runs: list[ConfigRun], *, model: str | None, sealed_sha256: str | None) -> dict[str, object]:
+    """Informe reproducible (JSON). Sin textos de mensajes; en modo sellado, sin identificadores de casos."""
+    from datetime import datetime, timezone
+
+    from antifraude.ai.prompt import PROMPT_VERSION
+    from antifraude.analysis.rules import RULE_VERSION
+
+    report_: dict[str, object] = {
+        "tipo": kind,
+        "aviso": ("Conjunto de DESARROLLO: el motor se ajustó con estos casos; NO es una evaluación independiente."
+                  if kind == "desarrollo" else
+                  "Conjunto SELLADO ejecutado una vez con el commit congelado; métricas solo agregadas."),
+        "fecha_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "commit": _git_commit(), "rule_version": RULE_VERSION, "prompt_version": PROMPT_VERSION,
+        "modelo_ia": model, "sha256_conjunto": sealed_sha256,
+        "configuraciones": [metrics_dict(r) for r in runs],
+    }
+    if kind == "desarrollo" and len(runs) == 2:  # comparación caso a caso (solo identificadores y niveles)
+        a, b = runs
+        report_["diferencias"] = [
+            {"case_id": x.case_id, "esperado": x.expected.value, a.name: x.obtained.value, b.name: y.obtained.value}
+            for x, y in zip(a.results, b.results) if x.obtained is not y.obtained]
+    elif kind == "desarrollo":
+        report_["casos"] = [{"case_id": r.case_id, "esperado": r.expected.value, "obtenido": r.obtained.value,
+                             "aceptable": r.level_ok} for r in runs[0].results]
+    return report_
+
+
+def main(argv: list[str] | None = None) -> int:
+    """``python -m antifraude.evaluation`` (desde ``backend``). Ver ``eval/EJECUCION.md``."""
+    import argparse
+    import json
+
+    from antifraude.ai.claude import ClaudeAnalyzer
+    from antifraude.ai.budget import estimate_input_tokens, worst_case_cost
+    from antifraude.core.config import Settings
     from antifraude.intel.entities import EntityDirectory
 
-    dev = Path(__file__).resolve().parents[2] / "eval" / "datasets" / "dev"
-    pipeline = AnalysisPipeline(EntityDirectory.load_default(include_fictitious=True))
-    results, m = evaluate(load_cases(sorted(dev.glob("*.jsonl"))), pipeline)
-    print(report(results, m))
+    ap = argparse.ArgumentParser(prog="python -m antifraude.evaluation")
+    ap.add_argument("--modo", choices=["reglas", "ia", "ambos"], default="reglas")
+    ap.add_argument("--sellado", type=Path, help="Conjunto sellado (FUERA del repositorio).")
+    ap.add_argument("--sha256", help="Huella esperada del conjunto sellado (eval/SELLADO.md).")
+    ap.add_argument("--salida", type=Path, help="Informe JSON (por defecto, eval/results/).")
+    ap.add_argument("--confirmar-gasto", action="store_true", help="Necesario para cualquier modo con IA.")
+    args = ap.parse_args(argv)
+
+    kind = "desarrollo"
+    sha = None
+    if args.sellado is not None:
+        path = args.sellado
+        if _inside_repo(path):
+            print("ERROR: el conjunto sellado debe estar FUERA del repositorio (D-40).")
+            return 2
+        if not path.is_file() or not args.sha256:
+            print("ERROR: falta el archivo sellado o su huella (--sha256).")
+            return 2
+        sha = _sha256(path)
+        if sha != args.sha256.strip().lower():
+            print("ERROR: la huella SHA-256 no coincide: el conjunto ha cambiado o no es el registrado.")
+            return 2
+        marker = RESULTS_DIR / f"sellado_{sha[:16]}.ejecutado"
+        if marker.exists():
+            print("ERROR: este conjunto sellado ya se ejecutó una vez (D-40). No se repite.")
+            return 2
+        kind = "sellado"
+        cases = load_cases([path])
+    else:
+        cases = load_cases(sorted((_ROOT / "eval" / "datasets" / "dev").glob("*.jsonl")))
+
+    directory = EntityDirectory.load_default(include_fictitious=True)
+    runs: list[ConfigRun] = []
+    model = None
+    if args.modo in ("reglas", "ambos"):
+        runs.append(evaluate_config("reglas", cases, AnalysisPipeline(directory)))
+    if args.modo in ("ia", "ambos"):
+        settings = Settings.from_env()
+        key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
+        analyzer = ClaudeAnalyzer(policy=settings.ai_policy(), api_key=key)
+        if not analyzer.configured:
+            print(f"IA no disponible: {analyzer.blocked_reason} No se ha gastado nada.")
+            return 3
+        policy = settings.ai_policy()
+        assert policy.model is not None
+        worst = worst_case_cost(policy.model, estimate_input_tokens("x" * 6000), policy.max_output_tokens) * len(cases)
+        print(f"Peor caso estimado: {worst} USD para {len(cases)} casos (límite autorizado {policy.budget_usd} USD; "
+              f"máx. {policy.max_requests} solicitudes).")
+        if not args.confirmar_gasto:
+            print("Falta --confirmar-gasto: no se envía ninguna solicitud.")
+            return 3
+        model = policy.model
+        runs.append(evaluate_config("reglas_ia", cases, AnalysisPipeline(directory, analyzer)))
+
+    rep = build_report(kind, runs, model=model, sealed_sha256=sha)
+    out = args.salida or RESULTS_DIR / f"informe_{kind}_{rep['fecha_utc'].replace(':', '').replace('-', '')[:15]}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(rep, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    if kind == "sellado":
+        (RESULTS_DIR / f"sellado_{sha[:16] if sha else 'x'}.ejecutado").write_text(str(rep["fecha_utc"]),
+                                                                                     encoding="utf-8")
+        for c in rep["configuraciones"]:  # type: ignore[union-attr]
+            print(json.dumps(c, ensure_ascii=False, default=str))
+    else:
+        for r in runs:
+            print(f"== {r.name} ==")
+            if r.name == "reglas":
+                print(report(r.results, r.metrics))
+            else:  # con IA: el texto de report() describe el modo sin IA; se muestran las métricas tal cual
+                print(json.dumps(metrics_dict(r), ensure_ascii=False, default=str))
+            if r.ai_calls:
+                print(f"Llamadas a la IA: {r.ai_calls} (fallidas {r.ai_failures}); coste real registrado: "
+                      f"{r.cost_usd} USD")
+    print(f"Informe JSON: {out}")
     return 0
 
 

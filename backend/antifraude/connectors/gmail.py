@@ -25,9 +25,14 @@ from antifraude.contracts.common import MAX_RAW_BYTES
 from antifraude.contracts.input_adapter import InputAdapter
 from antifraude.contracts.messages import Channel, RawFormat, RawMessage
 
-MAX_MESSAGES_PER_POLL = 50
+#: 40 × 60 unidades (messages.get raw) + 2 (history.list), dos veces por minuto = 4 804 < 6 000 unidades/min/usuario.
+MAX_MESSAGES_PER_POLL = 40
 #: Memoria de identificadores ya entregados (evita duplicados sin crecer sin límite).
 MAX_SEEN_IDS = 10_000
+#: Mensajes pendientes para la siguiente consulta (por el máximo por consulta o por errores transitorios).
+MAX_PENDING = 1_000
+#: Intentos de descarga de un mismo mensaje antes de comunicarlo como «no se pudo analizar».
+MAX_FETCH_ATTEMPTS = 3
 RESYNC_RECENT = 20
 
 
@@ -67,6 +72,9 @@ class GmailState:
     history_id: str | None = None
     seen_ids: set[str] = field(default_factory=set)
     _order: deque[str] = field(default_factory=deque, repr=False)
+    #: El historyId ya avanzó: lo que no se descargó en esta consulta se guarda aquí para no perderlo.
+    pending: list[str] = field(default_factory=list)
+    attempts: dict[str, int] = field(default_factory=dict)
 
     def mark_seen(self, message_id: str) -> None:
         if message_id in self.seen_ids:
@@ -103,6 +111,9 @@ class GmailConnector(InputAdapter):
             self.state.history_id = self.client.get_profile_history_id()
             return ids
 
+    def _defer(self, ids: list[str]) -> None:
+        _defer_into(self.state, ids, self.unanalyzable)
+
     def fetch_new(self) -> Sequence[RawMessage]:
         try:
             ids = self._collect()
@@ -112,17 +123,31 @@ class GmailConnector(InputAdapter):
         except Exception:
             self.status, self.last_error = ConnectorStatus.ERROR, "No se pudo consultar Gmail."
             return []
+        queue = self.state.pending + [m for m in ids if m not in self.state.pending]
+        self.state.pending = []
         out: list[RawMessage] = []
-        for mid in ids:
-            if mid in self.state.seen_ids or len(out) >= MAX_MESSAGES_PER_POLL:
+        for i, mid in enumerate(queue):
+            if mid in self.state.seen_ids:
                 continue
+            if len(out) >= MAX_MESSAGES_PER_POLL:
+                self._defer(queue[i:])  # el resto, en la siguiente consulta (antes se perdía)
+                break
             try:
                 raw, received = self.client.get_raw_message(mid)
             except GmailAuthError:
+                self._defer(queue[i:])
                 self.status, self.last_error = ConnectorStatus.AUTH_ERROR, "Hay que volver a autorizar la cuenta de Gmail."
                 return out
             except Exception:
-                continue  # se reintentará en la siguiente consulta (no se marca como visto)
+                self.state.attempts[mid] = self.state.attempts.get(mid, 0) + 1
+                if self.state.attempts[mid] >= MAX_FETCH_ATTEMPTS:
+                    self.state.attempts.pop(mid, None)
+                    self.state.mark_seen(mid)
+                    self.unanalyzable.append(mid[:256])  # se comunica; no se reintenta para siempre
+                else:
+                    self._defer([mid])
+                continue
+            self.state.attempts.pop(mid, None)
             self.state.mark_seen(mid)
             if not raw or len(raw) > MAX_RAW_BYTES:
                 self.unanalyzable.append(mid[:256])
@@ -132,6 +157,17 @@ class GmailConnector(InputAdapter):
                                   source_message_id=mid[:256]))
         self.status, self.last_error = ConnectorStatus.OK, None
         return out
+
+
+def _defer_into(state: GmailState, ids: list[str], unanalyzable: list[str]) -> None:
+    for mid in ids:
+        if mid in state.seen_ids or mid in state.pending:
+            continue
+        if len(state.pending) >= MAX_PENDING:
+            state.mark_seen(mid)
+            unanalyzable.append(mid[:256])  # desbordamiento: se avisa en vez de perderlo en silencio
+        else:
+            state.pending.append(mid)
 
 
 def decode_gmail_raw(raw_b64url: str) -> bytes:
