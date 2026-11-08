@@ -21,33 +21,51 @@ from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily
 from antifraude.intel.entities import EntityDirectory
 from antifraude.intel.urls import registrable_domain
 
-RULE_VERSION = "rules-0.1.0"
+RULE_VERSION = "rules-0.2.0"
 
-#: Negación SOLO de la propia petición («nunca le pediremos…», «no le solicitaremos…»). Revisión Etapa B:
-#: una negación genérica («No le demore: introduzca su clave») ya no anula la regla.
+#: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
+#: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
+#: introduzca su clave» ya NO se anula).
 _NEGATION = re.compile(
     r"\b(nunca|jamas|no)\b[^.!?\n:;]{0,30}\b(pedi\w*|pide\w*|pida\w*|pediran|solicit\w*|pregunt\w*|requer\w*|"
-    r"exig\w*|reclam\w*)\b[^.!?\n:;]{0,40}$")
+    r"exig\w*|reclam\w*)\b(\s+(le|te|les|nos|os|su|sus|tu|tus|el|la|los|las|que|a usted|de usted))*\s*$")
+#: Negación directa del verbo de la petición («nunca facilite», «no debe facilitar», «evite introducir»).
+_DIRECT_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)(\s+(le|te|se lo|se la|nos|les|lo|la))?"
+                              r"(\s+(debe|deberia|tiene que|tienes que|hay que|debemos))?(\s+nunca)?\s*$")
+#: Discurso referido: «si alguien le pide que confirme…», «los estafadores le dirán «introduzca…»».
+_REPORTED = re.compile(r"\b(le|te|les)\s+(pide|piden|pidan|pidiera|pedira|pediran|dira|diran|dice|dicen)"
+                       r"(\s+que)?\s*[«\"']?\s*$")
+#: Cortes de cláusula además de la puntuación fuerte.
+_CLAUSE_CUT = re.compile(r"[.!?\n:;]|\b(por eso|asi que|pero|sino|solo|para su tranquilidad|ahora)\b")
 _NO_NEED = re.compile(r"\b(no es necesario|no hace falta|no tiene que|no tienes que|no necesita|no debe|"
                       r"sin necesidad de)\b[^.!?\n:;]{0,40}$")
 _NEGATED_SPAN = re.compile(r"\b(ningun|ninguna|nada)\b")
 
 _REQUEST_VERB = (
-    r"\b(introduzca|introduce|introducir|indique|indica|facilite|facilita|facilitar|confirme|confirma|confirmar|"
-    r"verifique|verifica|verificar|envie|envia|enviar|mande|manda|mandar|responda|responde|dime|digame|"
+    r"\b(introduzca|introduce|introducir|introduciendo|indique|indica|facilite|facilita|facilitar|confirme|confirma|"
+    r"confirmar|verifique|verifica|verificar|envie|envia|enviar|mande|manda|mandar|responda|responde|dime|digame|"
     r"actualice|actualiza|actualizar|escriba|escribe|proporcione|proporciona|comparta|comparte|valide|valida|validar|"
-    r"rellene|rellena|complete|completa|identifiquese|reactive|reactivar|acceda e|accede e|inicie sesion|ingrese|"
-    r"necesit\w*|acced\w* con|entre con|comuniq\w*|digame|digale|facilitenos|indiquenos|envienos|"
-    r"tecle\w*|aporte|aporta|remita|remite)"
+    r"rellene|rellena|complete|completa|identifiquese|reactive|reactiva|reactivar|acceda e|accede e|inicie sesion|"
+    r"inicia sesion|ingrese|necesit\w*|acced\w* con|entre con|comuniq\w*|digale|facilitenos|indiquenos|envienos|"
+    r"tecle\w*|aporte|aporta|remita|remite|remitiera|remitirnos|"
+    # formas con pronombre pegado (revisión adversarial A2/A3)
+    r"enviarnos|envianos|facilitarnos|facilitanos|indicarnos|indicanos|confirmarnos|confirmenos|pasame|pasamelo|"
+    r"pasarnos|pasanos|pasenos|pasas|diganos|dinos|mandame|mandanos|reenviame|reenvienos|renueve|renueva|renuevela)"
 )
 _CREDENTIAL_OBJECT = (
-    r"(contrasena|clave(s)?( de acceso| de firma| personal| secreta)?\b|pin\b|credenciales|usuario y contrasena|"
-    r"datos (de acceso|habituales de acceso|bancarios|de (la|su|tu) tarjeta)|numero de (la |su |tu )?tarjeta|cvv|cvc|"
-    r"codigo de seguridad|firma (electronica|digital)|identidad con sus datos)"
+    r"(contrasena|clave(s)?( de acceso| de firma| personal| secreta| sms| de operaciones| de un solo uso)?\b|pin\b|"
+    r"credenciales|usuario y contrasena|coordenadas|numero secreto|"
+    r"datos (de acceso|habituales de acceso|bancarios|personales|de (la|su|tu) tarjeta)|"
+    r"numero de (la |su |tu )?(tarjeta|cuenta)|(ultimos )?(\d+ )?digitos de (la|su|tu) tarjeta|cvv|cvc|"
+    r"codigo de seguridad|firma (electronica|digital)|identidad con sus datos|foto (de|del) (su |tu )?(dni|tarjeta))"
 )
+#: Verbos de petición que NO son «teclear en su propio servicio» (adversarial P2).
+_SHARE_VERB = re.sub(r"(introduzca|introduce|introducir|introduciendo|escriba|escribe|tecle\\w\*)\|", "",
+                     _REQUEST_VERB)
+_CARD_OBJECT = r"(datos de (la|su|tu) tarjeta|numero de (la |su |tu )?tarjeta|fecha de caducidad|cvv|cvc)"
 _OTP_OBJECT = (
     r"(codigo (que|de verificacion|de confirmacion|recibido|que le|que te|sms|de un solo uso|otp)|\botp\b|"
-    r"codigo [^.\n]{0,40}(recibira|recibiras|le (hemos|acabamos de) enviad|te (hemos|acabamos de) enviad|le llegara|te llegara))"
+    r"codigo [^.\n]{0,40}(recibira|recibiras|le (hemos|acabamos de) enviad|te (hemos|acabamos de) enviad|le llegara|te llegara|(le|te) ha llegado|(le|te) va a llegar)|codigo de \d+ (cifras|digitos))"
 )
 
 
@@ -78,38 +96,73 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"\b(password|passcode|pin|login details|card number|cvv|security code|verification code|one[- ]time code)"),
           "Le piden claves, códigos o datos de tarjeta (mensaje en inglés). Su banco nunca se los pedirá por mensaje.",
           "petición de credenciales (inglés)", negatable=True),
+    # OTP: «introduce el código» para teclearlo en el propio servicio es legítimo (adversarial P2); solo cuenta
+    # si se pide enviarlo, compartirlo o introducirlo en un enlace/formulario/respuesta.
     _Rule("content.otp_request", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(_REQUEST_VERB + r"\b[^.\n]{0,70}?" + _OTP_OBJECT),
+          _rx(_SHARE_VERB + r"\b[^.\n]{0,70}?" + _OTP_OBJECT + r"|\b(introduzca|introduce|introducir|escriba|escribe|"
+              r"tecle\w*)\b[^.\n]{0,70}?" + _OTP_OBJECT + r"[^.\n]{0,60}(enlace|aqui|formulario|respond|https?|www)"),
           "Le piden un código de verificación (de un solo uso). No lo comparta nunca.",
           "petición de OTP", negatable=True),
     _Rule("content.otp_share", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"codigo[^.!?\n]{0,60}\b(comuniq\w*|digaselo|diga\w*|dicte\w*|facilit\w*|reenvi\w*|envie\w*|mande\w*|"
-              r"responda con|indiquenos|leaselo)\b"),
+              r"responda con|indiquenos|leaselo|pasamelo|pasemelo|pasanoslo|dimelo|digamelo|mandamelo|reenviamelo)\b"),
           "Le piden que comunique a otra persona un código que ha recibido. No lo comparta nunca.",
           "petición de compartir un código", negatable=True),
+    # Tarjeta: exige un verbo de petición o una pregunta (adversarial P3: mencionarla no es pedirla).
     _Rule("content.card_request", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(r"(datos de (la|su|tu) tarjeta|numero de (la |su |tu )?tarjeta|fecha de caducidad|cvv|cvc)"),
-          "Le piden datos de su tarjeta.", "referencia a datos de tarjeta", negatable=True),
+          _rx(_REQUEST_VERB + r"\b[^.\n]{0,60}?" + _CARD_OBJECT + r"|(cual es|digame|diganos)[^.\n]{0,30}" + _CARD_OBJECT),
+          "Le piden datos de su tarjeta.", "petición de datos de tarjeta", negatable=True),
+    _Rule("content.identity_data_request", SignalFamily.CONTENT, Severity.MEDIUM,
+          _rx(_REQUEST_VERB + r"\b[^.\n]{0,60}?(\bdni\b|\[dni\]|fecha de nacimiento|numero de la seguridad social|"
+              r"documento de identidad)"),
+          "Le piden datos personales de identidad (DNI, fecha de nacimiento…).", "petición de datos de identidad",
+          negatable=True),
     _Rule("content.urgency", SignalFamily.CONTENT, Severity.MEDIUM,
-          _rx(r"(urgente|inmediatamente|de inmediato|en (las proximas |los proximos |un plazo de )?\d+ (horas|minutos)|"
-              r"antes de \d+ (horas|minutos)|ultimo aviso|antes de (hoy|manana|medianoche)|cuanto antes|"
-              r"lo antes posible|de lo contrario|plazo de \d+|es imprescindible)"),
+          _rx(r"(urgente|inmediatamente|de inmediato|en (las proximas |los proximos |un plazo de )?\d+ ?(horas|minutos|h\b)|"
+              r"antes de \d+ ?(horas|minutos|h\b)|ultimo aviso|antes de (hoy|manana|medianoche)|cuanto antes|"
+              r"lo antes posible|de lo contrario|plazo de \d+|es imprescindible|hoy mismo|plazas limitadas)"),
           "Le meten prisa para que actúe sin pensar.", "lenguaje de urgencia"),
     _Rule("content.unrecognized_charge_lure", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(r"(si no (ha|has) sido (usted|tu)|si no (reconoce|reconoces|ha realizado|has realizado)|no ha sido usted)"
-              r"[^\n]{0,80}(cancel|anul|bloque|rechaz|deten|pulse|acceda|llame|responda)"),
+          _rx(r"(si no (ha|has) sido (usted|tu)|si no (reconoce|reconoces|ha realizado|has realizado)|no ha sido usted|"
+              r"si no (lo|la) (has|ha) (hecho|solicitado|autorizado|realizado))"
+              r"[^\n]{0,80}(cancel|anul|bloque|rechaz|deten|pulse|acceda|llam|responda)"),
           "Le asustan con un cargo o una operación que no ha hecho para que actúe rápido.",
           "señuelo de cargo no reconocido"),
     _Rule("content.account_threat", SignalFamily.CONTENT, Severity.MEDIUM,
-          _rx(r"(cuenta|tarjeta|acceso|banca|servicio)s? (sera|seran|ha sido|han sido|quedara|quedaran|esta|estan) "
-              r"(temporalmente )?(bloquead|suspendid|cancelad|desactivad|restringid|limitad)"),
+          _rx(r"((cuenta|tarjeta|acceso|banca|servicio)s?( de [a-z]+)? (sera|seran|ha sido|han sido|quedara|quedaran|esta|"
+              r"estan) (temporalmente )?(bloquead|suspendid|cancelad|desactivad|restringid|limitad)|"
+              r"(bloqueo|suspension|cancelacion|embargo) de (su|tu) (cuenta|tarjeta|acceso|vehiculo|nomina))"),
           "Le amenazan con bloquear su cuenta o tarjeta.", "amenaza de bloqueo"),
+    _Rule("content.call_lure", SignalFamily.CONTENT, Severity.HIGH,
+          _rx(r"\b(llam\w*|contacte\w*|contacta\w*)\b[^.\n]{0,40}\[telefono\][^.\n]{0,60}"
+              r"(evitar|desbloque|cancel|anul|urgente|inmediat|tecnico|virus)|"
+              r"(evitar|desbloque|cancel|anul|urgente|virus|infectad)[^.\n]{0,80}\b(llam\w*|contact\w*)\b[^.\n]{0,40}\[telefono\]"),
+          "Le piden que llame con urgencia a un número que aparece en el mensaje. Use siempre el teléfono de siempre.",
+          "presión para llamar a un número del mensaje"),
     _Rule("content.payment_request", SignalFamily.CONTENT, Severity.MEDIUM,
-          _rx(r"(\b(realice|realiza|haga|haz|hacer|hacerme|efectue|efectua|envie|envia|enviar|enviarme|mande|manda|"
-              r"mandarme|pasarme|prestarme|pague|paga|pagar|abone|abona|ingrese|ingresa)\b[^.\n]{0,40}"
+          _rx(r"(\b(realice|realiza|haga|haz|hacer|hacerme|hagas|efectue|efectua|envie|envia|enviar|enviarme|enviame|"
+              r"mande|manda|mandarme|pasarme|pasar|pases|prestarme|pague|paga|pagar|pagando|abone|abona|abonar|ingrese|"
+              r"ingresa|transferir)\b[^.\n]{0,40}"
               r"(transferencia|bizum|pago|importe|tasa|\d+[.,]?\d*\s?(€|eur|euros))|\bpague[^.\n]{0,30}tasa|"
-              r"tasa de (aduana|envio|gestion)|pago pendiente|deposito (inicial |minimo )?de \d+)"),
+              r"tasa de (aduana|envio|gestion)|pago pendiente|deposito (inicial |minimo )?de \d+|"
+              r"necesit\w* [^.\n]{0,20}\d+[.,]?\d*\s?(€|eur|euros)|si no paga|multa [^.\n]{0,30}(pendiente|sin pagar)|"
+              r"actualic\w* (su|tu) (metodo|datos|forma) de pago|(fianza|senal|gastos (notariales|de gestion|de envio)) de \d+|"
+              r"para (recibir|cobrar)[^.\n]{0,40}acept\w* (la )?solicitud)"),
           "Le piden que pague o envíe dinero.", "petición de pago", negatable=True, no_need=True),
+    _Rule("content.secrecy", SignalFamily.CONTENT, Severity.MEDIUM,
+          _rx(r"(no se lo digas|no le digas nada|es confidencial|no lo comentes|mantenlo en secreto|no se lo cuentes|"
+              r"no se lo diga|no lo comente)"),
+          "Le piden que lo mantenga en secreto: los estafadores quieren evitar que alguien le avise.", "petición de secreto"),
+    _Rule("content.credential_expiry", SignalFamily.CONTENT, Severity.HIGH,
+          _rx(r"((clave|contrasena|credenciales|firma( electronica)?) (ha|han) caducad|"
+              r"(clave|contrasena|firma)[^.\n]{0,20}caduca hoy|renuev\w* (su|tu|sus|tus) (clave|contrasena|credenciales|firma))"),
+          "Le dicen que su clave ha caducado para que la «renueve» donde ellos digan.", "clave caducada"),
+    _Rule("content.safe_account_lure", SignalFamily.CONTENT, Severity.HIGH,
+          _rx(r"(cuenta segura|transferir todo su dinero|(policia|guardia civil)[^.\n]{0,80}(transfer|cuenta))"),
+          "Le piden mover su dinero a una «cuenta segura». Ningún banco ni policía lo pide.", "cuenta segura"),
+    _Rule("context.public_body", SignalFamily.CONTEXT, Severity.LOW,
+          _rx(r"\b(hacienda|aeat|agencia tributaria|dgt|trafico|seguridad social|correos|policia|guardia civil)\b"),
+          "Dice venir de un organismo público.", "organismo público mencionado"),
     _Rule("content.payment_details_change", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(nuev[oa] (numero de )?(cuenta|iban)|cambio de (cuenta|iban|datos bancarios)|"
               r"(hemos cambiado|ha cambiado|cambiado) (de )?(nuestra |la )?(cuenta|iban|entidad bancaria)|"
@@ -120,18 +173,20 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
     _Rule("content.investment_promise", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(rentabilidad(es)? (garantizad|asegurad|del \d+)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
               r"sin (ningun )?riesgo|ganancias? (garantizad|diari|semanal)|beneficios? garantizad|"
-              r"invierta (ahora|hoy)|oportunidad unica de inversion)"),
+              r"invierta (ahora|hoy)|oportunidad unica de inversion|invi?e?rt\w* \d+|gan\w* hasta \d+|"
+              r"\d+[.,]?\d* ?(€|euros) al (mes|dia)|inversion inicial|recibir \d+[.,]?\d* (millones|mil))"),
           "Le prometen ganancias garantizadas o sin riesgo.", "promesa de inversión"),
     _Rule("content.prize_or_refund", SignalFamily.CONTENT, Severity.MEDIUM,
           _rx(r"(ha (sido )?(ganado|premiad|seleccionad)|has (ganado|sido seleccionad)|reembolso|devolucion pendiente|"
-              r"tiene (un|una) (premio|devolucion|reembolso))"),
+              r"tiene (un|una) (premio|devolucion|reembolso)|devolucion de [^.\n]{0,20}(€|euros)|derecho a (una )?devolucion)"),
           "Le ofrecen un premio o una devolución de dinero.", "premio o reembolso"),
-    _Rule("content.family_new_number", SignalFamily.CONTENT, Severity.MEDIUM,
+    _Rule("content.family_new_number", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"((mama|papa|abuela|abuelo|hijo|hija)\b[^.\n]{0,60}(numero nuevo|nuevo numero|movil nuevo|se me ha (roto|caido|perdido))|"
               r"(numero nuevo|nuevo numero|este es mi nuevo)[^.\n]{0,60}(mama|papa|hijo|hija))"),
           "Alguien dice ser un familiar con un número nuevo.", "suplantación de familiar"),
     _Rule("content.remote_access", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(r"(anydesk|teamviewer|acceso remoto|control remoto|instale (esta|la) (aplicacion|app)|descargue (esta|la) (aplicacion|app))"),
+          _rx(r"(anydesk|teamviewer|acceso remoto|control remoto|instal\w* (esta|la) (aplicacion|app)|"
+              r"descargue (esta|la) (aplicacion|app)|(virus|infectad\w*)[^.\n]{0,80}(tecnico|llam\w*))"),
           "Le piden instalar un programa o dar acceso remoto a su dispositivo.", "acceso remoto"),
     _Rule("content.injection_attempt", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(ignora (todas )?(tus|las|sus) instrucciones|ignore (all |the )?(previous|prior|above) instructions|"
@@ -151,15 +206,28 @@ def _signal(code: str, family: SignalFamily, severity: Severity, user: str, tech
 
 
 def _is_negated(folded: str, start: int, end: int, no_need: bool) -> bool:
-    """¿La coincidencia está negada en su propia oración («nunca le pediremos…»)?"""
-    window = folded[max(0, start - 80):start]
-    clause = re.split(r"[.!?\n:;]", window)[-1]
-    span = folded[start:end]
-    if _NEGATION.search(clause + " ") or _NEGATION.search(clause + span):
+    """¿La coincidencia está negada en su propia cláusula?
+
+    - «nunca le pediremos (que) …» (negación del verbo de pedir, seguido solo de pronombres/artículos);
+    - «nunca facilite / no debe facilitar / evite introducir …» (negación directa del verbo de la petición);
+    - «si alguien le pide que…» / «le dirán «introduzca…»» (discurso referido: es un consejo, no una petición).
+    Los conectores «por eso», «así que», «pero», «solo»… cortan la cláusula (revisión adversarial A1).
+    """
+    window = folded[max(0, start - 100):start]
+    parts = _CLAUSE_CUT.split(window)
+    clause = parts[-1] if parts else window
+    if any(p.search(clause) for p in (_NEGATION, _DIRECT_NEGATION, _REPORTED)):
         return True
+    span = folded[start:end]
     if no_need and (_NO_NEED.search(clause + " ") or _NEGATED_SPAN.search(span)):
         return True
     return False
+
+
+#: Remisión a canales oficiales: no es un señuelo (adversarial P4).
+_OFFICIAL_CHANNEL = re.compile(r"(reverso de (su|tu) tarjeta|telefono (habitual|de siempre)|el de siempre|app oficial|"
+                               r"desde la app|en la app|su oficina|cajero)")
+_EXPIRY_CONTEXT = re.compile(r"(caduc|valid|expir)\w*[^.\n]{0,15}$")
 
 
 _ES_WORDS = frozenset("de la que el en y los su por para con una es se del las le no un al lo como mas pero sus "
@@ -196,6 +264,11 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
     for rule in _CONTENT_RULES:
         for m in rule.pattern.finditer(folded):
             if rule.negatable and _is_negated(folded, m.start(), m.end(), rule.no_need):
+                continue
+            if rule.code == "content.urgency" and _EXPIRY_CONTEXT.search(folded[max(0, m.start() - 25):m.start()]):
+                continue  # «el código caduca en 10 minutos» no es presión (adversarial P2)
+            if rule.code in ("content.unrecognized_charge_lure", "content.call_lure") and _OFFICIAL_CHANNEL.search(
+                    folded[m.start():m.end() + 80]):
                 continue
             signals.append(_signal(rule.code, rule.family, rule.severity, rule.user, rule.tech))
             break

@@ -41,7 +41,7 @@ _CONFUSABLES = str.maketrans({
 })
 _LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s"})
 _LEET_WORD = re.compile(r"\b(?=[a-z0-9@$]*[a-z])(?=[a-z0-9@$]*[0-9@$])[a-z0-9@$]{4,}\b")
-_SPACED = re.compile(r"\b(?:[a-zñ] ){3,}[a-zñ]\b")
+_SPACED = re.compile(r"\b(?:[a-zñ][ .\-_]){3,}[a-zñ]\b")
 _LATIN = re.compile(r"[a-z]")
 _OTHER_SCRIPT = re.compile("[Ͱ-ϿЀ-ӿԀ-ԯ]")
 
@@ -64,7 +64,7 @@ def fold(text: str) -> str:
     t = unicodedata.normalize("NFKD", t)
     t = "".join(ch for ch in t if not unicodedata.combining(ch))
     t = " ".join(t.split())
-    t = _SPACED.sub(lambda m: m.group(0).replace(" ", ""), t)
+    t = _SPACED.sub(lambda m: re.sub(r"[ .\-_]", "", m.group(0)), t)
     t = _LEET_WORD.sub(lambda m: m.group(0).translate(_LEET), t)
     return t
 

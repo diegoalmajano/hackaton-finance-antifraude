@@ -1,0 +1,60 @@
+{
+  "titulo_archivo": "Presentacion_Asistente_Antifraude.pptx",
+  "diapositivas": [
+    {"titulo": "Asistente antifraude", "subtitulo": "Le ayudamos a reconocer mensajes que intentan engañarle\nHackfinance · BEST UC3M · noviembre de 2026\n(Nombre definitivo del producto: pendiente)"},
+    {"titulo": "El problema", "puntos": [
+      "Estafas por correo y SMS que suplantan a bancos, paquetería, administración o familiares",
+      "Buscan claves, códigos de un solo uso (OTP), datos de tarjeta o transferencias",
+      "Cada vez más convincentes: sin faltas de ortografía, con enlaces que imitan webs oficiales",
+      "Las personas mayores y con poca experiencia digital son las más expuestas"]},
+    {"titulo": "Nuestra solución", "puntos": [
+      "El usuario copia el mensaje (o importa un correo .eml) y pulsa «Analizar»",
+      "Revisión del texto con reglas + análisis de enlaces y remitente SIN abrir nada",
+      "IA opcional (Claude) que aporta contexto con citas literales comprobadas",
+      "Un motor determinista decide el nivel: BAJO · MEDIO · ALTO · NO CONCLUYENTE",
+      "Aviso preventivo + resultado explicado en lenguaje llano. Decide siempre el usuario"]},
+    {"titulo": "Demostración en directo", "puntos": [
+      "1. Aviso legítimo del banco → BAJO (sin falsas alarmas)",
+      "2. Estafa evidente: bloqueo de cuenta + petición de claves → ALTO",
+      "3. Estafa sofisticada: texto del enlace oficial pero destino ajeno, respuesta a otro dominio → ALTO",
+      "4. Mensaje pegado en directo",
+      "Todo con datos ficticios, etiquetados como «EJEMPLO SINTÉTICO»"]},
+    {"titulo": "Por qué confiar en el resultado", "puntos": [
+      "Sin porcentajes inventados: cuatro niveles claros, con icono y texto",
+      "Cada resultado dice POR QUÉ (evidencias) y QUÉ NO SE PUDO COMPROBAR",
+      "Un error o una comprobación fallida nunca se convierten en «BAJO»",
+      "Una petición de claves u OTP nunca se considera segura, aunque parezca venir del banco"]},
+    {"titulo": "IA responsable", "puntos": [
+      "La IA aporta contexto; la decisión final es de un motor determinista",
+      "Citas verificadas literalmente: lo que la IA no puede citar, se descarta",
+      "Defensas frente a mensajes que intentan manipular a la IA (y eso cuenta como señal de riesgo)",
+      "Si la IA no está disponible, el análisis sigue y se declara «análisis parcial»",
+      "Elección Opus 5.5 / Sonnet 5.5 pendiente de medir calidad, coste y latencia"]},
+    {"titulo": "Pensado para personas mayores", "puntos": [
+      "Español llano, sin tecnicismos en la explicación principal",
+      "Texto y botones grandes, contraste alto (≥ 7:1), uso completo con teclado",
+      "El riesgo nunca se comunica solo con color: siempre icono + texto + borde",
+      "Recomendaciones concretas: «llame a su banco al teléfono de siempre»"]},
+    {"titulo": "Seguridad y privacidad", "puntos": [
+      "Funciona en el ordenador del usuario; los enlaces nunca se abren",
+      "Se ocultan códigos, tarjetas, IBAN, DNI y teléfonos antes de analizar con IA",
+      "No guardamos el texto de los mensajes; el banco no recibe mensajes personales",
+      "Acceso local protegido: código de un solo uso, sesión segura, CSRF, CSP estricta"]},
+    {"titulo": "Modelo de negocio", "puntos": [
+      "Cliente: bancos españoles, como capa de protección para sus clientes (marca blanca)",
+      "Coste: las reglas no cuestan nada por mensaje; la IA solo se usa en los sospechosos",
+      "Coste real por análisis con IA: pendiente de medir con presupuesto autorizado",
+      "Valor para el banco: menos fraude y más confianza de sus clientes vulnerables"]},
+    {"titulo": "Calidad comprobada", "puntos": [
+      "528 pruebas automáticas (contratos, seguridad, interfaz, motor, regresiones)",
+      "Revisiones independientes: código, seguridad, accesibilidad, etiquetas y pruebas adversariales",
+      "Métricas de DESARROLLO solo para ajustar (no son evaluación independiente)",
+      "Metodología de evaluación independiente preparada (conjunto sellado pendiente)"]},
+    {"titulo": "Estado y próximos pasos", "puntos": [
+      "Hoy: análisis manual completo, interfaz accesible y modo demostración",
+      "Preparado y probado con simulaciones: IA (Claude) y Gmail",
+      "Siguiente: Gmail real con OAuth, comparativa de modelos con presupuesto",
+      "Después: directorio de bancos verificados, aplicación de escritorio, voz (fase 2)"]},
+    {"titulo": "Gracias", "subtitulo": "Un asistente que explica, reconoce sus límites y deja decidir al usuario\n¿Preguntas?"}
+  ]
+}

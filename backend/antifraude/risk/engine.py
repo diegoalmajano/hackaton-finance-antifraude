@@ -8,7 +8,10 @@ los hallazgos de IA **con citas verificadas**, y decide el nivel:
   cuenta corroborada por otra fuente (enlace no oficial, remitente que se
   hace pasar por una entidad, DMARC fallido, respuesta a otro dominio, texto
   de enlace engañoso), o evidencia de IA de robo de credenciales/pago
-  corroborada por otra fuente, o ≥2 evidencias altas de fuentes distintas.
+  corroborada por otra fuente, o dos señuelos graves a la vez. Varias
+  evidencias altas que describen el mismo hecho (p. ej. remitente ajeno que usa
+  el nombre del banco + enlace a su propio dominio) NO bastan por sí solas:
+  así se evita marcar como ALTO a proveedores legítimos (revisión adversarial A13/P5).
 - **MEDIO**: ≥1 evidencia alta, ≥2 medias de fuentes distintas, o cualquier
   petición de credenciales/OTP/tarjeta (D-29: nunca es segura).
 - **BAJO**: solo si todas las comprobaciones obligatorias se completaron y no
@@ -52,6 +55,11 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "content.otp_share": FraudCategory.ACCOUNT_TAKEOVER,
     "content.credential_request_en": FraudCategory.CREDENTIAL_THEFT,
     "content.obfuscation": FraudCategory.OTHER,
+    "content.identity_data_request": FraudCategory.CREDENTIAL_THEFT,
+    "content.credential_expiry": FraudCategory.CREDENTIAL_THEFT,
+    "content.safe_account_lure": FraudCategory.PAYMENT_FRAUD,
+    "content.call_lure": FraudCategory.OTHER,
+    "content.secrecy": FraudCategory.OTHER,
     "url.unparseable": FraudCategory.PHISHING_LINK,
     "url.brand_in_subdomain": FraudCategory.PHISHING_LINK,
     "url.lookalike_domain": FraudCategory.PHISHING_LINK,
@@ -64,12 +72,13 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
 
 #: Peticiones que nunca son seguras (D-29).
 _SENSITIVE_REQUESTS = {"content.credential_request", "content.otp_request", "content.card_request",
-                       "content.otp_share", "content.credential_request_en"}
+                       "content.otp_share", "content.credential_request_en", "content.identity_data_request"}
 _PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request"}
 #: Señuelos graves: con una corroboración de otra señal, el nivel es ALTO (ADR-0006, regla 1).
 _LURES = _SENSITIVE_REQUESTS | {
     "content.payment_details_change", "content.investment_promise", "content.remote_access",
-    "content.unrecognized_charge_lure",
+    "content.unrecognized_charge_lure", "content.family_new_number", "content.credential_expiry",
+    "content.safe_account_lure",
 }
 #: Señales que corroboran un señuelo (canal no fiable, presión o petición de dinero).
 _CORROBORATORS = {
@@ -79,6 +88,7 @@ _CORROBORATORS = {
     "content.account_threat",
     "content.urgency", "content.injection_attempt", "content.payment_request",
     "content.obfuscation", "content.invisible_chars", "url.unparseable",
+    "content.call_lure", "content.secrecy",
 }
 _CRITICAL_ALONE = {"url.brand_in_subdomain", "url.lookalike_domain"}
 
@@ -119,6 +129,13 @@ def _ai_evidence(ai: AiFindings | None, verified_quotes: set[str]) -> list[_Ev]:
 
 
 def _decide(evs: Sequence[_Ev], partial: bool) -> RiskLevel:
+    level = _decide_raw(evs, partial)
+    if level is RiskLevel.HIGH and not any(e.severity.rank >= Severity.HIGH.rank for e in evs):
+        return RiskLevel.MEDIUM  # el contrato exige una evidencia alta para ALTO: nunca se rompe el análisis
+    return level
+
+
+def _decide_raw(evs: Sequence[_Ev], partial: bool) -> RiskLevel:
     risk = [e for e in evs if e.severity.rank >= Severity.LOW.rank]
     codes = {e.code for e in risk}
     n_high = sum(1 for e in risk if e.severity.rank >= Severity.HIGH.rank)
@@ -173,7 +190,7 @@ def _recommendations(level: RiskLevel, codes: set[str]) -> list[Recommendation]:
             keys.append("do_not_share")
         if any(c.startswith("url.") for c in codes):
             keys.append("do_not_click")
-        if codes & (_PAYMENT_REQUESTS | {"content.investment_promise", "ai.payment_fraud"}):
+        if codes & (_PAYMENT_REQUESTS | {"content.investment_promise", "content.safe_account_lure", "ai.payment_fraud"}):
             keys.append("do_not_pay")
         if "content.family_new_number" in codes:
             keys.append("verify_family")
