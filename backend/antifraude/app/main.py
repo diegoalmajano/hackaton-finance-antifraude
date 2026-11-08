@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -88,9 +86,10 @@ def create_app(
     api_key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
     analyzer = ClaudeAnalyzer(policy=settings.ai_policy(), api_key=api_key)
     app.state.ai_configured = analyzer.configured and _sdk_available()
-    if not app.state.ai_configured:  # motivo sin datos sensibles (nunca la clave)
-        logging.getLogger("antifraude.ai").info("IA no activa: %s", analyzer.blocked_reason
-                                                or "la librería oficial «anthropic» no está instalada.")
+    # Motivo sin datos sensibles (nunca la clave); lo muestra la consola al arrancar (``__main__``).
+    app.state.ai_status_text = ("activado, con control de gasto" if app.state.ai_configured else
+                                "desactivado: " + (analyzer.blocked_reason
+                                                   or "la librería oficial «anthropic» no está instalada."))
     app.state.pipeline = AnalysisPipeline(directory, analyzer)
     if not (VENDOR_HTMX_DIR / "htmx.min.js").is_file():
         raise RuntimeError(f"No se encuentra htmx en {VENDOR_HTMX_DIR}; revise la instalación (vendor/htmx).")

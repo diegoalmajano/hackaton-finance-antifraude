@@ -60,8 +60,10 @@ def main() -> int:
     except PortUnavailableError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+    app = create_app(settings)
+    print(f"Análisis con IA: {app.state.ai_status_text}", flush=True)
     uvicorn.run(
-        create_app(settings),
+        app,
         host=host,
         port=settings.port,
         log_level=settings.log_level.lower(),
