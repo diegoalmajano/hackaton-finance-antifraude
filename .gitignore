@@ -1,0 +1,77 @@
+# ==== Secretos y credenciales (NUNCA versionar) ====
+.env
+.env.*
+!.env.example
+client_secret*.json
+credentials*.json
+token*.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# ==== Datos locales y personales ====
+# Bases de datos locales (evaluaciones, perfiles, historial)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/local/
+data/private/
+# Correos reales exportados (los fixtures sintéticos van en tests/fixtures/ y sí se versionan)
+private_messages/
+exports/
+
+# ==== Evaluación ====
+# T-09 pendiente: descomentar si se decide mantener el test sellado fuera del repo
+# eval/datasets/test_sealed/
+eval/results/
+eval/reports/local/
+
+# ==== Logs y temporales ====
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# ==== Python ====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ==== Node / frontend ====
+node_modules/
+frontend/dist/
+.vite/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==== Editores y sistema ====
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ==== Claude Code (configuración personal local) ====
+.claude/settings.local.json
