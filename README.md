@@ -47,6 +47,30 @@ Si el puerto 8790 está ocupado, el asistente lo indica en español y no se inic
 $env:APP_PORT = "8791"
 ```
 
+### Uso
+En el panel, pegue el texto de un correo o SMS (o elija un archivo `.eml`) y pulse **Analizar**. Verá:
+- un **aviso preventivo** si hay algo sospechoso;
+- el **resultado definitivo** con su nivel (BAJO, MEDIO, ALTO o NO CONCLUYENTE, con icono y texto);
+- por qué, qué le recomendamos y **lo que no se ha podido comprobar**.
+El texto de los mensajes no se guarda.
+
+### Modo demostración (datos ficticios)
+```powershell
+$env:APP_DEMO_MODE = "1"
+..\.venv\Scripts\python.exe -m antifraude
+```
+Carga la entidad ficticia «Banco Ficticio» y tres **ejemplos sintéticos** que se analizan con un clic: aviso legítimo, estafa evidente y estafa sofisticada. Todo va etiquetado como «EJEMPLO SINTÉTICO»; ningún dato es real.
+
+### Análisis con IA (opcional)
+Requiere la librería oficial `anthropic` (su instalación está **pendiente de autorización**), una clave (`ANTHROPIC_API_KEY`) y un modelo (`CLAUDE_MODEL`: `claude-opus-5-5` o `claude-sonnet-5-5`; la elección se hará midiendo). Sin ellos, la aplicación funciona con reglas y análisis de enlaces, y lo indica: «análisis parcial — IA no disponible».
+
+### Métricas del conjunto de desarrollo
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m antifraude.evaluation
+```
+Son cifras de **desarrollo**: el motor se ajustó con esos casos, así que **no son una evaluación independiente**.
+
 ## 5. Pruebas
 Desde la carpeta del proyecto:
 ```powershell
@@ -61,7 +85,20 @@ Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuraci�
 - Arquitectura y decisiones: `docs/adr/` (ADR-0001 a 0015) y `docs/contexto/`.
 
 ## 7. Estado y limitaciones
-El estado detallado y actualizado está en `docs/contexto/15_SEGUIMIENTO.md` y en `docs/contexto/08_PROGRESO.md`. Lo pendiente y los riesgos, en `docs/contexto/09_PENDIENTES.md`.
+| Funcionalidad | Estado |
+|---|---|
+| Análisis manual (texto y `.eml`), extracción de enlaces, filtro por reglas | Implementado y probado |
+| Análisis **pasivo** de enlaces (dominios parecidos, texto visible ≠ destino, acortadores, IP, punycode) | Implementado y probado |
+| Motor de riesgo determinista (4 niveles, sin porcentajes; un error nunca da BAJO) | Implementado y probado |
+| Alertas preventiva y definitiva con explicación, evidencias, incertidumbres y recomendaciones | Implementado y probado |
+| Interfaz accesible en español con sesión segura | Implementada; prueba manual en navegador hecha; pendientes: CSP en consola, teclado completo, zoom 200 % y contraste medido |
+| Análisis con Claude | Implementado y probado **con respuestas simuladas**; sin llamadas reales (falta autorizar la librería y el presupuesto) |
+| Gmail | Conector implementado y probado con un **Gmail simulado**; conexión real **bloqueada** (credenciales OAuth y librerías no autorizadas) |
+| Directorio de bancos reales | Preparado; **dominios oficiales pendientes de verificar** (por eso la demo usa el banco ficticio) |
+| RDAP y reputación de URLs | No configurados (opcionales; se declaran como no comprobados) |
+| Escritorio (bandeja, notificaciones nativas) | No implementado (fase opcional) |
+
+Más detalle: `docs/contexto/15_SEGUIMIENTO.md`, `08_PROGRESO.md` y `09_PENDIENTES.md`.
 
 ## 8. Estructura
 ```

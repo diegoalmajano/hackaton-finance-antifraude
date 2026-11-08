@@ -38,6 +38,8 @@ from antifraude.contracts.messages import (
     Channel,
     ExtractedUrl,
     IncomingMessage,
+    RawFormat,
+    RawMessage,
     Sender,
     SenderAuth,
     UrlLocation,
@@ -242,6 +244,19 @@ def from_manual_text(text: str, user_id: UUID) -> IngestResult:
     return build_message(user_id=user_id, channel=Channel.MANUAL, body_text=text)
 
 
+def from_raw(raw: RawMessage, user_id: UUID) -> IngestResult:
+    """Entrada común para cualquier conector (``InputAdapter``)."""
+    if raw.raw_format is RawFormat.RFC822:
+        result = from_eml(raw.payload, user_id, channel=raw.channel, source_message_id=raw.source_message_id,
+                          is_simulated=raw.is_simulated)
+    else:
+        result = build_message(user_id=user_id, channel=raw.channel,
+                               body_text=raw.payload.decode("utf-8", errors="replace"),
+                               received_at=raw.received_at, source_message_id=raw.source_message_id,
+                               is_simulated=raw.is_simulated)
+    return result
+
+
 def _part_text(part: EmailMessage) -> str:
     try:
         return str(part.get_content())
@@ -250,7 +265,8 @@ def _part_text(part: EmailMessage) -> str:
         return payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else str(payload)
 
 
-def from_eml(raw: bytes, user_id: UUID) -> IngestResult:
+def from_eml(raw: bytes, user_id: UUID, *, channel: Channel = Channel.MANUAL, source_message_id: str | None = None,
+             is_simulated: bool = False) -> IngestResult:
     if not raw or len(raw) > MAX_RAW_BYTES:
         raise IngestError("El archivo está vacío o es demasiado grande.")
     msg = email.message_from_bytes(raw, policy=email.policy.default)
@@ -284,7 +300,9 @@ def from_eml(raw: bytes, user_id: UUID) -> IngestResult:
             received_at = None
     return build_message(
         user_id=user_id,
-        channel=Channel.MANUAL,
+        channel=channel,
+        source_message_id=source_message_id,
+        is_simulated=is_simulated,
         body_text="\n".join(text_parts),
         body_html="\n".join(html_parts) or None,
         subject=str(msg.get("Subject", "")) or None,

@@ -130,3 +130,45 @@ def evaluate(cases: Iterable[EvalCase], pipeline: AnalysisPipeline) -> tuple[lis
         m.inconclusive += r.obtained is RiskLevel.INCONCLUSIVE
         m.level_ok += r.level_ok
     return results, m
+
+
+def _fmt(value: float | None) -> str:
+    return "n/d" if value is None else f"{value:.2f}"
+
+
+def report(results: list[CaseResult], m: Metrics) -> str:
+    """Informe en texto. Las cifras de desarrollo NO son una evaluación del sistema."""
+    pos, neg = m.tp + m.fn, m.fp + m.tn
+    lines = [
+        "INFORME DE DESARROLLO — conjunto dev (casos sintéticos, la mayoría redactados con IA).",
+        "AVISO: el motor se ha ajustado con estos mismos casos; estas cifras NO son una evaluación",
+        "independiente ni deben presentarse como rendimiento real. Sin IA (solo reglas + enlaces).",
+        f"Casos: {m.n} (deben alertar: {pos}; no deben alertar: {neg})",
+        f"VP={m.tp} FP={m.fp} FN={m.fn} VN={m.tn} | NO CONCLUYENTE={m.inconclusive} | nivel aceptable={m.level_ok}/{m.n}",
+        f"Precision={_fmt(m.precision)}  Recall={_fmt(m.recall)}  F1={_fmt(m.f1)}  Tasa FP={_fmt(m.false_positive_rate)}",
+    ]
+    ci = wilson(m.tp, pos)
+    if ci:
+        lines.append(f"Recall IC95% Wilson: [{ci[0]:.2f}, {ci[1]:.2f}] (n={pos})")
+    ci = wilson(m.fp, neg)
+    if ci:
+        lines.append(f"Tasa FP IC95% Wilson: [{ci[0]:.2f}, {ci[1]:.2f}] (n={neg})")
+    lines.append(f"Latencia del análisis (local, sin IA): p50={m.percentile(0.5)} ms  p95={m.percentile(0.95)} ms")
+    lines.append("Coste por mensaje: no medido (sin llamadas a la API de Claude; requiere presupuesto autorizado).")
+    lines.append("Casos fuera de lo aceptable: " + (", ".join(r.case_id for r in results if not r.level_ok) or "ninguno"))
+    return "\n".join(lines)
+
+
+def main() -> int:
+    """``python -m antifraude.evaluation`` (desde ``backend``): métricas del conjunto de DESARROLLO."""
+    from antifraude.intel.entities import EntityDirectory
+
+    dev = Path(__file__).resolve().parents[2] / "eval" / "datasets" / "dev"
+    pipeline = AnalysisPipeline(EntityDirectory.load_default(include_fictitious=True))
+    results, m = evaluate(load_cases(sorted(dev.glob("*.jsonl"))), pipeline)
+    print(report(results, m))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
