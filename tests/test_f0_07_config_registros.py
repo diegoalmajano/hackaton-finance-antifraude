@@ -15,7 +15,7 @@ from antifraude.__main__ import CONFIG_HELP, load_settings
 from antifraude.app.security.pairing import generate_code
 from antifraude.core.config import DEFAULT_PORT, Settings
 from antifraude.core.logging import REDACTED, RedactingFilter, build_log_config, redact
-from conftest import ORIGIN, Harness
+from conftest import ORIGIN, Harness, gitignore_ignora
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_EXAMPLE = ROOT / ".env.example"
@@ -63,11 +63,8 @@ def test_env_example_produce_configuracion_valida_por_defecto() -> None:
 
 
 def test_gitignore_excluye_env_pero_no_el_ejemplo() -> None:
-    def ignorado(ruta: str) -> bool:
-        r = subprocess.run(["git", "check-ignore", "-q", ruta], cwd=ROOT, capture_output=True)
-        return r.returncode == 0
-    assert ignorado(".env") and ignorado(".env.local")
-    assert not ignorado(".env.example")
+    assert gitignore_ignora(".env") and gitignore_ignora(".env.local")
+    assert not gitignore_ignora(".env.example")
 
 
 # --- Errores de configuración comprensibles -------------------------------------

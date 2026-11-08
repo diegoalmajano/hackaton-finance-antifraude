@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ from pydantic import ValidationError
 
 from antifraude.contracts import RiskLevel
 from antifraude.contracts.evaluation import CaseOrigin, EvalCase, EvalSplit
+from conftest import gitignore_ignora
 
 ROOT = Path(__file__).resolve().parents[1]
 EVAL = ROOT / "eval"
@@ -170,13 +170,11 @@ def test_no_existe_conjunto_sellado_en_el_repo() -> None:
 @pytest.mark.parametrize("ruta", ["eval/datasets/test_sealed/casos.jsonl", "eval/sealed/x.jsonl",
                                   "eval/datasets/dev/final.sealed.jsonl", "eval/results/run.json"])
 def test_gitignore_bloquea_rutas_selladas_y_resultados(ruta: str) -> None:
-    r = subprocess.run(["git", "check-ignore", "-q", ruta], cwd=ROOT, capture_output=True)
-    assert r.returncode == 0, ruta
+    assert gitignore_ignora(ruta), ruta
 
 
 def test_casos_dev_versionables() -> None:
-    r = subprocess.run(["git", "check-ignore", "-q", "eval/datasets/dev/demo.jsonl"], cwd=ROOT, capture_output=True)
-    assert r.returncode == 1
+    assert not gitignore_ignora("eval/datasets/dev/demo.jsonl")
 
 
 def test_documentacion_de_metricas() -> None:
