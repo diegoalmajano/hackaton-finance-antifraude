@@ -78,3 +78,14 @@ Esperar las autorizaciones del usuario (sección «Bloqueos»). Sin ellas, lo m�
 2. Prueba manual en navegador: teclado, zoom 200 %, consola CSP y lector de pantalla.
 3. Corregir P5–P7.
 4. Push y ZIP oficial cuando se autoricen.
+
+## Misión 3 (robustecimiento) — registro vivo
+| Tarea | Estado | Commit |
+|---|---|---|
+| A — Control de costes de la API (sin llamadas reales) | ✅ `ai/budget.py`, `docs/CONTROL_COSTES_IA.md`; 31 pruebas simuladas | `6dbfea3` |
+| E — Gmail: duplicados acotados, fallos comunicados, keyring seguro, desconexión | ✅ (simulado) | `6dbfea3` |
+| Revisión de seguridad (agente, solo lectura) | informe recibido: 2 ALTOS (relleno >100k → BAJO; CR/LF en From rompe la ingesta), 3 MEDIOS, 4 BAJOS | pendiente de corregir |
+| Revisión adversarial ronda 3 (agente, ~245 casos) | informe recibido: A1–A10, B1–B4, D (límites) | pendiente de corregir |
+| C — Dominios bancarios reales | pendiente | — |
+| E — Pruebas de integración real (preparadas, saltadas) | pendiente | — |
+| F — Evaluación reproducible (reglas vs Claude, sellado) | pendiente | — |
