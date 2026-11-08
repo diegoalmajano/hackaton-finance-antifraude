@@ -9,7 +9,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+import importlib.util
+
+from antifraude.ai.claude import ClaudeAnalyzer
+from antifraude.app.analysis_routes import router as analysis_router
 from antifraude.app.auth_routes import router as auth_router
+from antifraude.app.pipeline import AnalysisPipeline
+from antifraude.intel.entities import EntityDirectory
 from antifraude.app.pages import router as pages_router
 from antifraude.app.safe_errors import SafeErrorMiddleware
 from antifraude.app.errors import install_error_handlers
@@ -28,6 +34,11 @@ from antifraude.core.config import Settings, get_settings
 STATIC_DIR = Path(__file__).parent / "static"
 #: htmx vendorizado en el repositorio (vendor/htmx), servido localmente sin CDN.
 VENDOR_HTMX_DIR = Path(__file__).resolve().parents[3] / "vendor" / "htmx"
+
+
+def _sdk_available() -> bool:
+    """¿Está instalado el SDK oficial de Anthropic? (sin importarlo ni hacer red)."""
+    return importlib.util.find_spec("anthropic") is not None
 
 
 def create_app(
@@ -68,6 +79,14 @@ def create_app(
     app.include_router(auth_router)
     app.include_router(events_router)
     app.include_router(pages_router)
+    app.include_router(analysis_router)
+
+    # Pipeline de análisis: entidades ficticias solo en modo demostración (R-54); IA solo si se configura.
+    directory = EntityDirectory.load_default(include_fictitious=settings.demo_mode)
+    api_key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
+    analyzer = ClaudeAnalyzer(model=settings.claude_model, api_key=api_key)
+    app.state.ai_configured = analyzer.configured and _sdk_available()
+    app.state.pipeline = AnalysisPipeline(directory, analyzer)
     if not (VENDOR_HTMX_DIR / "htmx.min.js").is_file():
         raise RuntimeError(f"No se encuentra htmx en {VENDOR_HTMX_DIR}; revise la instalación (vendor/htmx).")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

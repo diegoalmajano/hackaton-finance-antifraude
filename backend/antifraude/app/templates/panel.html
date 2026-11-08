@@ -9,6 +9,10 @@
 {% block contenido %}
 <h1>Su panel de protección</h1>
 
+{% if demo_mode %}
+<p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> MODO DEMOSTRACIÓN: incluye una entidad ficticia («Banco Ficticio») y ejemplos sintéticos. Ningún dato es real.</p>
+{% endif %}
+
 <div class="rejilla">
   <section class="tarjeta" aria-labelledby="titulo-estado">
     <h2 id="titulo-estado">Estado de protección</h2>
@@ -17,62 +21,76 @@
         <span class="icono" aria-hidden="true">✅</span>
         <span><strong>Conexión segura con este navegador:</strong> activa.</span>
       </li>
+      <li class="estado" data-estado="ok">
+        <span class="icono" aria-hidden="true">✅</span>
+        <span><strong>Análisis de mensajes que usted pegue o importe:</strong> disponible.</span>
+      </li>
+      <li class="estado" data-estado="{{ 'ok' if ai_configured else 'info' }}">
+        <span class="icono" aria-hidden="true">{{ '✅' if ai_configured else 'ℹ️' }}</span>
+        <span><strong>Análisis con inteligencia artificial:</strong>
+          {% if ai_configured %}configurado.{% else %}no configurado; se usan las reglas y el análisis de enlaces.{% endif %}</span>
+      </li>
       <li class="estado" data-estado="info">
         <span class="icono" aria-hidden="true">ℹ️</span>
-        <span><strong>Protección automática:</strong> todavía no está activa. El asistente aún no revisa sus mensajes.</span>
+        <span><strong>Revisión automática del correo (Gmail):</strong> todavía no disponible.</span>
       </li>
     </ul>
   </section>
 
   <section class="tarjeta" aria-labelledby="titulo-analizar">
     <h2 id="titulo-analizar">Analizar un mensaje</h2>
-    <p class="etiqueta-estado" data-estado="pendiente">
-      <span class="icono" aria-hidden="true">🚧</span> Pendiente de implementación
-    </p>
-    <p>Pronto podrá pegar aquí un correo o un SMS que le parezca sospechoso y el asistente le explicará lo que encuentre.</p>
-    <label for="texto-mensaje" class="etiqueta">Texto del mensaje</label>
-    <textarea id="texto-mensaje" class="campo" rows="5" disabled
-              aria-describedby="nota-analizar"></textarea>
-    <p id="nota-analizar" class="ayuda">Esta función todavía no está disponible.</p>
-    <button type="button" class="boton boton-principal" disabled>Analizar (todavía no disponible)</button>
+    <p>Pegue aquí el texto de un correo o SMS que le parezca sospechoso, o elija un archivo de correo (.eml). <strong>No abrimos ningún enlace.</strong></p>
+    <form id="form-analizar" class="formulario" hx-post="/analizar" hx-target="#resultado"
+          hx-swap="innerHTML" hx-encoding="multipart/form-data" hx-disabled-elt="find button"
+          data-mensajes="#mensaje-analisis">
+      <label for="texto-mensaje" class="etiqueta">Texto del mensaje</label>
+      <textarea id="texto-mensaje" name="texto" class="campo" rows="7" maxlength="100000"
+                aria-describedby="ayuda-analizar mensaje-analisis"></textarea>
+      <p id="ayuda-analizar" class="ayuda">Puede incluir el asunto y el remitente si los tiene.</p>
+      <label for="archivo-eml" class="etiqueta">O bien, un archivo de correo (.eml)</label>
+      <input id="archivo-eml" name="archivo" type="file" accept=".eml,message/rfc822" class="campo">
+      <div class="acciones">
+        <button type="submit" class="boton boton-principal">Analizar</button>
+        <span class="indicador htmx-indicator" role="status"><span aria-hidden="true">⏳</span> Analizando el mensaje…</span>
+      </div>
+      <p id="mensaje-analisis" class="mensaje" role="alert" aria-live="assertive" hidden></p>
+    </form>
+    {% if demo_mode %}
+    <div class="ejemplos">
+      <p class="etiqueta">Ejemplos sintéticos de demostración</p>
+      <div class="acciones">
+        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/1" hx-target="#resultado" hx-disabled-elt="this" data-mensajes="#mensaje-analisis">1. Aviso legítimo</button>
+        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/2" hx-target="#resultado" hx-disabled-elt="this" data-mensajes="#mensaje-analisis">2. Estafa evidente</button>
+        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/3" hx-target="#resultado" hx-disabled-elt="this" data-mensajes="#mensaje-analisis">3. Estafa sofisticada</button>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-resultado">
+    <h2 id="titulo-resultado">Resultado</h2>
+    <div id="resultado" aria-live="polite">
+      <p class="vacio"><span class="icono" aria-hidden="true">🔎</span> Cuando analice un mensaje, aquí verá el resultado y la explicación.</p>
+    </div>
   </section>
 
   <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-alertas">
-    <h2 id="titulo-alertas">Alertas</h2>
+    <h2 id="titulo-alertas">Alertas de esta sesión</h2>
     <div id="lista-alertas" class="lista-alertas" aria-live="polite">
-      <p class="vacio">
-        <span class="icono" aria-hidden="true">📭</span>
-        No hay alertas. El sistema de alertas todavía no está activo, así que por ahora aquí no aparecerá nada.
-      </p>
+      {% include "partials/historial.html" %}
     </div>
   </section>
 
   <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-niveles">
-    <h2 id="titulo-niveles">Cómo le indicaremos el riesgo</h2>
-    <p>Cuando el análisis esté disponible, cada mensaje tendrá uno de estos cuatro niveles. <strong>Esto es solo una explicación; no son resultados.</strong></p>
+    <h2 id="titulo-niveles">Cómo le indicamos el riesgo</h2>
+    <p>Cada mensaje recibe uno de estos cuatro niveles. <strong>Esto es solo una explicación; no son resultados.</strong></p>
     <ul class="niveles">
-      <li class="nivel" data-nivel="bajo">
-        <span class="nivel-icono" aria-hidden="true">✅</span>
-        <span class="nivel-nombre">BAJO</span>
-        <span class="nivel-texto">No hemos encontrado indicios de estafa.</span>
-      </li>
-      <li class="nivel" data-nivel="medio">
-        <span class="nivel-icono" aria-hidden="true">⚠️</span>
-        <span class="nivel-nombre">MEDIO</span>
-        <span class="nivel-texto">Hay señales que piden precaución. Compruébelo por un canal oficial.</span>
-      </li>
-      <li class="nivel" data-nivel="alto">
-        <span class="nivel-icono" aria-hidden="true">⛔</span>
-        <span class="nivel-nombre">ALTO</span>
-        <span class="nivel-texto">Hay señales claras de estafa. No responda ni pulse enlaces.</span>
-      </li>
-      <li class="nivel" data-nivel="no-concluyente">
-        <span class="nivel-icono" aria-hidden="true">❔</span>
-        <span class="nivel-nombre">NO CONCLUYENTE</span>
-        <span class="nivel-texto">No hemos podido comprobarlo todo. Antes de actuar, llame a su banco por su teléfono habitual.</span>
-      </li>
+      <li class="nivel" data-nivel="bajo"><span class="nivel-icono" aria-hidden="true">✅</span><span class="nivel-nombre">BAJO</span><span class="nivel-texto">No hemos encontrado indicios de estafa.</span></li>
+      <li class="nivel" data-nivel="medio"><span class="nivel-icono" aria-hidden="true">⚠️</span><span class="nivel-nombre">MEDIO</span><span class="nivel-texto">Hay señales que piden precaución. Compruébelo por un canal oficial.</span></li>
+      <li class="nivel" data-nivel="alto"><span class="nivel-icono" aria-hidden="true">⛔</span><span class="nivel-nombre">ALTO</span><span class="nivel-texto">Hay señales claras de estafa. No responda ni pulse enlaces.</span></li>
+      <li class="nivel" data-nivel="no-concluyente"><span class="nivel-icono" aria-hidden="true">❔</span><span class="nivel-nombre">NO CONCLUYENTE</span><span class="nivel-texto">No hemos podido comprobarlo todo. Antes de actuar, llame a su banco por su teléfono habitual.</span></li>
     </ul>
-    <p class="ayuda">Primero recibirá un <strong>aviso preventivo</strong> si algo parece sospechoso y, después de comprobarlo, un <strong>resultado definitivo</strong> con la explicación.</p>
+    <p class="ayuda">Si algo parece sospechoso verá primero un <strong>aviso preventivo</strong> y, después de comprobarlo, el <strong>resultado definitivo</strong> con la explicación.</p>
   </section>
 </div>
 {% endblock %}

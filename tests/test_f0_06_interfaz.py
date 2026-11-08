@@ -85,10 +85,11 @@ def test_panel_con_sesion(harness: Harness) -> None:
     assert r.status_code == 200
     t = r.text
     assert "Estado de protección" in t
-    assert "Pendiente de implementación" in t
-    assert "No hay alertas" in t  # sin resultados inventados
+    assert 'hx-post="/analizar"' in t  # Etapa D: análisis manual real
+    assert "Todavía no ha analizado ningún mensaje" in t  # sin resultados inventados
     assert 'hx-post="/session/logout"' in t and "Cerrar sesión" in t
-    assert "Protección automática:</strong> todavía no está activa" in t
+    assert "Revisión automática del correo (Gmail):</strong> todavía no disponible" in t
+    assert "no configurado; se usan las reglas" in t  # IA no configurada, declarado
     for nivel in ["BAJO", "MEDIO", "ALTO", "NO CONCLUYENTE"]:
         assert f'<span class="nivel-nombre">{nivel}</span>' in t
     assert 'data-autenticado="1"' in t

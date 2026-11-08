@@ -41,7 +41,7 @@ def fold(text: str) -> str:
 
 # --- Minimización ---------------------------------------------------------------
 _CARD = re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
-_IBAN = re.compile(r"\b([A-Z]{2})(\d{2})((?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?)\b")
+_IBAN = re.compile(r"\b([A-Z]{2})(\d{2})((?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,4})?)\b", re.IGNORECASE)
 _CODE_CONTEXT = re.compile(
     r"((?:c[oó]digo|code|pin|clave|otp|contrase[nñ]a|password|cvv|cvc)\b[^0-9\n]{0,25}?)(\d{4,8})(?!\d)",
     re.IGNORECASE,
@@ -71,7 +71,9 @@ def _mask_card(m: re.Match[str]) -> str:
 
 def _mask_iban(m: re.Match[str]) -> str:
     compact = (m.group(1) + m.group(2) + m.group(3)).replace(" ", "")
-    return f"[IBAN {m.group(1)} …{compact[-4:]}]"
+    if not any(ch.isdigit() for ch in m.group(3)):
+        return m.group(0)  # palabras que solo parecen IBAN (p. ej. «ES12 ABCD EFGH…» sin dígitos)
+    return f"[IBAN {m.group(1).upper()} …{compact[-4:]}]"
 
 
 def minimize(text: str) -> str:

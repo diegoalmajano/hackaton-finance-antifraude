@@ -24,6 +24,7 @@ CONFIG_HELP: dict[str, str] = {
     "log_level": "APP_LOG_LEVEL debe ser DEBUG, INFO, WARNING o ERROR (por defecto, INFO).",
     "anthropic_api_key": "ANTHROPIC_API_KEY no tiene un formato válido.",
     "claude_model": "CLAUDE_MODEL no tiene un formato válido.",
+    "demo_mode": "APP_DEMO_MODE debe ser 1 (activado) o 0 (desactivado).",
 }
 
 

@@ -48,6 +48,8 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "content.unrecognized_charge_lure": FraudCategory.PAYMENT_FRAUD,
     "content.dangerous_attachment": FraudCategory.OTHER,
     "sender.brand_mismatch": FraudCategory.BANK_IMPERSONATION,
+    "sender.body_brand_mismatch": FraudCategory.BANK_IMPERSONATION,
+    "content.otp_share": FraudCategory.ACCOUNT_TAKEOVER,
     "url.brand_in_subdomain": FraudCategory.PHISHING_LINK,
     "url.lookalike_domain": FraudCategory.PHISHING_LINK,
     "url.display_mismatch": FraudCategory.PHISHING_LINK,
@@ -58,7 +60,8 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
 }
 
 #: Peticiones que nunca son seguras (D-29).
-_SENSITIVE_REQUESTS = {"content.credential_request", "content.otp_request", "content.card_request"}
+_SENSITIVE_REQUESTS = {"content.credential_request", "content.otp_request", "content.card_request",
+                       "content.otp_share"}
 _PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request"}
 #: Señuelos graves: con una corroboración de otra señal, el nivel es ALTO (ADR-0006, regla 1).
 _LURES = _SENSITIVE_REQUESTS | {
@@ -69,7 +72,8 @@ _LURES = _SENSITIVE_REQUESTS | {
 _CORROBORATORS = {
     "url.brand_in_subdomain", "url.lookalike_domain", "url.display_mismatch", "url.not_official_for_claimed",
     "url.ip_literal", "url.userinfo", "url.punycode", "url.shortener", "url.unofficial_link",
-    "sender.brand_mismatch", "sender.dmarc_fail", "sender.reply_to_mismatch", "content.account_threat",
+    "sender.brand_mismatch", "sender.body_brand_mismatch", "sender.dmarc_fail", "sender.reply_to_mismatch",
+    "content.account_threat",
     "content.urgency", "content.injection_attempt", "content.payment_request",
 }
 _CRITICAL_ALONE = {"url.brand_in_subdomain", "url.lookalike_domain"}
@@ -113,7 +117,6 @@ def _ai_evidence(ai: AiFindings | None, verified_quotes: set[str]) -> list[_Ev]:
 def _decide(evs: Sequence[_Ev], partial: bool) -> RiskLevel:
     risk = [e for e in evs if e.severity.rank >= Severity.LOW.rank]
     codes = {e.code for e in risk}
-    sources_high = {e.source for e in risk if e.severity.rank >= Severity.HIGH.rank}
     n_high = sum(1 for e in risk if e.severity.rank >= Severity.HIGH.rank)
     sources_medium = {e.source for e in risk if e.severity.rank >= Severity.MEDIUM.rank}
     n_medium = sum(1 for e in risk if e.severity.rank >= Severity.MEDIUM.rank)
@@ -133,7 +136,8 @@ def _decide(evs: Sequence[_Ev], partial: bool) -> RiskLevel:
         return RiskLevel.HIGH
     if ai_high and non_ai_medium:
         return RiskLevel.HIGH
-    _ = sources_high  # ALTO solo por combinaciones críticas (ADR-0006), no por acumulación
+    # ALTO solo por combinaciones críticas (ADR-0006), nunca por mera acumulación de señales.
+    # Evidencias solo de severidad baja (p. ej. «http», enlace no oficial) no impiden BAJO.
     if sensitive or payment or n_high >= 1 or (n_medium >= 2 and len(sources_medium) >= 2) or n_medium >= 3:
         return RiskLevel.MEDIUM
     if n_medium >= 1 or partial:
@@ -211,7 +215,10 @@ def assess(
     # --- comprobaciones ---------------------------------------------------------
     checks: list[CheckResult] = [CheckResult(name="screening.rules", required=True, status=screening.status)]
     if url_analyses:
-        checks.append(CheckResult(name="intel.url_passive", required=True, status=CheckStatus.DONE))
+        url_failed = any(c.name == "intel.url_passive" and c.status is CheckStatus.FAILED
+                         for ua in url_analyses for c in ua.checks)
+        checks.append(CheckResult(name="intel.url_passive", required=True,
+                                  status=CheckStatus.FAILED if url_failed else CheckStatus.DONE))
         checks.append(CheckResult(name="intel.rdap", required=False, status=CheckStatus.NOT_CONFIGURED))
         checks.append(CheckResult(name="intel.reputation", required=False, status=CheckStatus.NOT_CONFIGURED))
     else:

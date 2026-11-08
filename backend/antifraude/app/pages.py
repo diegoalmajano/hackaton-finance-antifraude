@@ -71,4 +71,10 @@ def panel(request: Request, security: SecurityDep) -> Response:
             status_code=401,
             borrar_cookie=tenia_cookie,
         )
-    return templates.TemplateResponse(request, "panel.html", {"autenticado": True})
+    session = _session(request, security)
+    return templates.TemplateResponse(request, "panel.html", {
+        "autenticado": True,
+        "demo_mode": request.app.state.settings.demo_mode,
+        "ai_configured": request.app.state.ai_configured,
+        "historial": session.history if session else [],
+    })

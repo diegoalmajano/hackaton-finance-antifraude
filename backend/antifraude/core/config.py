@@ -52,6 +52,8 @@ class Settings(BaseModel):
     anthropic_api_key: SecretStr | None = None
     # Fase d. Sin valor por defecto: la elección está pendiente (D-24, D-32).
     claude_model: str | None = None
+    # Modo demostración: carga la entidad ficticia y los ejemplos sintéticos (siempre etiquetados).
+    demo_mode: bool = False
 
     @property
     def host(self) -> str:
@@ -83,6 +85,8 @@ class Settings(BaseModel):
             raw["anthropic_api_key"] = env["ANTHROPIC_API_KEY"]
         if "CLAUDE_MODEL" in env:
             raw["claude_model"] = env["CLAUDE_MODEL"]
+        if "APP_DEMO_MODE" in env:
+            raw["demo_mode"] = env["APP_DEMO_MODE"].strip().lower() in ("1", "true", "si", "sí", "yes")
         return cls.model_validate(raw)
 
 

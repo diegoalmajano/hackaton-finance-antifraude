@@ -170,8 +170,9 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
                     findings.append(_signal("url.brand_in_subdomain", Severity.CRITICAL,
                                             "La dirección imita la web de una entidad colocándola delante de otro dominio.",
                                             f"{od.domain} usado como subdominio de {reg}"))
-                elif brand and (brand in reg_label or (len(brand) >= 5 and SequenceMatcher(None, brand, reg_label).ratio()
-                                                       >= SIMILARITY_THRESHOLD)):
+                elif len(brand) >= 4 and (brand in reg_label.split("-") or (len(brand) >= 6 and brand in reg_label)
+                                          or (len(brand) >= 5 and SequenceMatcher(None, brand, reg_label).ratio()
+                                              >= SIMILARITY_THRESHOLD)):
                     comparison, lookalike_of = DomainComparison.LOOKALIKE, od.domain
                     findings.append(_signal("url.lookalike_domain", Severity.CRITICAL,
                                             "La dirección se parece a la de una entidad, pero no es la oficial.",

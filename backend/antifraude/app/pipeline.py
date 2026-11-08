@@ -14,10 +14,12 @@ from uuid import uuid4
 from antifraude.ai.base import AiAnalyzer, DisabledAi, verified_quotes
 from antifraude.analysis.ingest import IngestResult
 from antifraude.analysis.rules import screen
-from antifraude.contracts.ai import AiFindings
+from antifraude.contracts.ai import AiFailureReason, AiFindings
+from antifraude.contracts.checks import CheckResult, CheckStatus
+from antifraude.contracts.messages import ExtractedUrl
 from antifraude.contracts.alerts import Alert, AlertPhase
 from antifraude.contracts.assessment import FraudAssessment
-from antifraude.contracts.common import RiskLevel
+from antifraude.contracts.common import RiskLevel, Severity
 from antifraude.contracts.links import UrlAnalysis
 from antifraude.contracts.messages import IncomingMessage
 from antifraude.contracts.screening import ScreeningResult
@@ -50,19 +52,33 @@ class AnalysisPipeline:
         self.directory = directory
         self.ai: AiAnalyzer = ai or DisabledAi()
 
+    def _analyze_url(self, url: ExtractedUrl, claimed: str | None) -> UrlAnalysis:
+        try:
+            return analyze_url(url, self.directory, claimed)
+        except Exception:  # un enlace imposible de analizar se declara, no aborta ni da BAJO
+            return UrlAnalysis(
+                url_id=url.url_id,
+                checks=[CheckResult(name="intel.url_passive", required=True, status=CheckStatus.FAILED)],
+                limitations=["No se pudo analizar uno de los enlaces."],
+            )
+
     def run(self, ingested: IngestResult) -> AnalysisOutcome:
         t0 = perf_counter()
         message = ingested.message
         screening, entities = screen(message, self.directory)
         claimed = entities[0].entity_id if entities else None
-        url_analyses = [analyze_url(u, self.directory, claimed) for u in message.urls]
+        url_analyses = [self._analyze_url(u, claimed) for u in message.urls]
 
         ai_findings: AiFindings | None = None
         quotes: set[str] = set()
-        ai_required = screening.needs_deep_analysis
+        url_risky = any(f.severity.rank >= Severity.MEDIUM.rank for ua in url_analyses for f in ua.findings)
+        ai_required = screening.needs_deep_analysis or url_risky
         if ai_required:
             technical = [s.code for s in screening.signals] + [f.code for ua in url_analyses for f in ua.findings]
-            ai_findings = self.ai.analyze(message, technical)
+            try:
+                ai_findings = self.ai.analyze(message, technical)
+            except Exception:  # un fallo de la IA nunca aborta el análisis (D-14): análisis parcial declarado
+                ai_findings = AiFindings(status=CheckStatus.FAILED, failure_reason=AiFailureReason.API_ERROR)
             quotes = verified_quotes(ai_findings.output, message)
 
         assessment = assess(message, screening, url_analyses, ai_findings, ai_required=ai_required,

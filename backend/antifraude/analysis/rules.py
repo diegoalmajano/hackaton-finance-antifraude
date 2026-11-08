@@ -23,19 +23,25 @@ from antifraude.intel.urls import registrable_domain
 
 RULE_VERSION = "rules-0.1.0"
 
+#: Negación SOLO de la propia petición («nunca le pediremos…», «no le solicitaremos…»). Revisión Etapa B:
+#: una negación genérica («No le demore: introduzca su clave») ya no anula la regla.
 _NEGATION = re.compile(
-    r"\b(nunca|jamas|no le|no te|no les|no os|no vamos a|no debe|ni|no es necesario|no hace falta|no tiene que|"
-    r"no necesita|sin necesidad de)\b[^.\n]{0,40}$")
+    r"\b(nunca|jamas|no)\b[^.!?\n:;]{0,30}\b(pedi\w*|pide\w*|pida\w*|pediran|solicit\w*|pregunt\w*|requer\w*|"
+    r"exig\w*|reclam\w*)\b[^.!?\n:;]{0,40}$")
+_NO_NEED = re.compile(r"\b(no es necesario|no hace falta|no tiene que|no tienes que|no necesita|no debe|"
+                      r"sin necesidad de)\b[^.!?\n:;]{0,40}$")
 _NEGATED_SPAN = re.compile(r"\b(ningun|ninguna|nada)\b")
 
 _REQUEST_VERB = (
     r"\b(introduzca|introduce|introducir|indique|indica|facilite|facilita|facilitar|confirme|confirma|confirmar|"
     r"verifique|verifica|verificar|envie|envia|enviar|mande|manda|mandar|responda|responde|dime|digame|"
     r"actualice|actualiza|actualizar|escriba|escribe|proporcione|proporciona|comparta|comparte|valide|valida|validar|"
-    r"rellene|rellena|complete|completa|identifiquese|reactive|reactivar|acceda e|accede e|inicie sesion|ingrese)"
+    r"rellene|rellena|complete|completa|identifiquese|reactive|reactivar|acceda e|accede e|inicie sesion|ingrese|"
+    r"necesit\w*|acced\w* con|entre con|comuniq\w*|digame|digale|facilitenos|indiquenos|envienos|"
+    r"tecle\w*|aporte|aporta|remita|remite)"
 )
 _CREDENTIAL_OBJECT = (
-    r"(contrasena|clave(s)?( de acceso| de firma| personal)?|pin\b|credenciales|usuario y contrasena|"
+    r"(contrasena|clave(s)?( de acceso| de firma| personal| secreta)?\b|pin\b|credenciales|usuario y contrasena|"
     r"datos (de acceso|habituales de acceso|bancarios|de (la|su|tu) tarjeta)|numero de (la |su |tu )?tarjeta|cvv|cvc|"
     r"codigo de seguridad|firma (electronica|digital)|identidad con sus datos)"
 )
@@ -54,6 +60,7 @@ class _Rule:
     user: str
     tech: str
     negatable: bool = False
+    no_need: bool = False  # además, «no es necesario que…» anula la regla (p. ej. pagos)
 
 
 def _rx(p: str) -> re.Pattern[str]:
@@ -69,6 +76,11 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
           _rx(_REQUEST_VERB + r"\b[^.\n]{0,70}?" + _OTP_OBJECT),
           "Le piden un código de verificación (de un solo uso). No lo comparta nunca.",
           "petición de OTP", negatable=True),
+    _Rule("content.otp_share", SignalFamily.CONTENT, Severity.HIGH,
+          _rx(r"codigo[^.!?\n]{0,60}\b(comuniq\w*|digaselo|diga\w*|dicte\w*|facilit\w*|reenvi\w*|envie\w*|mande\w*|"
+              r"responda con|indiquenos|leaselo)\b"),
+          "Le piden que comunique a otra persona un código que ha recibido. No lo comparta nunca.",
+          "petición de compartir un código", negatable=True),
     _Rule("content.card_request", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(datos de (la|su|tu) tarjeta|numero de (la |su |tu )?tarjeta|fecha de caducidad|cvv|cvc)"),
           "Le piden datos de su tarjeta.", "referencia a datos de tarjeta", negatable=True),
@@ -91,11 +103,13 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"mandarme|pasarme|prestarme|pague|paga|pagar|abone|abona|ingrese|ingresa)\b[^.\n]{0,40}"
               r"(transferencia|bizum|pago|importe|tasa|\d+[.,]?\d*\s?(€|eur|euros))|\bpague[^.\n]{0,30}tasa|"
               r"tasa de (aduana|envio|gestion)|pago pendiente|deposito (inicial |minimo )?de \d+)"),
-          "Le piden que pague o envíe dinero.", "petición de pago", negatable=True),
+          "Le piden que pague o envíe dinero.", "petición de pago", negatable=True, no_need=True),
     _Rule("content.payment_details_change", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(nuev[oa] (numero de )?(cuenta|iban)|cambio de (cuenta|iban|datos bancarios)|"
               r"(hemos cambiado|ha cambiado|cambiado) (de )?(nuestra |la )?(cuenta|iban|entidad bancaria)|"
-              r"\[iban [a-z]{2} \.\.\.)"),  # IBAN enmascarado («…» se pliega a «...»)
+              # IBAN enmascarado («…» se pliega a «...») SOLO con contexto de cambio o novedad (revisión Etapa B)
+              r"(nuev\w*|cambi\w*|actualizad\w*|a partir de ahora|desde ahora)[^.!?\n]{0,60}\[iban [a-z]{2} \.\.\.|"
+              r"\[iban [a-z]{2} \.\.\.[^\]]*\][^.!?\n]{0,40}(nuev\w*|cambi\w*|a partir de ahora))"),
           "Le indican una cuenta bancaria nueva o diferente para pagar.", "cambio de datos de pago"),
     _Rule("content.investment_promise", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(rentabilidad(es)? (garantizad|asegurad|del \d+)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
@@ -130,10 +144,16 @@ def _signal(code: str, family: SignalFamily, severity: Severity, user: str, tech
                   description_user=user, description_tech=tech)
 
 
-def _is_negated(folded: str, start: int) -> bool:
-    window = folded[max(0, start - 60):start]
-    sentence = re.split(r"[.!?\n]", window)[-1]
-    return bool(_NEGATION.search(sentence + " "))
+def _is_negated(folded: str, start: int, end: int, no_need: bool) -> bool:
+    """¿La coincidencia está negada en su propia oración («nunca le pediremos…»)?"""
+    window = folded[max(0, start - 80):start]
+    clause = re.split(r"[.!?\n:;]", window)[-1]
+    span = folded[start:end]
+    if _NEGATION.search(clause + " ") or _NEGATION.search(clause + span):
+        return True
+    if no_need and (_NO_NEED.search(clause + " ") or _NEGATED_SPAN.search(span)):
+        return True
+    return False
 
 
 def mentioned_entities(text: str, directory: EntityDirectory) -> list[FinancialEntity]:
@@ -158,7 +178,7 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
 
     for rule in _CONTENT_RULES:
         for m in rule.pattern.finditer(folded):
-            if rule.negatable and (_is_negated(folded, m.start()) or _NEGATED_SPAN.search(m.group(0))):
+            if rule.negatable and _is_negated(folded, m.start(), m.end(), rule.no_need):
                 continue
             signals.append(_signal(rule.code, rule.family, rule.severity, rule.user, rule.tech))
             break
@@ -179,6 +199,16 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
             signals.append(_signal("sender.brand_mismatch", SignalFamily.SENDER, Severity.HIGH,
                                    f"El remitente se presenta como {entity.official_name}, pero no escribe desde su dirección oficial.",
                                    f"display_name menciona {entity.entity_id}; dominio {sender.domain}"))
+    # El cuerpo habla en nombre de una entidad, pero el correo no viene de su dominio oficial (revisión Etapa B).
+    if sender.domain and not claimed:
+        body_entities = mentioned_entities(visible, directory)
+        for entity in body_entities:
+            if entity.official_domains and (sender_official is None or sender_official.entity_id != entity.entity_id):
+                # Severidad BAJA: mencionar un banco no es suplantarlo; solo corrobora peticiones sensibles.
+                signals.append(_signal("sender.body_brand_mismatch", SignalFamily.SENDER, Severity.LOW,
+                                       f"El mensaje menciona a {entity.official_name}, pero no procede de su dirección oficial.",
+                                       f"cuerpo menciona {entity.entity_id}; dominio {sender.domain}"))
+                break
     if message.reply_to and message.reply_to.domain and sender.domain:
         if registrable_domain(message.reply_to.domain) != registrable_domain(sender.domain):
             signals.append(_signal("sender.reply_to_mismatch", SignalFamily.SENDER, Severity.MEDIUM,
@@ -207,6 +237,8 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
                                f"Menciona a {entities[0].official_name}.",
                                "entidades mencionadas: " + ", ".join(e.entity_id for e in entities)))
 
+    # Entidad «reclamada»: primero la del nombre del remitente; si no, las mencionadas en el texto.
+    entities = claimed + [e for e in entities if e not in claimed]
     signals = _dedupe(signals)
     max_sev = max((s.severity for s in signals), key=lambda s: s.rank, default=None)
     risky = [s for s in signals if s.severity.rank >= Severity.MEDIUM.rank]

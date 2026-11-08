@@ -1,0 +1,68 @@
+{# Resultado de un análisis. Todo el contenido se escapa (autoescape de Jinja). #}
+{% if r.ejemplo %}
+<p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> EJEMPLO SINTÉTICO — mensaje ficticio de demostración: {{ r.ejemplo }}</p>
+{% endif %}
+
+{% if r.preventiva %}
+<section class="alerta alerta-preventiva" aria-labelledby="t-preventiva">
+  <h3 id="t-preventiva"><span aria-hidden="true">🔔</span> Aviso preventivo</h3>
+  <p>Hemos encontrado elementos sospechosos en este mensaje. Lo hemos comprobado y este es el resultado:</p>
+</section>
+{% endif %}
+
+<section class="alerta alerta-definitiva" data-nivel="{{ r.nivel.clase }}" aria-labelledby="t-resultado" tabindex="-1" id="resultado-final">
+  <h3 id="t-resultado">
+    <span class="nivel-icono" aria-hidden="true">{{ r.nivel.icono }}</span>
+    Riesgo <span class="nivel-nombre">{{ r.nivel.nombre }}</span>
+  </h3>
+  <p class="explicacion">{{ r.explicacion }}</p>
+
+  {% if r.parcial %}
+  <p class="mensaje" data-tipo="aviso"><span aria-hidden="true">⚠️</span> <strong>Análisis parcial:</strong> no se han podido hacer todas las comprobaciones. No lo tome como una garantía.</p>
+  {% endif %}
+  {% if not r.ia.configurada %}
+  <p class="nota-ia"><span aria-hidden="true">ℹ️</span> El análisis con inteligencia artificial no está configurado: este resultado procede de las reglas y del análisis de enlaces.</p>
+  {% endif %}
+
+  {% if r.recomendaciones %}
+  <h4>Qué le recomendamos</h4>
+  <ul class="recomendaciones">
+    {% for rec in r.recomendaciones %}<li>{{ rec }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if r.evidencias %}
+  <h4>Por qué</h4>
+  <ul class="evidencias">
+    {% for e in r.evidencias %}
+    <li{% if e.grave %} class="grave"{% endif %}>
+      <span>{{ e.texto }}</span>
+      {% if e.cita %}<blockquote>«{{ e.cita }}»</blockquote>{% endif %}
+      <span class="fuente">Fuente: {{ e.fuente }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if r.legitimidad %}
+  <h4>A favor del mensaje</h4>
+  <ul>{% for l in r.legitimidad %}<li>{{ l }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if r.no_comprobado %}
+  <h4>Lo que no hemos podido comprobar</h4>
+  <ul>{% for n in r.no_comprobado %}<li>{{ n }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  <details class="desplegable">
+    <summary>Detalles técnicos</summary>
+    <ul>
+      {% for c in r.comprobaciones %}<li>{{ c.nombre }}: {{ {"done": "hecho", "failed": "falló", "not_configured": "no configurado", "not_applicable": "no aplica", "skipped": "omitido"}[c.estado] }}{% if c.obligatoria %} (obligatoria){% endif %}</li>{% endfor %}
+      {% for d in r.detalles %}<li>{{ d }}</li>{% endfor %}
+      {% for w in r.avisos_ingesta %}<li>{{ w }}</li>{% endfor %}
+      <li>Tiempo de análisis: {{ r.latencia_ms }} ms</li>
+    </ul>
+  </details>
+</section>
+
+<div id="lista-alertas" hx-swap-oob="innerHTML">{% include "partials/historial.html" %}</div>

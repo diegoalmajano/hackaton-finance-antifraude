@@ -4,6 +4,13 @@ No ejecuta nada ni descarga recursos: solo recorre etiquetas. Se ignora el
 contenido de ``script``, ``style``, ``head`` y ``template``; los ``<a href>``
 se devuelven con su texto visible para detectar enlaces cuyo texto no
 coincide con su destino.
+
+Robustez frente a HTML hostil o mal formado (revisión de la Etapa B):
+- ``<body>`` reinicia el modo «ignorar» (un ``<head>``/``<title>`` sin cerrar
+  no puede ocultar el cuerpo).
+- Un ``<a>`` sin cerrar se registra igualmente (al abrir otro ``<a>`` o al
+  terminar el documento).
+- Si el analizador falla, se devuelve lo extraído y se anota un aviso.
 """
 
 from __future__ import annotations
@@ -36,14 +43,25 @@ class _Extractor(HTMLParser):
         self._anchor_href: str | None = None
         self._anchor_text: list[str] = []
 
+    def _flush_anchor(self) -> None:
+        if self._anchor_href is not None and len(self.state.anchors) < MAX_ANCHORS:
+            text = " ".join("".join(self._anchor_text).split())
+            self.state.anchors.append(Anchor(href=self._anchor_href, text=text))
+        self._anchor_href = None
+        self._anchor_text = []
+
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
+        if tag == "body":
+            self._skip_depth = 0
+            return
         if tag in _SKIP:
             self._skip_depth += 1
             return
         if tag in _BLOCK:
             self.state.parts.append("\n")
         if tag == "a":
+            self._flush_anchor()  # un <a> anterior sin cerrar
             href = dict(attrs).get("href")
             self._anchor_href = href.strip() if href else None
             self._anchor_text = []
@@ -53,11 +71,8 @@ class _Extractor(HTMLParser):
         if tag in _SKIP:
             self._skip_depth = max(0, self._skip_depth - 1)
             return
-        if tag == "a" and self._anchor_href is not None:
-            if len(self.state.anchors) < MAX_ANCHORS:
-                text = " ".join("".join(self._anchor_text).split())
-                self.state.anchors.append(Anchor(href=self._anchor_href, text=text))
-            self._anchor_href = None
+        if tag == "a":
+            self._flush_anchor()
         if tag in _BLOCK:
             self.state.parts.append("\n")
 
@@ -69,12 +84,13 @@ class _Extractor(HTMLParser):
             self._anchor_text.append(data)
 
 
-def html_to_text_and_anchors(html: str) -> tuple[str, list[Anchor]]:
+def html_to_text_and_anchors(html: str, warnings: list[str] | None = None) -> tuple[str, list[Anchor]]:
     parser = _Extractor()
     try:
         parser.feed(html)
         parser.close()
-    except Exception:  # HTML roto: se devuelve lo extraído hasta el error
-        pass
-    text = "".join(parser.state.parts)
-    return text, parser.state.anchors
+    except Exception:  # HTML roto: se devuelve lo extraído hasta el error, con aviso
+        if warnings is not None:
+            warnings.append("El contenido HTML del mensaje estaba dañado; se analizó solo una parte.")
+    parser._flush_anchor()  # enlace final sin cerrar
+    return "".join(parser.state.parts), parser.state.anchors

@@ -1,0 +1,13 @@
+{% if historial %}
+<p class="ayuda">Últimos análisis de esta sesión (solo el resultado; el texto de los mensajes no se guarda).</p>
+<ol class="historial">
+  {% for h in historial %}
+  <li data-nivel="{{ h.clase }}">
+    <span aria-hidden="true">{{ h.icono }}</span> <strong>{{ h.nivel }}</strong> — {{ h.titulo }}
+    <span class="ayuda">({{ h.origen }}, {{ h.hora }}{% if h.parcial == "sí" %}, análisis parcial{% endif %})</span>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="vacio"><span class="icono" aria-hidden="true">📭</span> Todavía no ha analizado ningún mensaje en esta sesión.</p>
+{% endif %}

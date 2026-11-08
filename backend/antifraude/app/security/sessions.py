@@ -14,7 +14,7 @@ import re
 import secrets
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from antifraude.app.security.policy import (
     SESSION_ABSOLUTE_TIMEOUT_S,
@@ -35,6 +35,8 @@ class Session:
     csrf_token: str
     created_at: float
     last_seen: float
+    #: Historial de la sesión: solo nivel, título y hora; NUNCA el texto del mensaje. Se pierde al cerrar.
+    history: list[dict[str, str]] = field(default_factory=list)
 
 
 class SessionStore:

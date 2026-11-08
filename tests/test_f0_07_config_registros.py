@@ -37,7 +37,7 @@ def parse_env_example() -> dict[str, str]:
 # --- .env.example ---------------------------------------------------------------
 def test_env_example_cubre_todas_las_variables_leidas() -> None:
     leidas = set(re.findall(r'"([A-Z][A-Z0-9_]+)" in env', CONFIG_SRC.read_text(encoding="utf-8")))
-    assert leidas == {"APP_PORT", "APP_LOG_LEVEL", "ANTHROPIC_API_KEY", "CLAUDE_MODEL"}
+    assert leidas == {"APP_PORT", "APP_LOG_LEVEL", "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "APP_DEMO_MODE"}
     assert set(parse_env_example()) == leidas
 
 

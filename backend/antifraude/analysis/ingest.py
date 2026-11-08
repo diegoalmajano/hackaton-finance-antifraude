@@ -13,14 +13,17 @@ import email
 import email.policy
 import hashlib
 import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from email.utils import parseaddr, parsedate_to_datetime
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from antifraude.analysis.html_text import html_to_text_and_anchors
-from antifraude.analysis.text import clean_text, minimize
+from antifraude.analysis.text import clean_text, fold, minimize
 from antifraude.contracts.common import (
     MAX_ATTACHMENTS,
     MAX_RAW_BYTES,
@@ -41,12 +44,20 @@ from antifraude.contracts.messages import (
 )
 from antifraude.intel.urls import split_url, url_id_for
 
+#: Dominios de primer nivel aceptados para dominios «desnudos» sin esquema ni barra (p. ej. «banco-seguro.com»).
+_BARE_TLDS = (
+    "com|es|net|org|eu|info|biz|io|co|me|ly|xyz|top|online|site|shop|store|app|link|click|live|vip|"
+    "club|cloud|digital|support|help|services|security|bank|cat|gal|eus|pt|fr|de|it|uk|us|ru|cn|tk|ml|ga|cf|gq|"
+    "test|example|invalid"
+)
 _URL_RE = re.compile(
     r"(?:(?:https?|hxxps?)://[^\s<>\"'«»]+|www\.[^\s<>\"'«»]+"
-    r"|(?<![@\w.\-])[a-z0-9][a-z0-9\-]*(?:\.[a-z0-9\-]+)*\.[a-z]{2,24}/[^\s<>\"'«»]*)",
+    r"|(?<![@\w.\-])[a-z0-9][a-z0-9\-]*(?:\.[a-z0-9\-]+)*\.[a-z]{2,24}/[^\s<>\"'«»]*"
+    r"|(?<![@\w.\-])[a-z0-9][a-z0-9\-]*(?:\.[a-z0-9\-]+)*\.(?:" + _BARE_TLDS + r")(?![\w\-@]))",
     re.IGNORECASE,
 )
 _TRAILING = ".,;:!?)]}»"
+_QUERY = re.compile(r"[?#].*$", re.DOTALL)
 
 
 class IngestError(ValueError):
@@ -60,27 +71,41 @@ class IngestResult:
     raw_text_for_rules: str  # texto limpio y minimizado (igual que message.text) + asunto
 
 
-def _extract_urls(text: str, location: UrlLocation, message_id: UUID, start: int) -> list[ExtractedUrl]:
+def _extract_urls(text: str, location: UrlLocation, message_id: UUID, start: int,
+                  warnings: list[str]) -> list[ExtractedUrl]:
     found: list[ExtractedUrl] = []
-    for m in _URL_RE.finditer(text):
+    # NFKC: los caracteres de ancho completo («ｂａｎｃｏ.example») se convierten a su forma normal.
+    for m in _URL_RE.finditer(unicodedata.normalize("NFKC", text)):
         raw = m.group(0).rstrip(_TRAILING)
-        if not raw or len(raw) > MAX_URL_CHARS:
+        if not raw:
             continue
-        found.append(_make_url(raw, location, None, message_id, start + len(found)))
+        url = _make_url(raw, location, None, message_id, start + len(found), warnings)
+        if url is not None:
+            found.append(url)
     return found
 
 
-def _make_url(raw: str, location: UrlLocation, display: str | None, message_id: UUID, index: int) -> ExtractedUrl:
+def _make_url(raw: str, location: UrlLocation, display: str | None, message_id: UUID, index: int,
+              warnings: list[str]) -> ExtractedUrl | None:
+    """Crea la URL extraída. Limpia controles/invisibles; recorta las muy largas con aviso; nunca lanza."""
+    raw, _ = clean_text(raw)
+    raw = raw.replace("\n", "").replace(" ", "")
+    if display is not None:
+        display = clean_text(display)[0][:1000] or None
+    if not raw:
+        return None
+    if len(raw) > MAX_URL_CHARS:
+        warnings.append("Un enlace era extraordinariamente largo y se ha recortado para analizarlo.")
+        raw = raw[:MAX_URL_CHARS]
     parts = split_url(raw)
     host = parts.host if parts.host and re.fullmatch(r"[a-z0-9.\-]{1,253}", parts.host) else None
-    return ExtractedUrl(
-        url_id=url_id_for(index, message_id),
-        raw=raw[:MAX_URL_CHARS],
-        location=location,
-        display_text=(display or None) and display[:1000],
-        host=host,
-        registrable_domain=None,
-    )
+    stored = _QUERY.sub("?[parámetros omitidos]", raw) if ("?" in raw or "#" in raw) else raw  # minimización
+    try:
+        return ExtractedUrl(url_id=url_id_for(index, message_id), raw=stored[:MAX_URL_CHARS], location=location,
+                            display_text=display, host=host, registrable_domain=None)
+    except ValidationError:
+        warnings.append("Se omitió un enlace con un formato no válido.")
+        return None
 
 
 def _dedupe(urls: list[ExtractedUrl]) -> list[ExtractedUrl]:
@@ -114,31 +139,40 @@ def build_message(
 
     html_text, anchors = ("", [])
     if body_html:
-        html_text, anchors = html_to_text_and_anchors(body_html)
+        html_text, anchors = html_to_text_and_anchors(body_html, warnings)
     base_text = body_text if body_text.strip() else html_text
+    # Un correo con texto plano inocente y HTML distinto: se analizan ambos (evasión clásica de filtros).
+    if body_text.strip() and html_text.strip():
+        plain_words = set(fold(body_text).split())
+        extra = [w for w in fold(html_text).split() if w not in plain_words]
+        if len(extra) > 5:
+            base_text = body_text + "\n\n" + html_text
+            warnings.append("El correo contenía en su versión HTML texto distinto del texto plano; se han analizado ambos.")
     cleaned, invisibles = clean_text(base_text)
     if not cleaned:
         raise IngestError("El mensaje está vacío.")
     if invisibles:
         warnings.append(f"Se eliminaron {invisibles} caracteres invisibles.")
-    if len(cleaned) > MAX_TEXT_CHARS:
-        cleaned = cleaned[:MAX_TEXT_CHARS]
+    text = minimize(cleaned)  # minimizar ANTES de recortar: la máscara puede alargar el texto
+    if len(text) > MAX_TEXT_CHARS:
+        text = text[:MAX_TEXT_CHARS]
         warnings.append("El texto se ha recortado por su longitud.")
-    text = minimize(cleaned)
 
     subj_clean = None
     if subject:
         subj_clean, sub_inv = clean_text(subject)
         invisibles += sub_inv
-        subj_clean = minimize(subj_clean[:MAX_SUBJECT_CHARS]) or None
+        subj_clean = minimize(subj_clean)[:MAX_SUBJECT_CHARS] or None
 
-    urls = _extract_urls(subj_clean or "", UrlLocation.SUBJECT, message_id, 0)
-    urls += _extract_urls(cleaned, UrlLocation.BODY_TEXT, message_id, len(urls))
+    urls = _extract_urls(subj_clean or "", UrlLocation.SUBJECT, message_id, 0, warnings)
+    urls += _extract_urls(cleaned, UrlLocation.BODY_TEXT, message_id, len(urls), warnings)
     for a in anchors:
-        href = a.href.strip()
-        if href.lower().startswith(("mailto:", "tel:", "#", "javascript:", "data:")) or not href:
+        href = clean_text(a.href)[0].replace(" ", "")
+        if not href or href.lower().startswith(("mailto:", "tel:", "#", "javascript:", "data:")):
             continue
-        urls.append(_make_url(href, UrlLocation.HTML_HREF, a.text or None, message_id, len(urls)))
+        url = _make_url(href, UrlLocation.HTML_HREF, a.text or None, message_id, len(urls), warnings)
+        if url is not None:
+            urls.append(url)
     urls = _dedupe(urls)
     if len(urls) > MAX_URLS_PER_MESSAGE:
         urls = urls[:MAX_URLS_PER_MESSAGE]

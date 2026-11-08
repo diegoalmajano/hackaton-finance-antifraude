@@ -163,3 +163,32 @@ a { color: var(--primario); text-decoration-thickness: 2px; text-underline-offse
   .boton, .campo, .mensaje, .estado, .nivel, .tarjeta { border-color: CanvasText; }
   :focus-visible { outline: 4px solid Highlight; box-shadow: none; }
 }
+
+/* ===== Etapa D: resultado del análisis, alertas e historial ===== */
+.etiqueta-simulado {
+  border: 3px dashed var(--aviso); background: var(--aviso-fondo); color: var(--aviso);
+  padding: 0.6rem 1rem; border-radius: 10px; font-weight: 700;
+}
+.alerta { border: 3px solid var(--borde); border-radius: var(--radio); padding: 1.1rem 1.25rem; margin: 1rem 0; background: #fff; }
+.alerta h3 { font-size: 1.35rem; margin: 0 0 0.5rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.alerta h4 { font-size: 1.1rem; margin: 1rem 0 0.4rem; }
+.alerta:focus { outline: 4px solid var(--texto); outline-offset: 3px; }
+.alerta-preventiva { border-color: var(--aviso); background: var(--aviso-fondo); border-style: dashed; }
+.alerta-definitiva { border-left-width: 14px; }
+.alerta-definitiva[data-nivel="alto"] { border-color: var(--error); background: var(--error-fondo); border-left-style: double; border-left-width: 18px; }
+.alerta-definitiva[data-nivel="medio"] { border-color: #b37400; background: var(--aviso-fondo); border-left-style: dashed; }
+.alerta-definitiva[data-nivel="no-concluyente"] { border-color: var(--texto-suave); border-left-style: dotted; }
+.alerta-definitiva[data-nivel="bajo"] { border-color: var(--ok); background: var(--ok-fondo); }
+.alerta .nivel-nombre { font-weight: 800; letter-spacing: 0.04em; }
+.explicacion { font-size: 1.1rem; font-weight: 600; }
+.recomendaciones li { font-weight: 600; margin-bottom: 0.4rem; }
+.evidencias { padding-left: 1.25rem; }
+.evidencias li { margin-bottom: 0.75rem; }
+.evidencias li.grave { font-weight: 700; }
+.evidencias blockquote { margin: 0.3rem 0; padding: 0.4rem 0.8rem; border-left: 4px solid var(--borde); background: #fff; font-style: italic; font-weight: 400; }
+.fuente { display: block; font-size: 0.9rem; color: var(--texto-suave); font-weight: 400; }
+.nota-ia { color: var(--texto-suave); font-size: 0.95rem; }
+.historial { padding-left: 1.25rem; }
+.historial li { margin-bottom: 0.4rem; }
+.ejemplos { margin-top: 1.25rem; border-top: 2px solid #d5dde5; padding-top: 0.75rem; }
+input[type="file"].campo { padding: 0.5rem; }
