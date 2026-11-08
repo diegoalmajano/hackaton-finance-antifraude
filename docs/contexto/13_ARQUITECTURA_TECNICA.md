@@ -111,6 +111,7 @@ Datos etiquetados representativos (≥ cientos por clase, reales y consentidos +
 **Pasivo (MVP):** normalización (minúsculas, punycode→Unicode para mostrar, quitar credenciales `user@host`, decodificar porcentajes), dominio registrable con PSL local, subdominios con marca (`bbva.seguridad-x.com`), confusables/homoglifos, similitud con dominios oficiales (rapidfuzz), TLD, IP literal, puerto no estándar, acortadores conocidos (destino **no** resuelto → incertidumbre), discrepancia texto visible/`href`, edad de dominio por **RDAP** (consulta a registro, no a la web sospechosa), reputación.
 **Reputación — opciones:** Google **Web Risk** (uso comercial; Lookup gratis hasta 100 000/mes 🟡; requiere proyecto GCP, probablemente facturación ⏳) · Google **Safe Browsing v5** (gratis, **solo no comercial** ✅; v4 obsoleta, fin de soporte 31-mar-2027 🟡) · feeds CC0 (TweetFeed) como señal secundaria. **Propuesta:** Web Risk si se puede habilitar sin coste en el proyecto GCP del equipo; si no, Safe Browsing v5 declarando su uso no comercial en el prototipo. VirusTotal público y urlscan: **no** (licencia no comercial / privacidad).
 **Activo (P2, no MVP):** solo en sandbox aislado (contenedor sin credenciales, egress filtrado, bloqueo de IP privadas/loopback/link-local/metadatos tras **cada** resolución DNS (anti-rebinding: conectar a la IP validada), máx. redirecciones, timeout, tamaño, tipos permitidos, sin descargas ni JS de terceros salvo navegador aislado).
+**(F0-09, D-53) Implementado el esquema y las consultas:** contrato `backend/antifraude/contracts/entities.py`, consultas `backend/antifraude/intel/entities.py`, datos `backend/data/entities_es.json` (reales, **pendientes y sin dominios**, V-27) y `backend/data/entities_ficticias.json` (solo pruebas/demo). Lo que sigue es el diseño original (histórico).
 **Directorio de entidades:** JSON versionado `entities_es.json` con `{entity_id, nombre, dominios_oficiales[], dominios_correo[], canales_oficiales{web, app, telefono}, fuente_url, verificado_por, fecha}`; cada dato con **fuente oficial** (web del banco). Inicial: los bancos que use la demo + principales españoles (P3). Teléfonos solo si están verificados en la fuente.
 
 ## 8. Conector Gmail (A) — verificado en documentación oficial
@@ -146,8 +147,8 @@ Datos etiquetados representativos (≥ cientos por clase, reales y consentidos +
 backend/antifraude/{contracts,core,connectors,analysis,intel,ai,risk,app}   (F0-03: raíz `antifraude` en lugar de `app` para evitar `app.app`)
 backend/antifraude/app/{templates,static}        (Jinja + htmx vendorizado)
 pyproject.toml (solo configuración de pytest)    arranque: `cd backend && ..\.venv\Scripts\python -m antifraude`
-backend/data/entities_es.json
-eval/{datasets/dev,runner,SELLADO.md (procedimiento + metadatos + SHA-256; el conjunto sellado vive FUERA del repo, D-40)}      tests/{unit,integration,adversarial}
+backend/data/entities_es.json      backend/data/entities_ficticias.json      (F0-09)
+eval/{README.md, SELLADO.md, datasets/dev/*.jsonl, runner (fase posterior)}   (F0-08: formato = contrato `EvalCase`; el conjunto sellado vive FUERA del repo, D-40)      tests/{unit,integration,adversarial}
 vendor/htmx/      docs/adr/      docs/DEPENDENCIAS.md      .env.example      requirements.txt      requirements-dev.txt      requirements.lock      README.md
 ```
 Histórico (sesión 4): `backend/app/{contracts,connectors/{gmail,manual,simulated},ingestion,screening,threat_intel,ai_analysis,risk,personalization,notifications,persistence,security,api}` + `desktop/` + `frontend/`.

@@ -1,0 +1,51 @@
+{
+  "schema_version": "1",
+  "description": "Entidades financieras reales en España. TODAS pendientes de verificación: sin dominios oficiales hasta comprobarlos en fuentes oficiales (V-27).",
+  "entities": [
+    {
+      "entity_id": "santander",
+      "official_name": "Banco Santander, S.A.",
+      "aliases": ["Banco Santander", "Santander"],
+      "verification_status": "pending_verification",
+      "official_domains": [],
+      "verification": null,
+      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial", "Alias 'Santander' ambiguo (también es una ciudad)"]
+    },
+    {
+      "entity_id": "bbva",
+      "official_name": "Banco Bilbao Vizcaya Argentaria, S.A.",
+      "aliases": ["BBVA"],
+      "verification_status": "pending_verification",
+      "official_domains": [],
+      "verification": null,
+      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial"]
+    },
+    {
+      "entity_id": "caixabank",
+      "official_name": "CaixaBank, S.A.",
+      "aliases": ["CaixaBank"],
+      "verification_status": "pending_verification",
+      "official_domains": [],
+      "verification": null,
+      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial"]
+    },
+    {
+      "entity_id": "sabadell",
+      "official_name": "Banco de Sabadell, S.A.",
+      "aliases": ["Banco Sabadell", "Sabadell"],
+      "verification_status": "pending_verification",
+      "official_domains": [],
+      "verification": null,
+      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial", "Alias 'Sabadell' ambiguo (también es una ciudad)"]
+    },
+    {
+      "entity_id": "bankinter",
+      "official_name": "Bankinter, S.A.",
+      "aliases": ["Bankinter"],
+      "verification_status": "pending_verification",
+      "official_domains": [],
+      "verification": null,
+      "notes": ["Nombre oficial y dominios pendientes de verificar en fuente oficial"]
+    }
+  ]
+}

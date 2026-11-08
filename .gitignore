@@ -25,8 +25,10 @@ private_messages/
 exports/
 
 # ==== Evaluación ====
-# T-09 pendiente: descomentar si se decide mantener el test sellado fuera del repo
-# eval/datasets/test_sealed/
+# D-40: el conjunto final sellado vive FUERA del repo; estas reglas evitan versionarlo por accidente
+eval/datasets/test_sealed/
+eval/sealed/
+*.sealed.jsonl
 eval/results/
 eval/reports/local/
 

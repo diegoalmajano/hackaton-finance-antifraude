@@ -1,0 +1,24 @@
+{
+  "schema_version": "1",
+  "description": "Entidades FICTICIAS para pruebas y demostración. Solo dominios reservados (RFC 2606/6761). No se cargan por defecto.",
+  "entities": [
+    {
+      "entity_id": "ficticio_banco",
+      "official_name": "Banco Ficticio, S.A.",
+      "aliases": ["Banco Ficticio", "BancoFicticio"],
+      "entity_type": "bank",
+      "country": "ES",
+      "verification_status": "fictitious",
+      "official_domains": [
+        {"domain": "bancoficticio.example", "include_subdomains": true, "usage": ["web", "email"]}
+      ],
+      "verification": {
+        "source_description": "Entidad inventada para pruebas y demo; no existe",
+        "source_url": null,
+        "checked_on": "2026-11-08",
+        "checked_by": "Claude Code (sesión 6, F0-09)"
+      },
+      "notes": ["Usada en los casos sintéticos eval/datasets/dev/demo.jsonl"]
+    }
+  ]
+}
