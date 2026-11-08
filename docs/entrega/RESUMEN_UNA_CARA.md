@@ -1,6 +1,6 @@
-# Asistente antifraude — resumen de una cara (BORRADOR para el PDF)
+# Asistente antifraude — resumen de una cara (texto fuente)
 
-> Pendiente: maquetar en PDF de una cara (no hay herramienta autorizada para generarlo automáticamente; se puede exportar desde el navegador o un procesador de textos). Revisar cifras: **no incluir estadísticas externas sin verificar** (V-07).
+> Versión maquetada: `Resumen_Asistente_Antifraude.pdf`, generada desde `resumen_una_cara.html` con Edge sin interfaz (ver `docs/entrega/README.md`). No incluir estadísticas externas sin verificar (V-07).
 
 ## El problema
 Las estafas por correo y SMS que suplantan a bancos buscan que la víctima entregue sus claves, sus códigos de un solo uso o su dinero. Las personas mayores y con poca experiencia digital son especialmente vulnerables: los mensajes son cada vez más convincentes y meten prisa para que se actúe sin pensar.

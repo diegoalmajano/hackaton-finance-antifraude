@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Asistente antifraude — resumen de una cara</title>
+<style>
+  @page { size: A4; margin: 12mm 13mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #0B1F33; font-size: 10pt; line-height: 1.35; margin: 0; }
+  header { border-bottom: 3px solid #073A73; padding-bottom: 4px; margin-bottom: 8px; }
+  h1 { font-size: 19pt; color: #073A73; margin: 0; }
+  .sub { font-size: 10.5pt; margin: 2px 0 0; }
+  .meta { font-size: 8.5pt; color: #333; margin: 2px 0 0; }
+  h2 { font-size: 11.5pt; color: #073A73; margin: 8px 0 3px; border-left: 4px solid #073A73; padding-left: 6px; }
+  p { margin: 0 0 4px; }
+  ul, ol { margin: 0 0 4px 16px; padding: 0; }
+  li { margin-bottom: 2px; }
+  .cols { display: flex; gap: 12px; }
+  .cols > div { flex: 1; }
+  .levels { display: flex; gap: 6px; margin: 4px 0 6px; }
+  .lv { flex: 1; border: 2px solid; border-radius: 4px; padding: 3px 5px; font-weight: 600; font-size: 9pt; text-align: center; }
+  .low { border-color: #1B5E20; color: #1B5E20; }
+  .med { border-color: #8A4B00; color: #8A4B00; }
+  .high { border-color: #A30000; color: #A30000; }
+  .inc { border-color: #3C3C3C; color: #3C3C3C; }
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+  th, td { border: 1px solid #9AA9B8; padding: 2px 5px; text-align: left; vertical-align: top; }
+  th { background: #E8EEF5; }
+  .note { font-size: 8pt; color: #333; border-top: 1px solid #9AA9B8; margin-top: 8px; padding-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Asistente antifraude</h1>
+  <p class="sub">Le ayudamos a reconocer mensajes que intentan engañarle, sin abrir nunca sus enlaces.</p>
+  <p class="meta">Hackfinance · BEST UC3M · noviembre de 2026 · Prototipo académico · Nombre definitivo del producto: pendiente</p>
+</header>
+
+<h2>El problema</h2>
+<p>Las estafas por correo y SMS suplantan a bancos, a empresas de paquetería, a la Administración o a familiares para conseguir claves, códigos de un solo uso (OTP), datos de tarjeta o transferencias. Cada vez son más convincentes, sin faltas de ortografía y con enlaces que imitan webs oficiales. Las personas mayores y con poca experiencia digital son las más expuestas.</p>
+
+<h2>La solución</h2>
+<p>Un asistente que revisa los mensajes que el usuario elige y le explica, en español llano:</p>
+<div class="levels">
+  <div class="lv low">✔ BAJO</div><div class="lv med">⚠ MEDIO</div><div class="lv high">⛔ ALTO</div><div class="lv inc">? NO CONCLUYENTE</div>
+</div>
+<ul>
+  <li><strong>Qué nivel de riesgo</strong> tiene el mensaje, siempre con icono y texto, nunca solo con color, y <strong>sin porcentajes inventados</strong>.</li>
+  <li><strong>Por qué</strong>: evidencias concretas con citas literales del mensaje. Y <strong>qué no se ha podido comprobar</strong>.</li>
+  <li><strong>Qué hacer</strong>: no compartir códigos y llamar al banco al teléfono de siempre. <strong>La decisión es siempre del usuario.</strong></li>
+</ul>
+
+<div class="cols">
+<div>
+<h2>Cómo funciona</h2>
+<ol>
+  <li><strong>Reglas deterministas</strong> sobre el texto: peticiones de claves u OTP, urgencia, cambio de cuenta, familiar con número nuevo, inversión milagrosa, órdenes ocultas para la IA…</li>
+  <li><strong>Análisis pasivo de enlaces y remitente</strong>: dominios que imitan al banco, texto del enlace distinto de su destino, acortadores, respuestas a otro dominio y autenticación del correo.</li>
+  <li><strong>IA (Claude), opcional</strong>: aporta contexto con citas verificadas literalmente. Nunca decide sola.</li>
+  <li><strong>Motor de riesgo determinista</strong>: fija el nivel. <strong>Un error nunca da «BAJO»</strong>, y una petición de claves u OTP nunca se considera segura.</li>
+  <li><strong>Alertas en dos fases</strong>: un aviso preventivo inmediato y después el resultado explicado.</li>
+</ol>
+</div>
+<div>
+<h2>Por qué es diferente</h2>
+<ul>
+  <li><strong>Explica y reconoce sus límites</strong>: separa el nivel, las evidencias y las incertidumbres.</li>
+  <li><strong>Pensado para personas mayores</strong>: texto y botones grandes, contraste alto, manejo completo con teclado y sin tecnicismos.</li>
+  <li><strong>Privacidad</strong>: funciona en el ordenador del usuario. Oculta códigos, tarjetas, IBAN, DNI y teléfonos antes de usar la IA, y no guarda el texto de los mensajes.</li>
+  <li><strong>Seguro por diseño</strong>: no visita enlaces, resiste los mensajes que intentan manipular a la IA y protege el acceso local con un código de un solo uso, cookie segura, CSRF y CSP estricta.</li>
+</ul>
+<h2>Modelo y viabilidad</h2>
+<p>Cliente: <strong>bancos españoles</strong>, como capa de protección para sus clientes (marca blanca en el futuro). El banco no recibe los mensajes personales. Las reglas no tienen coste por mensaje y la IA solo se usa en los mensajes sospechosos. El coste real por análisis con IA <strong>no está medido todavía</strong>: hace falta una prueba con presupuesto.</p>
+</div>
+</div>
+
+<h2>Estado real del prototipo</h2>
+<table>
+  <tr><th>Funciona hoy (probado)</th><th>Preparado, probado solo con simulaciones</th><th>Pendiente</th></tr>
+  <tr>
+    <td>Análisis manual (texto y <code>.eml</code>), enlaces, reglas, motor, alertas, interfaz accesible y modo de demostración con datos ficticios. 528 pruebas automáticas.</td>
+    <td>Cliente de Claude (con salida estructurada y citas verificadas) y conector de Gmail (lectura y sondeo de mensajes nuevos).</td>
+    <td>Conexión real con Gmail y Claude (credenciales y presupuesto), dominios verificados de bancos reales y evaluación independiente con un conjunto sellado.</td>
+  </tr>
+</table>
+
+<p class="note">Las métricas del conjunto de desarrollo solo sirven para ajustar el sistema: no son una evaluación independiente y no se presentan como rendimiento real. Todos los ejemplos usan datos ficticios («Banco Ficticio», dominios reservados <code>.example</code>/<code>.test</code>).</p>
+</body>
+</html>
