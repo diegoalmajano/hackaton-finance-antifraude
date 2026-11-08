@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light">
   {# Configuración de htmx compatible con la CSP estricta (ADR-0012/0013):
      sin eval, sin <style> en línea, sin historial en sessionStorage. #}
-  <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"historyEnabled":false,"historyCacheSize":0,"selfRequestsOnly":true,"refreshOnHistoryMiss":false}'>
+  <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"historyEnabled":false,"historyCacheSize":0,"selfRequestsOnly":true,"refreshOnHistoryMiss":false,"timeout":60000}'>
   <title>{% block title %}Asistente antifraude{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="/vendor/htmx/htmx.min.js" defer></script>
@@ -25,7 +25,8 @@
     </div>
   </header>
 
-  <div id="aviso-global" class="mensaje mensaje-global" role="alert" aria-live="assertive" hidden></div>
+  <div id="aviso-global" class="mensaje mensaje-global" role="alert"></div>
+  <p id="estado-sr" class="sr-solo" role="status"></p>
 
   <main id="contenido" class="contenido" tabindex="-1">
     <noscript>

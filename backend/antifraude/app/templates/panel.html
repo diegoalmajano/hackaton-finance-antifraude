@@ -10,20 +10,20 @@
 <h1>Su panel de protección</h1>
 
 {% if demo_mode %}
-<p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> MODO DEMOSTRACIÓN: incluye una entidad ficticia («Banco Ficticio») y ejemplos sintéticos. Ningún dato es real.</p>
+<p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> MODO DEMOSTRACIÓN: incluye un banco inventado («Banco Ficticio») y ejemplos de prueba. No son mensajes reales.</p>
 {% endif %}
 
 <div class="rejilla">
   <section class="tarjeta" aria-labelledby="titulo-estado">
     <h2 id="titulo-estado">Estado de protección</h2>
-    <ul class="lista-estados">
+    <ul class="lista-estados" role="list">
       <li class="estado" data-estado="ok">
         <span class="icono" aria-hidden="true">✅</span>
-        <span><strong>Conexión segura con este navegador:</strong> activa.</span>
+        <span><strong>Este navegador está conectado al asistente</strong> de forma segura.</span>
       </li>
       <li class="estado" data-estado="ok">
         <span class="icono" aria-hidden="true">✅</span>
-        <span><strong>Análisis de mensajes que usted pegue o importe:</strong> disponible.</span>
+        <span><strong>Revisar los mensajes que usted copie aquí:</strong> disponible.</span>
       </li>
       <li class="estado" data-estado="{{ 'ok' if ai_configured else 'info' }}">
         <span class="icono" aria-hidden="true">{{ '✅' if ai_configured else 'ℹ️' }}</span>
@@ -39,29 +39,31 @@
 
   <section class="tarjeta" aria-labelledby="titulo-analizar">
     <h2 id="titulo-analizar">Analizar un mensaje</h2>
-    <p>Pegue aquí el texto de un correo o SMS que le parezca sospechoso, o elija un archivo de correo (.eml). <strong>No abrimos ningún enlace.</strong></p>
+    <p>Copie y pegue aquí el texto de un correo o SMS que le parezca sospechoso. <strong>No abrimos ningún enlace.</strong></p>
     <form id="form-analizar" class="formulario" hx-post="/analizar" hx-target="#resultado"
-          hx-swap="innerHTML" hx-encoding="multipart/form-data" hx-disabled-elt="find button"
-          data-mensajes="#mensaje-analisis">
+          hx-swap="innerHTML" hx-encoding="multipart/form-data" hx-sync="this:replace"
+          hx-indicator="#indicador-analisis" data-mensajes="#mensaje-analisis">
       <label for="texto-mensaje" class="etiqueta">Texto del mensaje</label>
       <textarea id="texto-mensaje" name="texto" class="campo" rows="7" maxlength="100000"
                 aria-describedby="ayuda-analizar mensaje-analisis"></textarea>
       <p id="ayuda-analizar" class="ayuda">Puede incluir el asunto y el remitente si los tiene.</p>
-      <label for="archivo-eml" class="etiqueta">O bien, un archivo de correo (.eml)</label>
-      <input id="archivo-eml" name="archivo" type="file" accept=".eml,message/rfc822" class="campo">
+      <label for="archivo-eml" class="etiqueta">O bien, un correo guardado en el ordenador (archivo .eml)</label>
+      <input id="archivo-eml" name="archivo" type="file" accept=".eml,message/rfc822" class="campo"
+             aria-describedby="ayuda-archivo">
+      <p id="ayuda-archivo" class="ayuda">Si pega un texto y además elige un archivo, se analiza el archivo.</p>
       <div class="acciones">
         <button type="submit" class="boton boton-principal">Analizar</button>
-        <span class="indicador htmx-indicator" role="status"><span aria-hidden="true">⏳</span> Analizando el mensaje…</span>
+        <span id="indicador-analisis" class="indicador htmx-indicator" aria-hidden="true"><span>⏳</span> Analizando el mensaje…</span>
       </div>
-      <p id="mensaje-analisis" class="mensaje" role="alert" aria-live="assertive" hidden></p>
+      <p id="mensaje-analisis" class="mensaje" role="alert"></p>
     </form>
     {% if demo_mode %}
     <div class="ejemplos">
-      <p class="etiqueta">Ejemplos sintéticos de demostración</p>
+      <p class="etiqueta">Ejemplos de prueba (no son mensajes reales)</p>
       <div class="acciones">
-        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/1" hx-target="#resultado" hx-disabled-elt="this" data-mensajes="#mensaje-analisis">1. Aviso legítimo</button>
-        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/2" hx-target="#resultado" hx-disabled-elt="this" data-mensajes="#mensaje-analisis">2. Estafa evidente</button>
-        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/3" hx-target="#resultado" hx-disabled-elt="this" data-mensajes="#mensaje-analisis">3. Estafa sofisticada</button>
+        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/1" hx-target="#resultado" hx-sync="#form-analizar:replace" hx-indicator="#indicador-analisis" data-mensajes="#mensaje-analisis">1. Aviso legítimo</button>
+        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/2" hx-target="#resultado" hx-sync="#form-analizar:replace" hx-indicator="#indicador-analisis" data-mensajes="#mensaje-analisis">2. Estafa evidente</button>
+        <button type="button" class="boton boton-secundario" hx-post="/analizar/ejemplo/3" hx-target="#resultado" hx-sync="#form-analizar:replace" hx-indicator="#indicador-analisis" data-mensajes="#mensaje-analisis">3. Estafa sofisticada</button>
       </div>
     </div>
     {% endif %}
@@ -69,14 +71,14 @@
 
   <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-resultado">
     <h2 id="titulo-resultado">Resultado</h2>
-    <div id="resultado" aria-live="polite">
+    <div id="resultado">
       <p class="vacio"><span class="icono" aria-hidden="true">🔎</span> Cuando analice un mensaje, aquí verá el resultado y la explicación.</p>
     </div>
   </section>
 
   <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-alertas">
     <h2 id="titulo-alertas">Alertas de esta sesión</h2>
-    <div id="lista-alertas" class="lista-alertas" aria-live="polite">
+    <div id="lista-alertas" class="lista-alertas">
       {% include "partials/historial.html" %}
     </div>
   </section>
@@ -84,11 +86,11 @@
   <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-niveles">
     <h2 id="titulo-niveles">Cómo le indicamos el riesgo</h2>
     <p>Cada mensaje recibe uno de estos cuatro niveles. <strong>Esto es solo una explicación; no son resultados.</strong></p>
-    <ul class="niveles">
-      <li class="nivel" data-nivel="bajo"><span class="nivel-icono" aria-hidden="true">✅</span><span class="nivel-nombre">BAJO</span><span class="nivel-texto">No hemos encontrado indicios de estafa.</span></li>
-      <li class="nivel" data-nivel="medio"><span class="nivel-icono" aria-hidden="true">⚠️</span><span class="nivel-nombre">MEDIO</span><span class="nivel-texto">Hay señales que piden precaución. Compruébelo por un canal oficial.</span></li>
-      <li class="nivel" data-nivel="alto"><span class="nivel-icono" aria-hidden="true">⛔</span><span class="nivel-nombre">ALTO</span><span class="nivel-texto">Hay señales claras de estafa. No responda ni pulse enlaces.</span></li>
-      <li class="nivel" data-nivel="no-concluyente"><span class="nivel-icono" aria-hidden="true">❔</span><span class="nivel-nombre">NO CONCLUYENTE</span><span class="nivel-texto">No hemos podido comprobarlo todo. Antes de actuar, llame a su banco por su teléfono habitual.</span></li>
+    <ul class="niveles" role="list">
+      <li class="nivel" data-nivel="bajo"><span class="nivel-icono" aria-hidden="true">✅</span><span class="nivel-nombre">BAJO</span><span class="sr-solo">. </span><span class="nivel-texto">No hemos encontrado indicios de estafa.</span></li>
+      <li class="nivel" data-nivel="medio"><span class="nivel-icono" aria-hidden="true">⚠️</span><span class="nivel-nombre">MEDIO</span><span class="sr-solo">. </span><span class="nivel-texto">Hay señales que piden precaución. Compruébelo por un canal oficial.</span></li>
+      <li class="nivel" data-nivel="alto"><span class="nivel-icono" aria-hidden="true">⛔</span><span class="nivel-nombre">ALTO</span><span class="sr-solo">. </span><span class="nivel-texto">Hay señales claras de estafa. No responda ni pulse enlaces.</span></li>
+      <li class="nivel" data-nivel="no-concluyente"><span class="nivel-icono" aria-hidden="true">❔</span><span class="nivel-nombre">NO CONCLUYENTE</span><span class="sr-solo">. </span><span class="nivel-texto">No se ha podido determinar: no hemos podido comprobarlo todo. Antes de actuar, llame a su banco por su teléfono habitual.</span></li>
     </ul>
     <p class="ayuda">Si algo parece sospechoso verá primero un <strong>aviso preventivo</strong> y, después de comprobarlo, el <strong>resultado definitivo</strong> con la explicación.</p>
   </section>

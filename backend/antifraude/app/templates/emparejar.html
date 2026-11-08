@@ -21,24 +21,24 @@
     <label for="codigo" class="etiqueta">Código de conexión</label>
     <p id="ayuda-codigo" class="ayuda">No importa si lo escribe en mayúsculas o minúsculas, ni si pone el guion.</p>
     <input id="codigo" name="code" type="text" class="campo campo-codigo"
-           inputmode="text" autocomplete="one-time-code" autocapitalize="characters"
+           inputmode="text" autocomplete="off" autocapitalize="characters"
            spellcheck="false" maxlength="11" required
-           aria-describedby="ayuda-codigo mensaje-emparejar">
+           aria-describedby="ayuda-codigo">
     <div class="acciones">
       <button type="submit" class="boton boton-principal">Conectar</button>
-      <span class="indicador htmx-indicator" role="status">
+      <span class="indicador htmx-indicator" aria-hidden="true">
         <span class="icono" aria-hidden="true">⏳</span> Comprobando el código…
       </span>
     </div>
-    <p id="mensaje-emparejar" class="mensaje" role="alert" aria-live="assertive" hidden></p>
+    <p id="mensaje-emparejar" class="mensaje" role="alert"></p>
   </form>
 
   <details class="desplegable">
     <summary>¿Ha caducado el código o no lo encuentra?</summary>
     <p>Puede pedir uno nuevo. Aparecerá en la ventana del asistente, nunca en esta página.</p>
     <button type="button" class="boton boton-secundario" hx-post="/pairing/code" hx-swap="none"
-            hx-disabled-elt="this" data-mensajes="#mensaje-codigo">Pedir un código nuevo</button>
-    <p id="mensaje-codigo" class="mensaje" role="status" aria-live="polite" hidden></p>
+            data-mensajes="#mensaje-codigo">Pedir un código nuevo</button>
   </details>
+  <p id="mensaje-codigo" class="mensaje" role="status"></p>
 </section>
 {% endblock %}

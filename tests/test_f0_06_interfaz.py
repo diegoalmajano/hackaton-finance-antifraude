@@ -38,7 +38,7 @@ def test_bienvenida_sin_sesion(harness: Harness) -> None:
     assert '<html lang="es">' in r.text
     assert "Le ayudamos a reconocer mensajes" in r.text
     assert 'href="/emparejar"' in r.text and 'href="/panel"' not in r.text
-    assert "todavía no está disponible" in r.text  # estado honesto
+    assert "revisión automática del correo todavía no está disponible" in r.text  # estado honesto
 
 
 def test_bienvenida_con_sesion_ofrece_panel(harness: Harness) -> None:

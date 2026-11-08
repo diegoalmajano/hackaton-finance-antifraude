@@ -1,12 +1,12 @@
 {# Resultado de un análisis. Todo el contenido se escapa (autoescape de Jinja). #}
 {% if r.ejemplo %}
-<p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> EJEMPLO SINTÉTICO — mensaje ficticio de demostración: {{ r.ejemplo }}</p>
+<p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> EJEMPLO SINTÉTICO (mensaje de prueba, no es real): {{ r.ejemplo }}</p>
 {% endif %}
 
 {% if r.preventiva %}
 <section class="alerta alerta-preventiva" aria-labelledby="t-preventiva">
   <h3 id="t-preventiva"><span aria-hidden="true">🔔</span> Aviso preventivo</h3>
-  <p>Hemos encontrado elementos sospechosos en este mensaje. Lo hemos comprobado y este es el resultado:</p>
+  <p>Al recibir el mensaje encontramos elementos sospechosos. Debajo tiene el resultado completo de la comprobación.</p>
 </section>
 {% endif %}
 
@@ -26,7 +26,7 @@
 
   {% if r.recomendaciones %}
   <h4>Qué le recomendamos</h4>
-  <ul class="recomendaciones">
+  <ul class="recomendaciones" role="list">
     {% for rec in r.recomendaciones %}<li>{{ rec }}</li>{% endfor %}
   </ul>
   {% endif %}
@@ -55,7 +55,7 @@
   {% endif %}
 
   <details class="desplegable">
-    <summary>Detalles técnicos</summary>
+    <summary>Más detalles (para quien quiera saberlo)</summary>
     <ul>
       {% for c in r.comprobaciones %}<li>{{ c.nombre }}: {{ {"done": "hecho", "failed": "falló", "not_configured": "no configurado", "not_applicable": "no aplica", "skipped": "omitido"}[c.estado] }}{% if c.obligatoria %} (obligatoria){% endif %}</li>{% endfor %}
       {% for d in r.detalles %}<li>{{ d }}</li>{% endfor %}
