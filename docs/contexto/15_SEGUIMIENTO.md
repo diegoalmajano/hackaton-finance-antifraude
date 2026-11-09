@@ -227,3 +227,13 @@ El usuario solicita ahora subir a GitHub todo el trabajo preparado. Esta instruc
 Estado comprobado antes de publicar: arbol limpio, HEAD local 9778ffb y remoto dd3e4fb; GitHub confirma repositorio privado. Se suben el commit funcional revisado y esta nota documental, sin reescribir historia, force-push, alterar main ni cambiar visibilidad. Se conservan las exclusiones de secretos, datos privados, conjuntos sellados, entornos y ZIP temporales. No se activan IA, presupuesto ni integraciones reales.
 
 Validacion funcional vigente: 877 Python correctas, 4 integraciones reales saltadas, 1 xfail conocido y 1 aviso; 11 JS y 8 comprobaciones SDK Gmail simuladas correctas. Esta nota no modifica comportamiento ni requiere repetir las suites. El resultado del push se verifica comparando HEAD con refs/heads/feat/fase-0 mediante git ls-remote y comprobando el arbol limpio; no se presupone exito antes de ejecutarlo.
+
+## Aportación de Rafa (compañero) con Claude — 09-11-2026, noche
+
+Trabajo hecho en una copia de `feat/fase-0` (idéntica al ZIP de GitHub a las 21:30) y entregado como **parches** para que el propietario los revise y los aplique: sin commits ni push al repositorio, sin IA real, sin gasto y sin dependencias nuevas del proyecto.
+
+- **Verificación independiente en Linux:** suite, informe dev y recorrido completo de la demo en Chromium (`docs/VERIFICACION_LINUX_2026-11-09.md`). README con instrucciones de Linux comprobadas en una copia limpia.
+- **rules-0.3.4:** regla del Bizum inverso con 18 pruebas nuevas (`tests/test_h_bizum_inverso.py`, `docs/LIMITACIONES_DETECCION.md`). Ejemplos de tipología pública escritos por IA: conviene añadir ejemplos reales del equipo.
+- **Accesibilidad automática** (axe-core, teclado, zoom 200 % emulado, contraste forzado emulado, movimiento reducido): 4 correcciones y 0 infracciones axe después (`docs/VERIFICACION_ACCESIBILIDAD_2026-11-09.md`, `tests/test_h_accesibilidad.py`). Narrador, contraste alto real y zoom real de Windows siguen **no verificados**.
+- Suite tras estos cambios: **899 passed, 4 skipped, 1 xfailed, 1 warning**; 11/11 JS. Evaluación dev 27/27 aceptables, FP=0. Demo: mismos niveles que `GUION_DEMO.md`.
+- **Pendiente de decisión del equipo:** los materiales de `docs/entrega/` (PPTX, resumen de una cara, presentación) siguen citando 877 pruebas y rules-0.3.3; no se han regenerado.

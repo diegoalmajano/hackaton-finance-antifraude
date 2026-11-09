@@ -21,7 +21,7 @@ from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily
 from antifraude.intel.entities import EntityDirectory
 from antifraude.intel.urls import UNVERIFIED_BRAND, find_lookalike, registrable_domain
 
-RULE_VERSION = "rules-0.3.3"
+RULE_VERSION = "rules-0.3.4"
 
 #: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
 #: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
@@ -195,6 +195,19 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"(nuev\w*|cambi\w*|actualizad\w*|a partir de ahora|desde ahora)[^.!?\n]{0,60}\[iban [a-z]{2} \.\.\.|"
               r"\[iban [a-z]{2} \.\.\.[^\]]*\][^.!?\n]{0,40}(nuev\w*|cambi\w*|a partir de ahora))"),
           "Le indican una cuenta bancaria nueva o diferente para pagar.", "cambio de datos de pago"),
+    # Bizum inverso / solicitud de dinero disfrazada de cobro: para RECIBIR dinero nunca hay que aceptar una
+    # solicitud; aceptarla es pagar. Puede cruzar una frase («…para recibir el reembolso. Acéptela…»), pero no
+    # un salto de línea. Tipología pública (avisos de INCIBE/OSI y del Banco de España); ver ``_ACCEPT_NEGATED``.
+    _Rule("content.reverse_payment_request", SignalFamily.CONTENT, Severity.HIGH,
+          _rx(r"solicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,120}?\b(para (recibir|cobrar|que (se )?le ingres|"
+              r"que (te|le) llegue)|reembols\w*|devoluc\w*|ingres\w*)[^\n]{0,120}?\b(acept|autoric|aprueb|aprob)\w*|"
+              r"\b(para (recibir|cobrar)|reembols\w*|devoluc\w*)[^\n]{0,120}?\b(acept|autoric|aprueb|aprob)\w*"
+              r"[^\n]{0,40}\bsolicitud|"
+              r"\b(acept|autoric|aprueb|aprob)\w*[^\n]{0,40}\bsolicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,80}"
+              r"(para (recibir|cobrar|que (se )?(te|le) (llegue|ingres))|reembols|devoluc|ingres)"),
+          "Le piden que acepte una solicitud de Bizum o de pago para «recibir» dinero. Aceptar una solicitud es "
+          "PAGAR: para cobrar nunca tiene que aceptar nada.", "solicitud de pago disfrazada de cobro (Bizum inverso)",
+          negatable=True),
     _Rule("content.investment_promise", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(rentabilidad(es)? (garantizad|asegurad)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
               r"sin (ningun )?riesgo|ganancias? (garantizad|diari|semanal)|beneficios? garantizad|"
@@ -269,6 +282,11 @@ _NOVELTY = re.compile(r"\b(nuev\w*|cambi\w*|anterior|cancelad\w*|anulad\w*|a par
 _CALL_TO_ACTION = re.compile(r"\b(acced\w*|consult\w*|puls\w*|haga clic|pinch\w*|siga|complete|regularic\w*|"
                              r"abon\w*|pagu\w*|pagando|descargu\w*|actualic\w*|verifiqu\w*|entre|visite|recib\w*)\b")
 _USUAL = re.compile(r"\b(de siempre|habitual)\b")
+#: Consejo, no petición: «si recibe una solicitud de Bizum para cobrar, NO la acepte» (la negación va DENTRO
+#: de la coincidencia, después de «solicitud», y ``_is_negated`` solo mira antes).
+_ACCEPT_NEGATED = re.compile(r"\b(no|nunca|jamas)\s+((la|lo|las|los|le|se|debe|deben|tiene|tienes|hay|necesita|"
+                             r"necesitas|que|es necesario|hace falta)\s+){0,3}(acept|autoric|aprueb|aprob)\w*|"
+                             r"\bsin (tener que |necesidad de )?(acept|autoriz|aprob)\w*")
 
 
 def _matches(pattern: re.Pattern[str], text: str, limit: int = 40) -> list[re.Match[str]]:
@@ -354,6 +372,9 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
             if rule.code == "content.payment_details_change" and (not _has_payment_instruction(folded)
                                                                  or _NOTHING_TO_DO.search(folded)):
                 continue  # «su nueva cuenta ya está operativa» informa; solo es riesgo si le piden pagar allí (B1)
+            if rule.code == "content.reverse_payment_request" and _ACCEPT_NEGATED.search(
+                    folded[max(0, m.start() - 40):m.end() + 5]):
+                continue
             if rule.code == "content.prize_or_refund" and _REFUND_DONE.search(folded):
                 continue
             if rule.code == "content.account_threat" and _OFFICIAL_CHANNEL.search(folded[m.end():m.end() + 120]):

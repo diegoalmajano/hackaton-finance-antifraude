@@ -1,4 +1,4 @@
-# Limitaciones conocidas de la detección (reglas `rules-0.3.3`, sin IA)
+# Limitaciones conocidas de la detección (reglas `rules-0.3.4`, sin IA)
 
 > Estas limitaciones salen de tres pruebas adversariales de caja blanca: la de la misión 2 (unos 140 casos) y la de la misión 3 (unos 245). Las cifras de detección del conjunto de desarrollo **no** son una evaluación independiente (ver `eval/METODOLOGIA_INDEPENDIENTE.md`).
 
@@ -72,3 +72,14 @@ Se añadieron **38 regresiones sintéticas** en `tests/test_b_finalizacion.py`, 
 Antes de estas correcciones se reprodujeron 24 fallos entre las primeras 33 regresiones. La ampliación de negación coordinada reprodujo otros dos fallos entre las 38 finales; después pasaron las 38. No se cambió el motor de riesgo, sus contratos ni el xfail conocido del pronombre.
 
 **Límites conservados:** las reglas no comprenden toda la semántica ni relaciones arbitrarias entre frases. «No comparta su código. Para verificar su identidad, envíelo a nuestro gestor» todavía puede quedar BAJO, igual que «¿Estás? Necesito un favor rápido». Estas ausencias de señales no demuestran seguridad; una IA contextual o correlación podrían aportar información, pero su eficacia real sigue sin verificar. Las negaciones se reconocen mediante patrones y ventanas acotadas; estructuras más complejas pueden seguir causando omisiones o falsas alarmas. Ninguna prueba de este bloque usó IA real.
+
+## rules-0.3.4: Bizum inverso (09-11-2026)
+
+Hueco encontrado en un sondeo informal con 18 mensajes nuevos (`docs/VERIFICACION_LINUX_2026-11-09.md`): «le hemos enviado una solicitud de Bizum para recibir el reembolso… acéptela» quedaba **NO CONCLUYENTE** (solo la señal media de reembolso). Es una de las estafas más frecuentes en España.
+
+| Corrección | Comprobación | Alcance |
+|---|---|---|
+| Regla `content.reverse_payment_request` (ALTA): solicitud de Bizum/pago/dinero + «para recibir/cobrar», reembolso o devolución + aceptar/autorizar/aprobar, en cualquier orden, cruzando como mucho una frase (no un salto de línea) | 7 estafas con redacciones distintas → MEDIO/ALTO; 7 legítimos (consejos «no la acepte», «nunca tiene que aceptar», «sin tener que aceptar» y notificaciones reales de Bizum y reembolso) → sin la señal; las notificaciones quedan en BAJO (`tests/test_h_bizum_inverso.py`) | Los ejemplos se redactaron a partir de la tipología pública (avisos de INCIBE/OSI y del Banco de España), no del conjunto dev, pero **los escribió una IA**: no son una evaluación independiente. Conviene añadir ejemplos reales escritos por el equipo |
+| Negación dentro de la coincidencia (`_ACCEPT_NEGATED`): «no la acepte», «nunca tiene que aceptar», «sin tener que aceptar» | «No pierda su reembolso: acepte la solicitud…» sigue alertando (la negación no afecta a «aceptar») | `_is_negated` solo mira antes de la coincidencia; en esta regla la negación suele ir después de «solicitud» |
+
+Sin cambios en el motor de riesgo, en los contratos ni en las etiquetas dev. Evaluación de desarrollo tras el cambio: 27/27 niveles aceptables, VP=14, FP=0. Sondeo informal: 11/12 estafas con alerta y 5/5 legítimos en BAJO; siguen sin resolverse el enlace acortado (NO CONCLUYENTE por diseño) y «¿tienes un momento? Necesito un favor» (BAJO, límite ya documentado).

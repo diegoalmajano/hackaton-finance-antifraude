@@ -3,7 +3,7 @@
 <ol class="historial">
   {% for h in historial %}
   <li data-nivel="{{ h.clase }}">
-    <span aria-hidden="true">{{ h.icono }}</span> <strong>{{ h.nivel }}</strong> — {{ h.titulo }}
+    <span aria-hidden="true">{{ h.icono }}</span> <strong>{{ h.nivel }}</strong> — {{ h.titulo | replace(h.nivel ~ ": ", "", 1) }}
     <span class="ayuda">({{ h.origen }}, {{ h.hora }}{% if h.parcial == "sí" %}, análisis parcial{% endif %})</span>
   </li>
   {% endfor %}

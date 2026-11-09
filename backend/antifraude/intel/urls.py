@@ -273,7 +273,7 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
                                         f"{lookalike_of} usado como subdominio de {reg}"))
             else:
                 findings.append(_signal(code, Severity.CRITICAL,
-                                        "La dirección se parece a la de una entidad, pero no es la oficial.",
+                                        "La dirección web del enlace se parece a la de una entidad, pero no es la oficial.",
                                         f"{reg} se parece a {lookalike_of}"))
         sub = host[: -len(reg)].strip(".") if reg and host.endswith(reg) else ""
         if not found and any(lbl in _TLD_LIKE for lbl in sub.split(".")[1:]):  # «es.wikipedia.org» no cuenta

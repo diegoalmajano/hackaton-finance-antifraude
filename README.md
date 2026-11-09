@@ -7,7 +7,7 @@ Asistente antifraude con IA opcional que **ayuda a reconocer estafas financieras
 Para continuar el desarrollo con Codex: [guía de traspaso](docs/TRASPASO_CODEX.md) e [instrucciones del repositorio](AGENTS.md). Anthropic API permanece desactivada y con presupuesto de 0 USD.
 
 ## 1. Requisitos
-- Windows 10/11 con PowerShell (probado en Windows 11).
+- Windows 10/11 con PowerShell (probado en Windows 11). También funciona en Linux (probado; ver «Linux o macOS» en la sección 2).
 - **Python 3.12** (64 bits). Comprobación: `py -3.12 --version`.
   - Si no lo tiene: instálelo desde python.org o con el gestor oficial de Python (`pymanager install 3.12-64`).
 - Un navegador moderno (Edge, Chrome o Firefox).
@@ -19,6 +19,19 @@ Abra PowerShell en la carpeta del proyecto (la que contiene este README):
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock
 ```
+### Linux o macOS (alternativa)
+Con Python 3.12 instalado (`python3.12 --version`), desde la carpeta del proyecto:
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.lock
+```
+Para ejecutar, sustituya `..\.venv\Scripts\python.exe` por `../.venv/bin/python` y defina las variables con `export NOMBRE=valor` en lugar de `$env:NOMBRE = "valor"`. Por ejemplo, la demo sin IA:
+```bash
+cd backend
+AI_ENABLED=0 AI_BUDGET_USD=0 APP_GMAIL_ENABLED=0 APP_DEMO_MODE=1 ../.venv/bin/python -m antifraude
+```
+Comprobado el 09-11-2026 en Linux x86_64 con Python 3.12.3 y `requirements.lock`: misma suite (877 correctas antes de los cambios del 09-11; 899 después, 4 saltadas, 1 `xfail`) y mismo recorrido de demo (tres ejemplos, texto libre y cuatro `.eml` con los niveles esperados). macOS no se ha probado.
+
 - `requirements.txt` contiene las dependencias de ejecución, con versiones exactas.
 - `requirements-dev.txt` añade las de pruebas.
 - `requirements.lock` es el bloqueo completo del entorno base.
@@ -101,7 +114,7 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **877 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución (09-11-2026, tras la regla del Bizum inverso y las correcciones de accesibilidad): **899 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
 
 ## 6. Seguridad y privacidad (resumen)
 - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y los recursos estáticos se sirven localmente.

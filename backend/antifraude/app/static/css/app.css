@@ -293,7 +293,8 @@ input[type="checkbox"] { width: 1.25rem; height: 1.25rem; accent-color: var(--pr
 }
 @media (prefers-reduced-motion: reduce) { .boton { transition: none; } }
 @media (forced-colors: active) {
-  .marca-icono, .guia-emblema { background: CanvasText; }
+  /* El escudo es blanco: se conserva su fondo propio para que no quede invisible en ningún tema de contraste */
+  .marca-icono, .guia-emblema { forced-color-adjust: none; background: #103f37; outline: 1px solid CanvasText; }
   .portada-guia, .portada, .tarjeta { border: 1px solid CanvasText; }
 }
 
