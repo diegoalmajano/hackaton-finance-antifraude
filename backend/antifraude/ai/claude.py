@@ -134,8 +134,12 @@ def _sanitize(data: Any) -> Any:
 
 
 def _int(raw: Mapping[str, Any], key: str) -> int:
-    value = raw.get(key)
-    return int(value) if isinstance(value, (int, float)) and value >= 0 else 0
+    # Solo un contador entero fiable permite liquidar por debajo de la reserva.
+    # Un valor malformado no equivale a consumo cero; bool tampoco es un contador.
+    value = raw.get(key, 0)
+    if type(value) is not int or value < 0:
+        raise ValueError("Contador de consumo no válido.")
+    return value
 
 
 def parse_usage(response: Mapping[str, Any], model: str) -> AiUsage | None:
@@ -146,14 +150,14 @@ def parse_usage(response: Mapping[str, Any], model: str) -> AiUsage | None:
     try:
         tokens = {k: _int(raw, k) for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens",
                                             "cache_read_input_tokens")}
-    except (TypeError, ValueError):
+        cost = None
+        if model in PRICES:
+            cost = float(cost_usd(model, input_tokens=tokens["input_tokens"], output_tokens=tokens["output_tokens"],
+                                  cache_creation_tokens=tokens["cache_creation_input_tokens"],
+                                  cache_read_tokens=tokens["cache_read_input_tokens"]))
+        return AiUsage(**tokens, cost_usd=cost)
+    except (TypeError, ValueError, ArithmeticError, ValidationError):
         return None
-    cost = None
-    if model in PRICES:
-        cost = float(cost_usd(model, input_tokens=tokens["input_tokens"], output_tokens=tokens["output_tokens"],
-                              cache_creation_tokens=tokens["cache_creation_input_tokens"],
-                              cache_read_tokens=tokens["cache_read_input_tokens"]))
-    return AiUsage(**tokens, cost_usd=cost)
 
 
 def parse_response(response: Mapping[str, Any], requested_model: str) -> AiFindings:
@@ -255,8 +259,12 @@ class ClaudeAnalyzer:
 
     def _key(self, message: IncomingMessage, technical_findings: list[str]) -> str:
         p = self.policy
+        # El contexto que llega al prompt y el usuario forman parte de la identidad de caché.
+        # Se retiene solo su HMAC, nunca estos valores como clave en claro.
         material = json.dumps([p.model, p.effort, p.thinking, p.max_output_tokens, PROMPT_VERSION,
-                               message.subject, message.text, message.sender.address,
+                               message.user_id, message.channel.value, message.subject, message.text,
+                               message.sender.address, message.sender.domain, message.sender.display_name,
+                               message.reply_to.domain if message.reply_to else None,
                                sorted(technical_findings)], ensure_ascii=False, default=str)
         return hmac.new(self._cache_key, material.encode("utf-8"), hashlib.sha256).hexdigest()
 

@@ -204,3 +204,11 @@ No se declara conformidad WCAG general. R-58/V-26/R-43 siguen abiertos; V-25 y l
 - No dedicar más tiempo por ahora a Narrador ni solicitar pruebas manuales de accesibilidad. Los anuncios auditivos pendientes, el tema de contraste elevado y el recorrido manual completo siguen **no verificados**, no superados.
 - Simplificación visual y diseño definitivo reservados para la etapa final. La validación completa de accesibilidad/usabilidad se retomará antes de presentar el proyecto.
 - Estas comprobaciones **no bloquean el trabajo técnico autorizado actual**. Prioridad: detector, fiabilidad, seguridad y preparación de integraciones. Esto no autoriza APIs de pago, claves reales, OAuth real, SDK nuevos, cambiar proveedor ni publicación; continúan las restricciones existentes.
+
+## Revisión del diseño final — 09-11-2026
+
+Posteriormente el prompt maestro autorizó ejecutar el diseño final tras estabilizar los flujos. En IAB se verificaron bienvenida, emparejamiento, envío vacío con foco en texto, cuatro .eml sintéticos (BAJO/ALTO/ALTO/NO CONCLUYENTE), prioridad del archivo, extensión no admitida con 400 explicado y sin espera residual, y resultado MEDIO por descarga ejecutable. A viewport 320×800 CSS: documento clientWidth/scrollWidth 305/305 en los cuatro niveles. Tab alcanza Más detalles y Enter lo abre; contorno de foco de 4 px. Cierre vuelve a bienvenida y /panel exige conectar. Consola: solo el 400 deliberado; sin infracciones CSP observadas.
+
+Gmail simulado se verificó aparte en IAB: etiqueta explícita, consentimiento obligatorio, alerta ALTO explicada, contador de ALTO, actualización sin perder foco/desplegable cuando no cambia el estado, reflujo 305/305, desconexión y cierre. Son servicios falsos inyectados, no Google real. Servidores y pestañas propios de las pruebas funcionales detenidos/cerrados.
+
+El zoom real 200 % fue confirmado por el usuario **antes del diseño final** y no se revalidó ahora; no ampliarlo automáticamente. Narrador audible, tema Windows de contraste y recorrido manual completo siguen no verificados y diferidos; no bloquean las otras tareas autorizadas. No se declara conformidad WCAG ni se solicita una nueva prueba manual en esta etapa.

@@ -1,83 +1,87 @@
 # Banco de evaluación del detector antifraude
 
-> F0-08 (2026-11-08). **El detector todavía no existe**: aquí no hay resultados ni métricas, solo el formato, los casos de desarrollo y el procedimiento de medición. Nada de este directorio debe presentarse como rendimiento del sistema.
+> Estado revisado el 09-11-2026: el detector y el evaluador están implementados. Los datos actuales son **de desarrollo** y se han usado para ajustar el motor; sus resultados **no son una evaluación independiente**. No hay conjunto final registrado ni evaluación independiente realizada. No se han creado ni consultado casos sellados en esta revisión.
 
-## 1. Estructura
-```
+## 1. Estructura y estado comprobado
+
+```text
 eval/
-├── README.md               este documento (formato, particiones, métricas)
-├── SELLADO.md              procedimiento del conjunto final sellado (vive FUERA del repo)
-└── datasets/
-    └── dev/                conjunto de DESARROLLO (sí está en el repo)
-        └── demo.jsonl      3 casos sintéticos de la demostración
+├── README.md                    formato, particiones y métricas
+├── EJECUCION.md                 comandos y alcance de los controles
+├── METODOLOGIA_INDEPENDIENTE.md  autoría, etiquetado, custodia e interpretación
+├── SELLADO.md                   registro/procedimiento del conjunto externo
+└── datasets/dev/
+    ├── demo.jsonl               3 casos sintéticos para la demostración
+    └── casos_dev.jsonl          24 casos adicionales de desarrollo
 ```
-Ignorados por Git (`.gitignore`): `eval/datasets/test_sealed/`, `eval/sealed/`, `eval/results/`, `eval/reports/local/`, `*.sealed.jsonl`.
+
+Los 27 casos validados declaran `origin=synthetic_ai`, `is_synthetic=true` y `review_status=pending_human_review`: **17 email y 10 SMS**. Las etiquetas distinguen 14 casos que deben alertar, 10 legítimos y 3 ambiguos. No se cambian origen, etiquetas ni estado de revisión para mejorar las cifras.
+
+Ignorados por Git: `eval/datasets/test_sealed/`, `eval/sealed/`, `eval/results/`, `eval/reports/local/` y `*.sealed.jsonl`. El conjunto final debe vivir fuera del repositorio, en una ubicación y con una autorización decididas por el usuario (T-14, D-40).
 
 ## 2. Formato de los casos
-- **Fuente de verdad:** el contrato Pydantic `backend/antifraude/contracts/evaluation.py` (`EvalCase`). Cualquier archivo de casos se valida con él (lo hacen las pruebas).
-- **Archivos JSONL** (UTF-8): un caso por línea.
-- Campos principales:
-  - `case_id`: `dev-NNNN` o `test-NNNN`. `split`: `dev` o `sealed_test`.
-  - `origin`: `synthetic_human`, `synthetic_ai` o `adapted_licensed`. `is_synthetic` es obligatorio si el origen es sintético.
-  - `author`, `created`, `review_status` (`pending_human_review` / `reviewed`), `demo_order` (orden en la demo, opcional), `tags`.
-  - `message`: medio (`email`/`sms`), fecha, remitente con resultados SPF/DKIM/DMARC **declarados**, `reply_to`, asunto, `body_text` y `body_html` opcional (para enlaces cuyo texto visible no coincide con su destino).
-  - `expected` (la **etiqueta**, no un resultado):
-    - `risk_level`: nivel esperado.
-    - `acceptable_levels`: niveles que se considerarán correctos en casos ambiguos.
-    - `must_alert`: verdadero si y solo si el nivel esperado es MEDIO o ALTO.
-    - `fraud_categories`.
-    - `expected_quotes`: subcadenas **literales** del mensaje que una buena explicación debería citar.
-    - `key_signals`: señales que justifican la etiqueta.
-  - `rationale_es`: justificación en español.
-- Reglas comprobadas por el contrato y las pruebas:
-  - Coherencia entre nivel, alerta y categorías: un caso que debe alertar nunca acepta BAJO.
-  - Citas literales.
-  - Prefijo de `case_id` coherente con la partición.
 
-## 3. Datos ficticios (obligatorio)
-- Solo **dominios reservados** para ejemplos y pruebas: `.example`, `.test`, `.invalid` y `example.com/.org/.net` (RFC 2606 y RFC 6761). Entidad ficticia: **Banco Ficticio** (`bancoficticio.example`).
-- Sin nombres de personas reales, teléfonos, IBAN válidos, DNI ni direcciones reales. Las pruebas lo comprueban.
-- Los casos generados con IA se marcan como `synthetic_ai` y sus métricas se informarán **por separado**, por riesgo de circularidad: la IA escribe los casos y la IA los detecta (R-26).
+Fuente de verdad: [EvalCase](../backend/antifraude/contracts/evaluation.py). Archivos JSONL UTF-8, un caso por línea.
 
-## 4. Casos de la demostración (`dev/demo.jsonl`)
+- `case_id`: `dev-NNNN` o `test-NNNN`; `split`: `dev` o `sealed_test`.
+- `origin`: `synthetic_human`, `synthetic_ai` o `adapted_licensed`; los orígenes sintéticos exigen `is_synthetic=true`.
+- `author`, `created`, `review_status`, `demo_order` opcional y `tags`.
+- `message`: medio, fecha, remitente, SPF/DKIM/DMARC declarados, respuesta, asunto y texto/HTML.
+- `expected`: etiqueta, niveles aceptables, `must_alert`, categorías, citas esperadas literales y señales que justifican la etiqueta.
+- `rationale_es`: justificación de la persona que etiqueta, sin observar la predicción.
+
+El contrato comprueba coherencia de nivel/alerta/categorías, prefijo de partición y literalidad de las citas esperadas. Las etiquetas no contienen resultados del detector. Los tests validan también la unicidad y las restricciones de datos del conjunto dev; el custodio debe realizar esas comprobaciones en cualquier conjunto final autorizado.
+
+## 3. Datos ficticios y ausencia de fugas
+
+Solo dominios reservados de documentación/pruebas: `.example`, `.test`, `.invalid` y `example.com/.org/.net`. Sin datos personales, IBAN válidos, teléfonos, DNI ni tarjetas reales. Las pruebas revisan los casos dev.
+
+Los resultados de autenticación de los correos sintéticos son **simulados**. Un remitente autenticado no convierte un mensaje en seguro: las peticiones sensibles conservan sus mínimos de riesgo. El análisis de enlaces es pasivo; no se resuelven sus dominios, descargan archivos ni siguen redirecciones. Esto es distinto de las integraciones externas autorizadas de la aplicación, que permanecen desactivadas en esta evaluación sin gasto.
+
+Los casos `synthetic_ai` se separan de los redactados por personas para declarar el riesgo de circularidad. Revisarlos manualmente no cambia su autoría ni los convierte en una muestra independiente.
+
+## 4. Demostración y desarrollo
+
 | Orden | Caso | Nivel esperado | Aceptables |
 |---|---|---|---|
-| 1 | `dev-0001` Aviso legítimo: extracto mensual disponible | BAJO | BAJO |
-| 2 | `dev-0002` Phishing evidente: bloqueo de cuenta y petición de usuario, contraseña y código SMS | ALTO | ALTO |
-| 3 | `dev-0003` Estafa sofisticada: falso gestor, enlace con texto oficial y destino ajeno, respuesta a otro dominio, DMARC fallido | ALTO | MEDIO o ALTO |
-Estado: **pendientes de revisión humana** del contenido completo (`review_status`; F0-08 aprobada, D-52).
+| 1 | `dev-0001`, extracto mensual informativo | BAJO | BAJO |
+| 2 | `dev-0002`, bloqueo y petición de claves/código | ALTO | ALTO |
+| 3 | `dev-0003`, falso gestor y enlace engañoso | ALTO | MEDIO o ALTO |
 
-Observaciones del usuario (D-52):
-- En `dev-0001`, los resultados SPF/DKIM/DMARC son **datos simulados** declarados en el caso. Por sí solos **no equivalen a legitimidad**: un remitente autenticado puede enviar un fraude, y el motor nunca debe tratarlos como excepción absoluta (CLAUDE.md §4).
-- Todos los enlaces y direcciones usan **dominios reservados** (RFC 2606/6761): `.example` y `example.com/.net/.org` (documentación), `.test` (pruebas) e `.invalid`. Nunca se resuelven ni se visitan; las pruebas lo comprueban, también con un análisis estático que verifica que el backend no hace consultas DNS ni peticiones HTTP salientes.
-- **No se calculan métricas de detección** hasta que exista el detector y se autorice.
+El contenido completo de los 27 casos sigue pendiente de revisión humana. Los tres ejemplos pueden usarse para demostrar el producto, siempre etiquetados como sintéticos; no prueban generalización.
 
-## 5. Particiones
-- **Desarrollo (`dev`)**: en el repo; se usa para ajustar reglas y prompts. Objetivo realista: unos 24–36 casos (60 % de 40–60; `14` §11.1).
-- **Evaluación final sellada (`sealed_test`)**: **fuera del repositorio** y no consultable por los agentes durante el desarrollo (D-40). **Todavía no existe**; su ubicación está pendiente (T-14). Procedimiento: `SELLADO.md`.
+La ejecución local sin IA revisada mantiene niveles aceptables en los 27 casos. Es un resultado del conjunto usado para desarrollar, no una estimación de rendimiento ante mensajes reales. Las suites y la versión actual se registran en [seguimiento](../docs/contexto/15_SEGUIMIENTO.md), sin fijar aquí un número global de tests que cambia durante el desarrollo.
 
-## 6. Métricas previstas (cuando exista el detector)
-Clase positiva = **fraude** (`expected.must_alert = true`). Predicción positiva = el sistema alerta, es decir, MEDIO o ALTO. Los casos etiquetados **NO CONCLUYENTE** se excluyen de la precisión y de la tasa de falsos positivos, y se informan aparte (ver `CAMBIOS_ETIQUETAS.md`). Metodología de la evaluación independiente: `METODOLOGIA_INDEPENDIENTE.md`.
+## 5. Particiones y custodia
 
-| Métrica | Definición | Para qué |
-|---|---|---|
-| Verdaderos positivos (VP) | fraudes con alerta | — |
-| Falsos positivos (FP) | legítimos con alerta | coste en confianza (personas mayores) |
-| Falsos negativos (FN) | fraudes sin alerta (BAJO o NO CONCLUYENTE) | riesgo para el usuario |
-| **Precision** | VP / (VP + FP) | cuántas alertas son reales |
-| **Recall** | VP / (VP + FN) | cuántos fraudes se detectan |
-| **F1** | 2 · P · R / (P + R) | equilibrio entre ambas |
-| Tasa de falsos positivos | FP / nº de legítimos | molestias a usuarios con mensajes legítimos |
-| Tasa de NO CONCLUYENTE | casos NO CONCLUYENTE / total | honestidad frente a utilidad. Se informa aparte y también con una variante que la cuenta como alerta |
-| Acierto de nivel | nivel obtenido ∈ `acceptable_levels` | calidad fina por caso |
-| Citas | proporción de `expected_quotes` presentes en las evidencias verificadas | calidad de la explicación |
-| **Latencia** | p50 y p95 del filtro y del análisis completo (ms), medidos en la máquina de la demo | experiencia de usuario |
-| **Coste por mensaje** | Σ(tokens de entrada × precio de entrada + tokens de salida × precio de salida) / nº de mensajes, desde `usage` real; precios de la tabla oficial **vigente el día de la medición** | viabilidad del modelo B2B |
+- **Desarrollo:** los 27 casos del repositorio se pueden inspeccionar para desarrollar y comprobar regresiones.
+- **Evaluación final:** archivo externo custodiado, no accesible a los agentes durante el desarrollo y no autorizado todavía. No crear, consultar ni ajustar un conjunto final a partir de este documento. Antes de ejecutar se necesitan ubicación, autoría/etiquetado, huella, versión congelada y autorización específica.
 
-Reglas:
-1. Comparar siempre **reglas solas frente al sistema completo**, y también Sonnet frente a Opus (D-32), con presupuesto autorizado.
-2. Informar el número de casos junto a cada métrica. Con pocos casos, añadir un **intervalo de confianza de Wilson** y no extrapolar.
-3. Separar los resultados de los casos `synthetic_ai` de los escritos por personas.
-4. Las métricas de `dev` son de **desarrollo**. Solo las del conjunto sellado, **ejecutado una vez** y sin modificar casos después, pueden presentarse como evaluación.
-5. **Nunca** presentar como real un resultado simulado ni pregrabado.
-6. Los resultados se guardarán en `eval/results/` (ignorado por Git) y solo se publicarán resúmenes revisados.
+La huella y una marca local de ejecución no acreditan por sí solas la independencia del conjunto, que nadie lo haya visto antes ni que el código se haya congelado. Véanse [metodología](METODOLOGIA_INDEPENDIENTE.md), [ejecución](EJECUCION.md) y [guía operativa humana](../docs/EVALUACION_FINAL_PROCEDIMIENTO.md).
+
+## 6. Métricas implementadas y límites
+
+Clase positiva: `expected.must_alert=true`; predicción positiva: MEDIO o ALTO. Las etiquetas NO CONCLUYENTE quedan fuera de VP/FP/FN/VN y se informan aparte. Un fraude predicho BAJO o NO CONCLUYENTE cuenta como FN.
+
+| Métrica | Definición/alcance |
+|---|---|
+| VP, FP, FN, VN | Conteos de alerta binaria, excluyendo etiquetas ambiguas |
+| **Precision** | VP/(VP+FP); null si no hay predicciones positivas |
+| **Recall** | VP/(VP+FN); null si no hay casos positivos |
+| **F1** | 2VP/(2VP+FP+FN); cero si hay FP/FN sin VP, null si el denominador está vacío |
+| Tasa de falsos positivos | FP/(FP+VN), solo etiquetas legítimas |
+| NO CONCLUYENTE | Número y tasa de predicciones sobre todos los casos |
+| Ambiguos | Número, niveles aceptables y alertas separados, sin llamarlos FP |
+| Acierto de nivel | Predicción dentro de `acceptable_levels` |
+| Citas | Citas esperadas cubiertas literalmente dentro de citas verificadas de evidencias |
+| Análisis parcial | Número de casos con comprobaciones incompletas |
+| **Latencia** | p50/p95 del análisis completo, medidos localmente; no latencia separada del filtro |
+| **Coste por mensaje** | Solo calculable a partir de consumo completo autorizado y número de análisis; no está medido con API real |
+
+El JSON incluye desgloses por origen y medio e intervalos de Wilson para precisión, recall y tasa de FP. No se genera un intervalo de Wilson de F1. Los grupos sin denominador producen null; no se sustituyen por aciertos perfectos.
+
+En la revisión local solo reglas, la cobertura literal fue **0 de 62 citas esperadas**: las evidencias deterministas actuales explican señales pero no adjuntan esos fragmentos como citas. Esto no prueba que todas las explicaciones sean incorrectas; tampoco acredita su calidad. La comprobación de citas debe complementarse con revisión humana de exactitud, claridad y recomendaciones. No se añaden citas ni se cambian expectativas para maquillar esa cifra.
+
+La telemetría de IA cuenta transportes nuevos verificados por CostGuard, separa bloqueos/caché y no duplica usage reutilizado. Si falta usage o telemetría, el total de coste es null; se informa aparte la suma conocida. Las simulaciones con tokens ficticios no constituyen una medición de gasto real. Antes de una futura prueba de pago deben aprobarse modelo, datos, privacidad, número de peticiones, precios vigentes y presupuesto.
+
+Los informes dev siguen siendo de desarrollo aunque las métricas sean perfectas. Solo una evaluación con autoría/custodia independiente documentadas permite formular conclusiones limitadas por su tamaño, composición e intervalos. No se autorizan llamadas reales, publicación ni acceso al sellado mediante estos documentos.

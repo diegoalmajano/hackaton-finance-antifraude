@@ -35,3 +35,6 @@ Cliente: **bancos españoles**, como capa de protección para sus clientes (marc
 - **Funciona hoy:** análisis manual completo (texto y `.eml`), interfaz en español con accesibilidad parcialmente verificada y modo demostración con datos ficticios.
 - **Probado con simulaciones:** IA y Gmail.
 - **Pendiente:** conexión real con Gmail y con la IA, dominios web y de correo completos de los bancos (cobertura actual parcial) y verificación manual completa de accesibilidad.
+
+## Comprobación de la versión local final
+877 pruebas Python, 11 JS y 8 comprobaciones SDK Gmail separadas. Gmail en el panel con autorización/transportes simulados, conexión real pendiente. Diseño final y reflujo a 320 px probados; zoom real 200 % del diseño final, Narrador, contraste Windows y teclado manual completo no verificados. Reglas rules-0.3.3; IA apagada y coste de API 0 USD. No evaluación independiente disponible.

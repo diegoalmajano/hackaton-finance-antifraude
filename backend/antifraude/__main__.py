@@ -20,6 +20,8 @@ from antifraude.core.network import PortUnavailableError, ensure_port_available
 
 #: Explicación de cada ajuste para el usuario. Nunca se muestra el valor recibido.
 CONFIG_HELP: dict[str, str] = {
+    "gmail_enabled": "APP_GMAIL_ENABLED debe indicar si se permite conectar Gmail (desactivado por defecto).",
+    "gmail_client_secret_path": "APP_GMAIL_CLIENT_SECRET debe ser una ruta al cliente OAuth fuera del repositorio.",
     "port": "APP_PORT debe ser un número entero entre 1024 y 65535 (por defecto, 8790).",
     "log_level": "APP_LOG_LEVEL debe ser DEBUG, INFO, WARNING o ERROR (por defecto, INFO).",
     "anthropic_api_key": "ANTHROPIC_API_KEY no tiene un formato válido.",

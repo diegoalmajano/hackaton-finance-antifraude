@@ -94,6 +94,12 @@ class SessionStore:
                 session.last_seen = now
             return session
 
+    def is_active(self, session: Session) -> bool:
+        """Revalida una tarea de fondo sin prolongar la sesión ni retener su cookie."""
+        with self._lock:
+            now = self._clock()
+            return any(s is session and not self._is_expired(s, now) for s in self._sessions.values())
+
     def revoke(self, raw_id: str | None) -> None:
         if not raw_id or not _SESSION_ID_RE.fullmatch(raw_id):
             return

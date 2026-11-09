@@ -199,9 +199,29 @@ class SpendLedger:
             return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or type(data.get("version")) is not int or data["version"] != 1:
+                raise ValueError("versión no válida")
             spent = Decimal(str(data["spent_usd"]))
-            if not spent.is_finite() or spent < 0 or not isinstance(data.get("entries"), list):
+            entries = data.get("entries")
+            if not spent.is_finite() or spent < 0 or not isinstance(entries, list) or len(entries) > _MAX_ENTRIES:
                 raise ValueError("valor no válido")
+            ids: set[str] = set()
+            retained_cost = Decimal("0")
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    raise ValueError("entrada no válida")
+                entry_id = entry.get("id")
+                if not isinstance(entry_id, str) or not entry_id or entry_id in ids:
+                    raise ValueError("identificador no válido")
+                ids.add(entry_id)
+                cost = Decimal(str(entry["cost_usd"]))
+                reserved = Decimal(str(entry["reserved_usd"]))
+                if not cost.is_finite() or cost < 0 or not reserved.is_finite() or reserved < 0:
+                    raise ValueError("coste no válido")
+                retained_cost += cost
+            # Las entradas antiguas pueden haberse podado; nunca se borra su acumulado.
+            if spent < retained_cost:
+                raise ValueError("acumulado incoherente")
             return data
         except Exception as exc:  # archivo dañado o manipulado → no se gasta (fallo seguro), no se sobrescribe
             raise LedgerError("El registro de gasto de la IA está dañado; revíselo antes de continuar.") from exc

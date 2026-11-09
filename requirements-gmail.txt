@@ -1,0 +1,5 @@
+# OPCIONAL. Instalar solo con autorización explícita; no activa OAuth ni Gmail.
+# Registro de fuentes/licencias/alcance en docs/GMAIL_PREPARACION_REAL.md.
+google-auth-oauthlib==1.5.0
+google-api-python-client==2.201.0
+keyring==25.7.0

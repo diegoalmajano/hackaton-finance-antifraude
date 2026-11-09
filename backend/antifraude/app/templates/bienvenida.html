@@ -2,12 +2,20 @@
 {% block title %}Bienvenida · Asistente antifraude{% endblock %}
 {% block contenido %}
 <section class="portada" aria-labelledby="titulo-bienvenida">
+  <div class="portada-texto">
+  <p class="sobrelinea">SU TRANQUILIDAD, PRIMERO</p>
   <h1 id="titulo-bienvenida">Le ayudamos a reconocer mensajes que intentan engañarle</h1>
   <p class="entradilla">
     Este asistente revisará los correos y mensajes que usted elija y le explicará,
     con palabras sencillas, si hay señales de estafa.
   </p>
-
+  <div class="acciones">
+    {% if autenticado %}
+      <a class="boton boton-principal" href="/panel">Ir a mi panel</a>
+    {% else %}
+      <a class="boton boton-principal" href="/emparejar">Empezar</a>
+    {% endif %}
+  </div>
   <ul class="lista-ventajas" role="list">
     <li><span class="icono" aria-hidden="true">🔍</span> Revisa el texto y los enlaces <strong>sin abrirlos</strong>.</li>
     <li><span class="icono" aria-hidden="true">💬</span> Le explica qué ha encontrado y qué no ha podido comprobar.</li>
@@ -16,15 +24,22 @@
 
   <p class="estado" data-estado="info">
     <span class="icono" aria-hidden="true">ℹ️</span>
-    <span><strong>Prototipo:</strong> ya puede analizar los mensajes que copie en el asistente; la revisión automática del correo todavía no está disponible.</span>
+    <span><strong>Prototipo:</strong> ya puede analizar los mensajes que copie en el asistente; {% if gmail_disponible %}Gmail es opcional y requiere su autorización.{% else %}la revisión automática del correo todavía no está disponible.{% endif %}</span>
   </p>
 
-  <div class="acciones">
-    {% if autenticado %}
-      <a class="boton boton-principal" href="/panel">Ir a mi panel</a>
-    {% else %}
-      <a class="boton boton-principal" href="/emparejar">Empezar</a>
-    {% endif %}
+
+  <p class="confianza-local">Sin abrir enlaces. Sin entrar en sus cuentas bancarias.</p>
   </div>
+  <aside class="portada-guia" aria-label="Cómo le ayuda el asistente">
+    <div class="guia-emblema" aria-hidden="true"><img src="/static/img/escudo.svg" width="54" height="54" alt=""></div>
+    <p class="sobrelinea">CLARIDAD PARA DECIDIR</p>
+    <h2>Antes de responder,<br>compruebe el mensaje.</h2>
+    <ol class="recorrido">
+      <li><span aria-hidden="true">01</span><div><strong>Comparta el mensaje</strong><p>Pegue el texto o elija un correo guardado.</p></div></li>
+      <li><span aria-hidden="true">02</span><div><strong>Entienda las señales</strong><p>Vea qué preocupa y qué falta comprobar.</p></div></li>
+      <li><span aria-hidden="true">03</span><div><strong>Decida con calma</strong><p>Reciba una recomendación concreta. Usted mantiene el control.</p></div></li>
+    </ol>
+    <p class="guia-cierre">Una ayuda para verificar.<br><strong>La decisión siempre es suya.</strong></p>
+  </aside>
 </section>
 {% endblock %}

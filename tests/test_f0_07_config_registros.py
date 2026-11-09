@@ -37,10 +37,11 @@ def parse_env_example() -> dict[str, str]:
 # --- .env.example ---------------------------------------------------------------
 def test_env_example_cubre_todas_las_variables_leidas() -> None:
     fuente = CONFIG_SRC.read_text(encoding="utf-8")
-    leidas = set(re.findall(r'"([A-Z][A-Z0-9_]+)" in env', fuente)) | set(re.findall(r'\("(AI_[A-Z_]+)", "', fuente))
+    leidas = set(re.findall(r'"([A-Z][A-Z0-9_]+)" in env', fuente)) | set(re.findall(r'\("((?:AI_|APP_GMAIL_)[A-Z_]+)", "', fuente))
     assert leidas == {"APP_PORT", "APP_LOG_LEVEL", "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "APP_DEMO_MODE",
                       "AI_ENABLED", "AI_ALLOW_OPUS", "AI_BUDGET_USD", "AI_MAX_INPUT_TOKENS", "AI_MAX_OUTPUT_TOKENS",
-                      "AI_MAX_REQUESTS", "AI_THINKING", "AI_EFFORT", "AI_LEDGER_PATH"}
+                      "AI_MAX_REQUESTS", "AI_THINKING", "AI_EFFORT", "AI_LEDGER_PATH",
+                      "APP_GMAIL_ENABLED", "APP_GMAIL_CLIENT_SECRET"}
     assert set(parse_env_example()) == leidas
 
 
@@ -65,6 +66,7 @@ def test_env_example_produce_configuracion_valida_por_defecto() -> None:
     s = Settings.from_env(parse_env_example())
     assert s.port == DEFAULT_PORT and s.log_level == "INFO"
     assert s.anthropic_api_key is None and s.claude_model is None
+    assert not s.gmail_enabled and s.gmail_client_secret_path is None
 
 
 def test_gitignore_excluye_env_pero_no_el_ejemplo() -> None:

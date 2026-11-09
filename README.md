@@ -1,6 +1,6 @@
 # Asistente antifraude — prototipo para Hackfinance (BEST UC3M)
 
-Asistente de IA que **ayuda a reconocer estafas financieras en mensajes escritos** (correo, SMS…), pensado para personas mayores y clientes de banca. Analiza el texto y los enlaces **sin abrirlos**, explica en español sencillo qué ha encontrado y qué no ha podido comprobar, y deja **siempre la decisión al usuario**.
+Asistente antifraude con IA opcional que **ayuda a reconocer estafas financieras en mensajes escritos** (correo, SMS…), pensado para personas mayores y clientes de banca. Analiza el texto y los enlaces **sin abrirlos**, explica en español sencillo qué ha encontrado y qué no ha podido comprobar, y deja **siempre la decisión al usuario**.
 
 > **Estado: prototipo académico en desarrollo**, no es un producto comercial. Consulte la sección «Estado y limitaciones». Nada de lo que se muestra como simulado se presenta como real.
 
@@ -11,7 +11,7 @@ Para continuar el desarrollo con Codex: [guía de traspaso](docs/TRASPASO_CODEX.
 - **Python 3.12** (64 bits). Comprobación: `py -3.12 --version`.
   - Si no lo tiene: instálelo desde python.org o con el gestor oficial de Python (`pymanager install 3.12-64`).
 - Un navegador moderno (Edge, Chrome o Firefox).
-- No hace falta Node, Rust, Docker ni conexión a Internet para ejecutar la aplicación.
+- Para el análisis manual no hacen falta Node, Rust, Docker ni los SDK de Google o Anthropic. Una vez instaladas las dependencias base, funciona sin Internet. Las integraciones opcionales requieren sus autorizaciones y conexión.
 
 ## 2. Instalación (una sola vez)
 Abra PowerShell en la carpeta del proyecto (la que contiene este README):
@@ -21,16 +21,19 @@ py -3.12 -m venv .venv
 ```
 - `requirements.txt` contiene las dependencias de ejecución, con versiones exactas.
 - `requirements-dev.txt` añade las de pruebas.
-- `requirements.lock` es el bloqueo completo.
+- `requirements.lock` es el bloqueo completo del entorno base.
+- Gmail es opcional: `requirements-gmail.lock` reúne 53 versiones, incluidas las 26 de base, comprobadas en Windows con Python 3.12. No se presupone compatibilidad del lock opcional con otros sistemas; su instalación requiere autorización para el entorno concreto. Ver `docs/GMAIL_PREPARACION_REAL.md`.
 - Licencias y justificación de cada dependencia: `docs/DEPENDENCIAS.md`.
 
 ## 3. Configuración (opcional)
-Todo funciona sin configurar nada. Las variables se definen en la consola. El asistente **no** lee archivos `.env`; `.env.example` es solo una referencia. Detalle: `docs/CONFIGURACION.md`.
+El análisis manual funciona sin configurar integraciones. Las variables se definen en la consola. El asistente **no** lee archivos `.env`; `.env.example` es solo una referencia. Detalle: `docs/CONFIGURACION.md`.
 
 | Variable | Por defecto | Para qué |
 |---|---|---|
 | `APP_PORT` | `8790` | Puerto local (siempre `127.0.0.1`) |
 | `APP_LOG_LEVEL` | `INFO` | Detalle de los registros |
+| `APP_GMAIL_ENABLED` | `0` | Gmail apagado. El panel solo permite iniciar la conexión tras configurar y autorizar la cuenta de pruebas |
+| `APP_GMAIL_CLIENT_SECRET` | vacío | Ruta del cliente OAuth fuera del repositorio; no introducir credenciales en el chat ni en el proyecto |
 | `ANTHROPIC_API_KEY` | vacía | Análisis con IA (opcional; sin clave, la IA figura como «no configurada») |
 | `CLAUDE_MODEL` | vacío | Modelo de Claude: `claude-sonnet-5-5` previsto para las primeras pruebas; `claude-opus-5-5` solo con `AI_ALLOW_OPUS=1` |
 | `AI_ENABLED` / `AI_BUDGET_USD` | `0` / `0` | La IA está **desactivada** y el gasto autorizado es **0 USD** por defecto. Más límites en `docs/CONTROL_COSTES_IA.md` |
@@ -81,6 +84,11 @@ Cada solicitud pasa por un **control de gasto local**:
 
 Detalle: `docs/CONTROL_COSTES_IA.md`. Sin IA, la aplicación funciona con reglas y análisis de enlaces, y lo indica: «análisis parcial — IA no disponible».
 
+### Gmail (opcional, conexión real pendiente)
+El conector ya está integrado en el panel: consentimiento de la sesión → sondeo de mensajes nuevos → análisis local → avisos explicados. La recepción, los errores, la deduplicación y la desconexión se han probado con servicios simulados; esa prueba no acredita recepción de una cuenta real. Si caduca el punto de lectura, la recuperación puede revisar hasta 20 mensajes recientes. La aplicación no envía, modifica ni borra correos.
+
+`APP_GMAIL_ENABLED=0` mantiene el flujo real apagado. El análisis manual no necesita las librerías de Gmail. Las 8 comprobaciones opcionales de `scripts/verificar_gmail_sdk.py` usaron objetos de los SDK instalados en un entorno temporal autorizado y transportes HTTP, OAuth y keyring simulados: no iniciaron OAuth ni consultaron una cuenta. Faltan consentimiento para una cuenta de pruebas y prueba real de extremo a extremo; el entorno base del proyecto sigue sin las librerías opcionales. Antes de conectar habrá que elegir un entorno autorizado que las tenga. Instrucciones y alcance: `docs/GMAIL_PREPARACION_REAL.md` y `docs/GMAIL_CONFIGURACION.md`.
+
 ### Métricas del conjunto de desarrollo
 ```powershell
 cd backend
@@ -93,10 +101,10 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **746 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **877 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
 
 ## 6. Seguridad y privacidad (resumen)
-- Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y no hay recursos externos.
+- Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y los recursos estáticos se sirven localmente.
 - **Los enlaces nunca se abren**: el análisis es pasivo, sin visitas ni consultas DNS a dominios sospechosos.
 - Los registros no incluyen códigos, cookies, tokens, claves ni contenido de mensajes.
 - Arquitectura y decisiones: `docs/adr/` (ADR-0001 a 0015) y `docs/contexto/`.
@@ -106,12 +114,12 @@ Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuraci�
 |---|---|
 | Análisis manual (texto y `.eml`), extracción de enlaces, filtro por reglas | Implementado y probado |
 | Análisis **pasivo** de enlaces (dominios parecidos, texto visible ≠ destino, acortadores, IP, punycode) | Implementado y probado |
-| Motor de riesgo determinista (4 niveles, sin porcentajes; un error nunca da BAJO) | Implementado y probado |
+| Motor de riesgo determinista (4 niveles, sin porcentajes; un error nunca da BAJO) | Implementado y probado; reglas `rules-0.3.3` |
 | Alertas preventiva y definitiva con explicación, evidencias, incertidumbres y recomendaciones | Implementado y probado |
-| Interfaz en español con sesión segura | Verificación parcial de teclado, foco y reflujo; usuario confirma zoom real 200 % en el escenario probado. Lector completo y colores forzados pendientes. Matriz: `docs/ACCESIBILIDAD_CODEX.md` |
+| Interfaz en español con sesión segura | Diseño bosque/crema y flujo simplificado. Reflujo a 320 px comprobado en los cuatro niveles y Gmail simulado; teclado revisado parcialmente. El zoom 200 % confirmado corresponde al diseño anterior y no se ha revalidado en el actual. Narrador, contraste elevado y recorrido manual completo siguen pendientes. Matriz: `docs/ACCESIBILIDAD_CODEX.md` |
 | Análisis con Claude | Implementado y probado **con respuestas simuladas**; sin llamadas reales (falta autorizar la librería y el presupuesto). **Gasto real: 0 USD** |
-| Control de gasto de la IA | Implementado y probado con clientes simulados (31 pruebas) |
-| Gmail | Conector implementado y probado con un **Gmail simulado**; conexión real **bloqueada** (credenciales OAuth y librerías no autorizadas) |
+| Control de gasto de la IA | Implementado y probado con clientes simulados; alcance y límites del libro local en `docs/CONTROL_COSTES_IA.md` |
+| Gmail | Conector, ciclo de sesión y avisos integrados en el panel, probados con **Gmail simulado**. Compatibilidad de SDK comprobada por separado con HTTP/OAuth/keyring simulados. Conexión real apagada (`APP_GMAIL_ENABLED=0`), OAuth y cuenta real pendientes |
 | Directorio de bancos reales | 5 dominios web tomados del **Registro de Entidades del Banco de España**, con cobertura **parcial** (`docs/DOMINIOS_BANCARIOS.md`); la demo usa el banco ficticio |
 | Límites de la detección sin IA | Documentados en `docs/LIMITACIONES_DETECCION.md` |
 | RDAP y reputación de URLs | No configurados (opcionales; se declaran como no comprobados) |
@@ -125,7 +133,7 @@ Documentación útil:
 |---|---|
 | `docs/ARQUITECTURA.md` | Resumen de la arquitectura para el jurado |
 | `docs/AUDITORIA_CLAUDE_API.md` | Integración con Claude comparada con la documentación oficial: qué está verificado y qué no |
-| `docs/GMAIL_CONFIGURACION.md` | Pasos para conectar Gmail cuando se autoricen OAuth y las librerías |
+| `docs/GMAIL_CONFIGURACION.md` / `docs/GMAIL_PREPARACION_REAL.md` | Flujo del panel, alcance probado, dependencias opcionales y pasos para la cuenta de pruebas cuando se autorice |
 | `eval/METODOLOGIA_INDEPENDIENTE.md` | Cómo se hará la evaluación independiente (conjunto sellado fuera del repositorio) |
 | `eval/CAMBIOS_ETIQUETAS.md` | Correcciones de etiquetas del conjunto de desarrollo, con su justificación |
 | `eval/EJECUCION.md` | Cómo ejecutar la evaluación reproducible (reglas frente a Claude; conjunto sellado) |
@@ -152,6 +160,7 @@ Desde la raíz del proyecto, en una consola PowerShell nueva:
 $env:AI_ENABLED='0'
 $env:AI_BUDGET_USD='0'
 $env:AI_ALLOW_OPUS='0'
+$env:APP_GMAIL_ENABLED='0'
 $env:ANTIFRAUDE_PRUEBAS_REALES='0'
 $env:ANTIFRAUDE_PRUEBAS_REALES_GMAIL='0'
 Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue

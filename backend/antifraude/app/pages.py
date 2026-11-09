@@ -45,7 +45,8 @@ def _render_pairing(request: Request, *, aviso: str | None, status_code: int, bo
 @router.get("/", response_class=HTMLResponse)
 def bienvenida(request: Request, security: SecurityDep) -> Response:
     autenticado = _session(request, security) is not None
-    return templates.TemplateResponse(request, "bienvenida.html", {"autenticado": autenticado})
+    return templates.TemplateResponse(request, "bienvenida.html", {"autenticado": autenticado,
+        "gmail_disponible": request.app.state.settings.gmail_enabled})
 
 
 @router.get("/emparejar", response_class=HTMLResponse)
@@ -76,5 +77,6 @@ def panel(request: Request, security: SecurityDep) -> Response:
         "autenticado": True,
         "demo_mode": request.app.state.settings.demo_mode,
         "ai_configured": request.app.state.ai_configured,
+        "gmail": request.app.state.gmail.snapshot(session),
         "historial": session.history if session else [],
     })

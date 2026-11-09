@@ -59,6 +59,9 @@ class Settings(BaseModel):
     claude_model: str | None = None
     # Modo demostración: carga la entidad ficticia y los ejemplos sintéticos (siempre etiquetados).
     demo_mode: bool = False
+    # Gmail requiere activación local y consentimiento por sesión; nunca auto-conecta.
+    gmail_enabled: bool = False
+    gmail_client_secret_path: Path | None = None
     # Control de gasto de la IA (misión 3). TODO cerrado por defecto: IA desactivada y 0 USD autorizados.
     ai_enabled: bool = False
     ai_allow_opus: bool = False
@@ -87,6 +90,17 @@ class Settings(BaseModel):
     def _strip_model(cls, value: str | None) -> str | None:
         return value.strip() if value is not None else None
 
+    @field_validator("gmail_client_secret_path")
+    @classmethod
+    def _gmail_secret_outside_repo(cls, value: Path | None) -> Path | None:
+        if value is None:
+            return None
+        candidate = value.expanduser().resolve()
+        root = Path(__file__).resolve().parents[3]
+        if candidate.is_relative_to(root):
+            raise ValueError("El cliente OAuth debe guardarse fuera de la carpeta del proyecto")
+        return candidate
+
     def ai_policy(self) -> AiPolicy:
         """Política de gasto de la IA derivada de la configuración (sin la clave)."""
         return AiPolicy(enabled=self.ai_enabled, model=self.claude_model, allow_expensive=self.ai_allow_opus,
@@ -109,12 +123,14 @@ class Settings(BaseModel):
             raw["claude_model"] = env["CLAUDE_MODEL"]
         if "APP_DEMO_MODE" in env:
             raw["demo_mode"] = _flag(env["APP_DEMO_MODE"])
-        for var, field in (("AI_ENABLED", "ai_enabled"), ("AI_ALLOW_OPUS", "ai_allow_opus")):
+        for var, field in (("AI_ENABLED", "ai_enabled"), ("AI_ALLOW_OPUS", "ai_allow_opus"),
+                           ("APP_GMAIL_ENABLED", "gmail_enabled")):
             if var in env:
                 raw[field] = _flag(env[var])
         for var, field in (("AI_BUDGET_USD", "ai_budget_usd"), ("AI_MAX_INPUT_TOKENS", "ai_max_input_tokens"),
                            ("AI_MAX_OUTPUT_TOKENS", "ai_max_output_tokens"), ("AI_MAX_REQUESTS", "ai_max_requests"),
-                           ("AI_LEDGER_PATH", "ai_ledger_path")):
+                           ("AI_LEDGER_PATH", "ai_ledger_path"),
+                           ("APP_GMAIL_CLIENT_SECRET", "gmail_client_secret_path")):
             if env.get(var, "").strip():
                 raw[field] = env[var].strip().replace(",", ".") if var == "AI_BUDGET_USD" else env[var].strip()
         for var, field in (("AI_THINKING", "ai_thinking"), ("AI_EFFORT", "ai_effort")):

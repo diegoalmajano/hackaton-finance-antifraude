@@ -15,14 +15,13 @@
     <span class="nivel-icono" aria-hidden="true">{{ r.nivel.icono }}</span>
     Riesgo <span class="nivel-nombre">{{ r.nivel.nombre }}</span>
   </h3>
+  <h4>Por qué</h4>
   <p class="explicacion">{{ r.explicacion }}</p>
 
   {% if r.parcial %}
   <p class="mensaje" data-tipo="aviso"><span aria-hidden="true">⚠️</span> <strong>Análisis parcial:</strong> no se han podido hacer todas las comprobaciones. No lo tome como una garantía.</p>
   {% endif %}
-  {% if not r.ia.configurada %}
-  <p class="nota-ia"><span aria-hidden="true">ℹ️</span> El análisis con inteligencia artificial no está configurado: este resultado procede de las reglas y del análisis de enlaces.</p>
-  {% endif %}
+
 
   {% if r.recomendaciones %}
   <h4>Qué le recomendamos</h4>
@@ -31,8 +30,10 @@
   </ul>
   {% endif %}
 
+  <details class="desplegable">
+    <summary>Más detalles (para quien quiera saberlo)</summary>
   {% if r.evidencias %}
-  <h4>Por qué</h4>
+  <h4>Evidencias encontradas</h4>
   <ul class="evidencias">
     {% for e in r.evidencias %}
     <li{% if e.grave %} class="grave"{% endif %}>
@@ -54,8 +55,10 @@
   <ul>{% for n in r.no_comprobado %}<li>{{ n }}</li>{% endfor %}</ul>
   {% endif %}
 
-  <details class="desplegable">
-    <summary>Más detalles (para quien quiera saberlo)</summary>
+
+  {% if not r.ia.configurada %}
+  <p class="nota-ia"><span aria-hidden="true">ℹ️</span> El análisis con inteligencia artificial no está configurado: este resultado procede de las reglas y del análisis de enlaces.</p>
+  {% endif %}
     <ul>
       {% for c in r.comprobaciones %}<li>{{ c.nombre }}: {{ {"done": "hecho", "failed": "falló", "not_configured": "no configurado", "not_applicable": "no aplica", "skipped": "omitido"}[c.estado] }}{% if c.obligatoria %} (obligatoria){% endif %}</li>{% endfor %}
       {% for d in r.detalles %}<li>{{ d }}</li>{% endfor %}

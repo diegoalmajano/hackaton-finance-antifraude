@@ -1,0 +1,38 @@
+{% if gmail.running %}<span hx-get="/gmail?revision={{ gmail.revision }}" hx-target="#gmail-contenido" hx-trigger="every 5s" hx-swap="innerHTML" aria-hidden="true"></span>{% endif %}
+{% if gmail.simulated %}<p class="etiqueta-simulado">GMAIL SIMULADO: pruebas sintéticas, sin cuenta real.</p>{% endif %}
+<p role="status">{{ gmail.message }}</p>
+{% if not gmail.enabled %}
+<p>La conexión con Gmail está pendiente de preparar y autorizar. Puede seguir comprobando mensajes aquí sin conectar su correo.</p>
+{% elif gmail.running or gmail.state == "cleanup_error" %}
+<form hx-post="/gmail/disconnect" hx-target="#gmail-contenido" hx-swap="innerHTML" data-mensajes="#mensaje-gmail">
+  <button type="submit" class="boton boton-secundario">Desconectar Gmail</button>
+</form>
+{% else %}
+<p>Use únicamente una cuenta de pruebas. Se leerán los mensajes nuevos, incluidos los de spam. Si se pierde el punto de lectura, se revisarán hasta 20 mensajes recientes. No se enviará, modificará ni borrará ningún correo.</p>
+<p>Este análisis se hace en su ordenador, sin enviar el correo a una IA externa. Se detiene al cerrar o caducar esta sesión.</p>
+<form hx-post="/gmail/connect" hx-target="#gmail-contenido" hx-swap="innerHTML" data-mensajes="#mensaje-gmail">
+  <label class="etiqueta"><input type="checkbox" name="consent" value="1" required> Autorizo la comprobación de esta cuenta de pruebas en esta sesión.</label>
+  <button type="submit" class="boton boton-secundario">Conectar Gmail</button>
+</form>
+{% endif %}
+<p id="mensaje-gmail" class="mensaje" role="alert"></p>
+{% if gmail.risk_counts.get('high', 0) %}
+<p class="mensaje" data-tipo="aviso"><strong>En esta conexión, correos de riesgo ALTO: {{ gmail.risk_counts.high }}.</strong> No abra sus enlaces ni comparta datos. Compruébelos por el canal habitual de su banco.</p>
+{% endif %}
+{% if gmail.analyzed > gmail.alerts|length %}<p>Se muestran las últimas {{ gmail.alerts|length }} alertas de {{ gmail.analyzed }} comprobaciones. El resumen de riesgo ALTO conserva el total de esta conexión.</p>{% endif %}
+{% if gmail.alerts %}
+<h3>Correos comprobados en esta sesión</h3>
+<p>No se conservan los textos completos. Al desconectar se borran estas alertas del asistente.</p>
+{% for alert in gmail.alerts %}
+<article class="alerta {{ {'high':'alto','medium':'medio','low':'bajo','inconclusive':'no-concluyente'}[alert.risk] }}" aria-labelledby="gmail-{{ alert.id }}">
+  <h4 id="gmail-{{ alert.id }}">{{ alert.title }}</h4>
+  <p>{{ alert.explanation }}</p>
+  {% if alert.partial %}<p><strong>Análisis parcial:</strong> faltan comprobaciones; no es una garantía.</p>{% endif %}
+  <h5>Qué hacer</h5><ul>{% for rec in alert.recommendations %}<li>{{ rec }}</li>{% endfor %}</ul>
+  <details class="desplegable"><summary>Por qué y qué no se ha podido comprobar</summary>
+    <ul>{% for evidence in alert.evidence %}<li>{{ evidence }}</li>{% endfor %}{% for u in alert.uncertainties %}<li>{{ u }}</li>{% endfor %}</ul>
+  </details>
+</article>
+{% endfor %}
+{% endif %}
+{% if gmail.enabled %}<p>Desconectar retira el permiso guardado en este equipo. Para revocarlo también en Google, revise <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">los permisos de su cuenta de Google</a>.</p>{% endif %}

@@ -61,3 +61,9 @@ Ubicación provisional `vendor/htmx/`; en F0-06 se servirá como estático local
 - Control positivo: la misma consulta para `Jinja2==2.10` devuelve 12 vulnerabilidades, así que la consulta funciona.
 - Resultado: **0 vulnerabilidades conocidas** en las 26 dependencias fijadas a esta fecha.
 - Limitación: es una foto del momento. Repetirla antes de la entrega y cuando se añadan `anthropic` o las librerías de Google (R-37 queda mitigado, no cerrado).
+
+## Opcionales Gmail — instalación temporal autorizada (09-11-2026)
+
+`google-auth-oauthlib==1.5.0` y `google-api-python-client==2.201.0` (Apache-2.0), `keyring==25.7.0` (MIT). Autorizados e instalados con sus transitivas exclusivamente en un entorno temporal nuevo, no en `.venv` del proyecto. `requirements-gmail.txt` fija las tres directas; `requirements-gmail.lock` fija los 53 paquetes completos para Windows/Python 3.12. Las 26 versiones de `requirements.lock` se conservan exactamente; pip check sin conflictos. Ocho comprobaciones SDK locales con transporte y autorización falsos. No OAuth ni almacén de credenciales personal.
+
+El listado histórico «No instalado» anterior describe el entorno base, donde siguen ausentes estos SDK. Anthropic/OpenAI continúan ausentes de ambos entornos. No se han añadido servicios de telemetría. La consulta OSV del 08-11 no cubre automáticamente estas nuevas transitivas; no atribuirles una auditoría de vulnerabilidades actualizada.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from contextlib import asynccontextmanager
 from collections.abc import Callable
 from pathlib import Path
 
@@ -12,6 +13,9 @@ from fastapi.staticfiles import StaticFiles
 import importlib.util
 
 from antifraude.ai.claude import ClaudeAnalyzer
+from antifraude.app.gmail_bridge import GmailBridge
+from antifraude.app.gmail_routes import router as gmail_router
+from antifraude.connectors.gmail_api import GmailApiClient, build_gmail_service, forget_local_token
 from antifraude.app.analysis_routes import router as analysis_router
 from antifraude.app.auth_routes import router as auth_router
 from antifraude.app.pipeline import AnalysisPipeline
@@ -47,6 +51,10 @@ def create_app(
     clock: Callable[[], float] = time.monotonic,
     code_sink: CodeSink = console_code_sink,
     issue_initial_code: bool = True,
+    gmail_client_factory: Callable | None = None,
+    gmail_forget_token: Callable[[], bool] | None = None,
+    gmail_simulated: bool = False,
+    gmail_interval_s: float = 30.0,
 ) -> FastAPI:
     """Crea la aplicación.
 
@@ -55,7 +63,15 @@ def create_app(
     desde un CDN externo. No se instala CORS.
     """
     settings = settings or get_settings()
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        try:
+            yield
+        finally:
+            app.state.gmail.close()
+
     app = FastAPI(
+        lifespan=lifespan,
         title="Asistente antifraude (local)",
         docs_url=None,
         redoc_url=None,
@@ -80,6 +96,7 @@ def create_app(
     app.include_router(events_router)
     app.include_router(pages_router)
     app.include_router(analysis_router)
+    app.include_router(gmail_router)
 
     # Pipeline de análisis: entidades ficticias solo en modo demostración (R-54); IA solo si se configura.
     directory = EntityDirectory.load_default(include_fictitious=settings.demo_mode)
@@ -91,6 +108,17 @@ def create_app(
                                 "desactivado: " + (analyzer.blocked_reason
                                                    or "la librería oficial «anthropic» no está instalada."))
     app.state.pipeline = AnalysisPipeline(directory, analyzer)
+    gmail_factory = None
+    if settings.gmail_enabled:
+        if gmail_client_factory is not None:
+            gmail_factory = gmail_client_factory
+        elif settings.gmail_client_secret_path is not None:
+            def gmail_factory():
+                return GmailApiClient(build_gmail_service(settings.gmail_client_secret_path, force_consent=True))
+    app.state.gmail = GmailBridge(sessions=app.state.security.sessions,
+        pipeline=AnalysisPipeline(directory), client_factory=gmail_factory,
+        forget_token=gmail_forget_token or forget_local_token,
+        simulated=gmail_simulated, interval_s=gmail_interval_s)
     if not (VENDOR_HTMX_DIR / "htmx.min.js").is_file():
         raise RuntimeError(f"No se encuentra htmx en {VENDOR_HTMX_DIR}; revise la instalación (vendor/htmx).")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

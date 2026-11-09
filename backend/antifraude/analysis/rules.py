@@ -21,7 +21,7 @@ from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily
 from antifraude.intel.entities import EntityDirectory
 from antifraude.intel.urls import UNVERIFIED_BRAND, find_lookalike, registrable_domain
 
-RULE_VERSION = "rules-0.3.2"
+RULE_VERSION = "rules-0.3.3"
 
 #: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
 #: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
@@ -30,14 +30,16 @@ _NEGATION = re.compile(
     r"\b(nunca|jamas|no)\b[^.!?\n:;]{0,30}\b(pedi\w*|pide\w*|pida\w*|pediran|solicit\w*|pregunt\w*|requer\w*|"
     r"exig\w*|reclam\w*)\b(\s+(le|te|les|nos|os|su|sus|tu|tus|el|la|los|las|que|a usted|de usted))*\s*$")
 #: Negación directa del verbo de la petición («nunca facilite», «no debe facilitar», «evite introducir»).
-_DIRECT_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)(\s+(le|te|se lo|se la|nos|les|lo|la))?"
+_DIRECT_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)(\s+(me|le|te|se lo|se la|nos|les|lo|la))?"
                               r"(\s+(debe|deberia|tiene que|tienes que|hay que|debemos))?(\s+nunca)?\s*$")
 #: Discurso referido: «si alguien le pide que confirme…», «los estafadores le dirán «introduzca…»».
 _REPORTED = re.compile(r"\b(alguien|desconocid\w*|estafador\w*|delincuent\w*|ciberdelincuent\w*|terceros?|"
                        r"nadie|otra persona|un supuesto|una supuesta)\b[^.!?\n]{0,50}\b(le|te|les)\s+"
                        r"(pide|piden|pidan|pidiera|pedira|pediran|dira|diran|dice|dicen)(\s+que)?\s*[«\"']?\s*$")
+#: Negación coordinada: «no pague ni transfiera», dentro de su propia cláusula.
+_COORDINATED_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)\b[^.!?\n:;]{0,60}\bni( tampoco)?\s*$")
 #: Cortes de cláusula además de la puntuación fuerte.
-_CLAUSE_CUT = re.compile(r"[.!?\n:;]|\b(por eso|asi que|pero|sino|solo|para su tranquilidad|ahora)\b")
+_CLAUSE_CUT = re.compile(r"[.!?\n:;]|\b(por eso|asi que|pero|sin embargo|aun asi|sino|solo|para su tranquilidad|ahora)\b")
 _NO_NEED = re.compile(r"\b(no es necesario|no hace falta|no tiene que|no tienes que|no necesita|no debe|"
                       r"sin necesidad de)\b[^.!?\n:;,]{0,40}$")
 #: «nada»/«ningún pago» solo anula si es el OBJETO del verbo de pago («no pague nada»), no «sin ningún recargo».
@@ -53,6 +55,7 @@ _REQUEST_VERB = (
     # formas con pronombre pegado (revisión adversarial A2/A3)
     r"enviarnos|envianos|facilitarnos|facilitanos|indicarnos|indicanos|confirmarnos|confirmenos|pasame|pasamelo|"
     r"pasarnos|pasanos|pasenos|pasas|diganos|dinos|mandame|mandanos|reenviame|reenvienos|renueve|renueva|renuevela|"
+    r"compart(?:a|e)(?:me|nos)|envi(?:a|e)me|"
     # subjuntivo de tú («te pide que nos envíes…») y otras formas (revisión adversarial ronda 3, A5/A7)
     r"envies|mandes|pases|indiques|facilites|confirmes|introduzcas|actualices|compartas|verifiques|digas|"
     r"pon|ponga|pongan|leamelo|leamelos|leamela|respondanos|respondenos|contestenos|devuelvanos)"
@@ -151,7 +154,7 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
     _Rule("content.payment_request", SignalFamily.CONTENT, Severity.MEDIUM,
           _rx(r"(\b(realice|realiza|haga|haz|hacer|hacerme|hagas|efectue|efectua|envie|envia|enviar|enviarme|enviame|"
               r"mande|manda|mandarme|pasarme|pasar|pases|prestarme|pague|paga|pagar|pagando|abone|abona|abonar|ingrese|"
-              r"ingresa|transferir|pon|ponme|envies|mandes)\b[^.\n]{0,40}"
+              r"ingresa|transferir|transfier(?:a|e)(?:me|nos)?|pon|ponme|envies|mandes)\b[^.\n]{0,40}"
               r"(transferencia|bizum|pago|importe|tasa|\d+[.,]?\d*\s?(€|eur|euros))|\bpague[^.\n]{0,30}tasa|"
               r"pago pendiente|deposito (inicial |minimo )?de \d+|"
               r"\b(necesito|necesitamos|necesitaria|necesitariamos) [^.\n]{0,20}\d+[.,]?\d*\s?(€|eur|euros)|"
@@ -213,8 +216,8 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"( de (asistencia|soporte|control))?)"),
           "Le piden instalar un programa o dar acceso remoto a su dispositivo.", "acceso remoto"),
     _Rule("content.injection_attempt", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(r"(ignora (todas )?(tus|las|sus) instrucciones|ignore (all |the )?(previous|prior|above) instructions|"
-              r"clasifica (este|el) mensaje como|marca (este|el) mensaje como (seguro|legitimo)|system prompt|"
+          _rx(r"(ignor[ae]n? (todas )?(tus|las|sus) instrucciones|ignore (all |the )?(previous|prior|above) instructions|"
+              r"clasifi(?:ca|que) (este|el) mensaje como|mar(?:ca|que) (este|el) mensaje como (seguro|legitimo)|system prompt|"
               r"eres un (asistente|modelo)|you are (an?|the) (assistant|ai)|instrucciones (para|al) (la )?ia)"),
           "El mensaje contiene órdenes ocultas dirigidas a programas de inteligencia artificial.",
           "intento de inyección de instrucciones"),
@@ -240,7 +243,7 @@ def _is_negated(folded: str, start: int, end: int, no_need: bool) -> bool:
     window = folded[max(0, start - 100):start]
     parts = _CLAUSE_CUT.split(window)
     clause = parts[-1] if parts else window
-    if any(p.search(clause) for p in (_NEGATION, _DIRECT_NEGATION, _REPORTED)):
+    if any(p.search(clause) for p in (_NEGATION, _DIRECT_NEGATION, _COORDINATED_NEGATION, _REPORTED)):
         return True
     span = folded[start:end]
     if no_need and (_NO_NEED.search(clause + " ") or _NEGATED_SPAN.search(span)):
@@ -285,10 +288,16 @@ def _matches(pattern: re.Pattern[str], text: str, limit: int = 40) -> list[re.Ma
     return out
 
 
+def _has_payment_instruction(folded: str) -> bool:
+    """Un IBAN no convierte un consejo negado en una orden de pago."""
+    return any(not _is_negated(folded, m.start(), m.end(), no_need=True)
+               for m in _matches(_PAY_INSTRUCTION, folded))
+
+
 def _iban_payment(folded: str, signals: list[Signal]) -> None:
     """IBAN + instrucción de pago (A6). Con novedad o anulación de la cuenta anterior → cambio de cuenta (ALTO);
     sin ella → petición de pago a una cuenta (MEDIO). «La de siempre / habitual» lo desactiva."""
-    if "[iban " not in folded or not _PAY_INSTRUCTION.search(folded) or _USUAL.search(folded):
+    if "[iban " not in folded or not _has_payment_instruction(folded) or _USUAL.search(folded):
         return
     codes = {s.code for s in signals}
     if _NOVELTY.search(folded) and not _NOTHING_TO_DO.search(folded):
@@ -342,7 +351,7 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
                 continue
             if rule.code == "content.payment_request" and re.search(r"en efectivo", folded[m.start():m.end() + 30]):
                 continue
-            if rule.code == "content.payment_details_change" and (not _PAY_INSTRUCTION.search(folded)
+            if rule.code == "content.payment_details_change" and (not _has_payment_instruction(folded)
                                                                  or _NOTHING_TO_DO.search(folded)):
                 continue  # «su nueva cuenta ya está operativa» informa; solo es riesgo si le piden pagar allí (B1)
             if rule.code == "content.prize_or_refund" and _REFUND_DONE.search(folded):

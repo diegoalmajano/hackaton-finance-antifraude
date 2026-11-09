@@ -76,3 +76,9 @@ Si el puerto está ocupado por otro programa, también lo indica y no cierra pro
 - Un error interno no controlado responde «Se ha producido un error interno» y solo registra el **tipo** de error, el archivo y la línea de origen y la ruta; nunca el mensaje de la excepción.
 - Excepción deliberada: el código de emparejamiento se **muestra** en la consola (no es un registro) porque el usuario necesita leerlo. No redirija esa salida a un archivo (R-32).
 - El código de emparejamiento se introduce en la interfaz y viaja **solo en el cuerpo de `POST /pairing`**; nunca en una URL ni en una respuesta.
+
+
+## Gmail opcional (sin activar por defecto)
+- APP_GMAIL_ENABLED=0: no se crea ni inicia una conexión externa. Activarlo solo habilita el botón; se exige consentimiento por sesión.
+- APP_GMAIL_CLIENT_SECRET vacío por defecto: ruta al JSON OAuth fuera del proyecto, nunca en formularios o URLs. SDK comprobado solo en entorno temporal autorizado; cuenta de pruebas y OAuth reales aún no autorizados.
+- La conexión no arranca automáticamente ni comparte mensajes con IA. Preparación y permisos pendientes: GMAIL_PREPARACION_REAL.md.

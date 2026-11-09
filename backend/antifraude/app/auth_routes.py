@@ -99,7 +99,8 @@ def session_info(session: SessionDep) -> SessionInfo:
 
 
 @router.post("/session/logout", status_code=204)
-def logout(request: Request, response: Response, _: CsrfSessionDep, security: SecurityDep) -> None:
+def logout(request: Request, response: Response, session: CsrfSessionDep, security: SecurityDep) -> None:
+    request.app.state.gmail.disconnect(session)
     security.sessions.revoke(request.cookies.get(SESSION_COOKIE_NAME))
     response.delete_cookie(SESSION_COOKIE_NAME, path="/", httponly=True, samesite="strict")
     if _is_htmx(request):

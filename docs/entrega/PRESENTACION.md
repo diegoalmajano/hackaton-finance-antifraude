@@ -13,8 +13,8 @@
 | 7 | Accesibilidad | Diseño para mayores: texto grande, contraste, teclado, icono + texto, lenguaje llano (y qué falta medir) | UX y accesibilidad |
 | 8 | Seguridad y privacidad | Local, sin abrir enlaces, sin guardar mensajes, emparejamiento por código, sin datos al banco | Implementación, viabilidad |
 | 9 | Modelo de negocio | B2B con bancos (marca blanca); coste por mensaje (reglas: 0; IA solo si es sospechoso; **coste medido pendiente**) | Viabilidad financiera |
-| 10 | Calidad medida | 746 pruebas Python y 11 JS; revisiones asistidas de código, seguridad, accesibilidad y etiquetas y tres rondas adversariales, con sus correcciones; métricas **de desarrollo** con su advertencia; evaluación sellada pendiente | Implementación, impacto medible |
-| 11 | Hoja de ruta | Gmail real, IA con comparativa Opus/Sonnet, bancos verificados, escritorio, voz (fase 2) | Viabilidad |
+| 10 | Calidad medida | 877 pruebas Python y 11 JS; revisiones asistidas de código, seguridad, accesibilidad y etiquetas y tres rondas adversariales, con sus correcciones; métricas **de desarrollo** con su advertencia; evaluación sellada pendiente | Implementación, impacto medible |
+| 11 | Hoja de ruta | OAuth de pruebas, piloto Sonnet autorizado, evaluación independiente, dominios y accesibilidad final | Viabilidad |
 | 12 | Cierre | Valor diferencial en una frase + preguntas | Presentación |
 
 Mensajes que hay que transmitir con precisión: qué está implementado, qué está simulado y qué está pendiente (tabla del README §7).

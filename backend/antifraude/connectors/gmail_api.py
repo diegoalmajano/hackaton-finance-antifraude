@@ -86,13 +86,34 @@ class GmailApiClient:
     def __init__(self, service: Any, user_id: str = "me") -> None:
         self.service = service
         self.user_id = user_id
+        self._read_guard: Callable[[], bool] | None = None
+
+    def set_read_guard(self, allowed: Callable[[], bool]) -> None:
+        """Instala el consentimiento de sesión antes de usar el cliente en segundo plano."""
+        self._read_guard = allowed
+
+    def _execute(self, request: Any) -> Any:
+        # Una llamada lógica puede paginar: revalidar inmediatamente antes de CADA envío.
+        if self._read_guard is not None:
+            try:
+                allowed = self._read_guard()
+            except Exception:
+                raise GmailAuthError() from None
+            if not allowed:
+                raise GmailAuthError()
+        return request.execute()
+
+    def close(self) -> None:
+        close = getattr(self.service, "close", None)
+        if callable(close):
+            close()
 
     def _users(self) -> Any:
         return self.service.users()
 
     def get_profile_history_id(self) -> str:
         try:
-            return str(self._users().getProfile(userId=self.user_id).execute()["historyId"])
+            return str(self._execute(self._users().getProfile(userId=self.user_id))["historyId"])
         except Exception as exc:
             raise _translate(exc) from exc
 
@@ -106,7 +127,7 @@ class GmailApiClient:
                                           "historyTypes": ["messageAdded"]}
                 if page_token:
                     kwargs["pageToken"] = page_token
-                resp = self._users().history().list(**kwargs).execute()
+                resp = self._execute(self._users().history().list(**kwargs))
                 for h in resp.get("history", []):
                     for added in h.get("messagesAdded", []):
                         mid = added.get("message", {}).get("id")
@@ -121,15 +142,15 @@ class GmailApiClient:
 
     def list_recent_message_ids(self, max_results: int) -> list[str]:
         try:
-            resp = self._users().messages().list(userId=self.user_id, maxResults=max_results,
-                                                 includeSpamTrash=True).execute()
+            resp = self._execute(self._users().messages().list(userId=self.user_id, maxResults=max_results,
+                                                               includeSpamTrash=True))
         except Exception as exc:
             raise _translate(exc) from exc
         return [m["id"] for m in resp.get("messages", []) if "id" in m]
 
     def get_raw_message(self, message_id: str) -> tuple[bytes, datetime | None]:
         try:
-            resp = self._users().messages().get(userId=self.user_id, id=message_id, format="raw").execute()
+            resp = self._execute(self._users().messages().get(userId=self.user_id, id=message_id, format="raw"))
         except Exception as exc:
             raise _translate(exc) from exc
         received = None
@@ -141,7 +162,7 @@ class GmailApiClient:
         return decode_gmail_raw(resp.get("raw", "")), received
 
 
-def build_gmail_service(client_secret_path: Path) -> Any:  # pragma: no cover - requiere librerías no instaladas
+def build_gmail_service(client_secret_path: Path, *, force_consent: bool = False) -> Any:  # pragma: no cover - requiere librerías no instaladas
     """OAuth de app de escritorio (redirección loopback) y servicio Gmail. NO PROBADO (ver docstring del módulo)."""
     try:
         import keyring  # type: ignore[import-not-found]
@@ -155,7 +176,9 @@ def build_gmail_service(client_secret_path: Path) -> Any:  # pragma: no cover - 
         raise GmailSetupError("No se encuentra el archivo del cliente OAuth (client_secret*.json, fuera del repositorio).")
     ensure_secure_keyring(keyring)
     creds = None
-    refresh = keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
+    if force_consent and not forget_local_token(keyring):
+        raise GmailSetupError("No se ha podido retirar el permiso local anterior; no se conectará ninguna cuenta.")
+    refresh = None if force_consent else keyring.get_password(KEYRING_SERVICE, KEYRING_USER)
     if refresh:
         import json
         info = json.loads(client_secret_path.read_text(encoding="utf-8"))["installed"]
@@ -167,7 +190,11 @@ def build_gmail_service(client_secret_path: Path) -> Any:  # pragma: no cover - 
             creds = None  # caducado (modo Testing: 7 días) → volver a autorizar
     if creds is None:
         flow = InstalledAppFlow.from_client_secrets_file(str(client_secret_path), SCOPES)
-        creds = flow.run_local_server(host="localhost", port=0, open_browser=True)
+        creds = flow.run_local_server(host="127.0.0.1", bind_addr="127.0.0.1", port=0,
+                                      open_browser=True, timeout_seconds=120,
+                                      authorization_prompt_message=None,
+                                      success_message="Autorización completada. Puede cerrar esta ventana y volver al asistente.",
+                                      **({"prompt": "select_account consent"} if force_consent else {}))
         if creds.refresh_token:
             keyring.set_password(KEYRING_SERVICE, KEYRING_USER, creds.refresh_token)
     return build("gmail", "v1", credentials=creds, cache_discovery=False)

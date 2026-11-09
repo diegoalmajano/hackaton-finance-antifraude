@@ -16,6 +16,8 @@ from uuid import UUID
 
 from antifraude.analysis.ingest import build_message, make_sender
 from antifraude.app.pipeline import AnalysisOutcome, AnalysisPipeline
+from antifraude.contracts.ai import AiFailureReason
+from antifraude.contracts.checks import CheckStatus
 from antifraude.contracts.common import RiskLevel
 from antifraude.contracts.evaluation import EvalCase
 from antifraude.contracts.messages import Channel
@@ -57,6 +59,10 @@ class CaseResult:
     alerted: bool
     latency_ms: int
     origin: str
+    medium: str = "unknown"
+    partial: bool = False
+    expected_quotes: int = 0
+    matched_quotes: int = 0
 
     @property
     def level_ok(self) -> bool:
@@ -89,8 +95,8 @@ class Metrics:
 
     @property
     def f1(self) -> float | None:
-        p, r = self.precision, self.recall
-        return 2 * p * r / (p + r) if p is not None and r is not None and (p + r) else None
+        denominator = 2 * self.tp + self.fp + self.fn
+        return 2 * self.tp / denominator if denominator else None
 
     @property
     def false_positive_rate(self) -> float | None:
@@ -114,32 +120,19 @@ def wilson(successes: int, n: int, z: float = 1.96) -> tuple[float, float] | Non
     return max(0.0, centre - half), min(1.0, centre + half)
 
 
+def _case_result(case: EvalCase, out: AnalysisOutcome) -> CaseResult:
+    level = out.assessment.risk_level
+    quotes = [e.quote for e in out.assessment.evidence if e.quote]
+    expected = case.expected.expected_quotes
+    return CaseResult(case.case_id, case.expected.risk_level, list(case.expected.acceptable_levels), level,
+                      case.expected.must_alert, level in _ALERT, out.latency_ms, case.origin.value,
+                      case.message.medium.value, out.assessment.is_partial, len(expected),
+                      sum(any(q in actual for actual in quotes) for q in expected))
+
+
 def evaluate(cases: Iterable[EvalCase], pipeline: AnalysisPipeline) -> tuple[list[CaseResult], Metrics]:
-    results: list[CaseResult] = []
-    for c in cases:
-        out = run_case(c, pipeline)
-        level = out.assessment.risk_level
-        results.append(CaseResult(c.case_id, c.expected.risk_level, list(c.expected.acceptable_levels), level,
-                                  c.expected.must_alert, level in _ALERT, out.latency_ms, c.origin.value))
-    m = Metrics(n=len(results), tp=0, fp=0, fn=0, tn=0, inconclusive=0, level_ok=0,
-                latencies_ms=[r.latency_ms for r in results])
-    for r in results:
-        m.inconclusive += r.obtained is RiskLevel.INCONCLUSIVE
-        m.level_ok += r.level_ok
-        if r.expected is RiskLevel.INCONCLUSIVE:
-            m.ambiguous_n += 1
-            m.ambiguous_level_ok += r.level_ok
-            m.ambiguous_alerted += r.alerted
-            continue
-        if r.must_alert and r.alerted:
-            m.tp += 1
-        elif not r.must_alert and r.alerted:
-            m.fp += 1
-        elif r.must_alert and not r.alerted:
-            m.fn += 1
-        else:
-            m.tn += 1
-    return results, m
+    results = [_case_result(c, run_case(c, pipeline)) for c in cases]
+    return _metrics_from(results)
 
 
 def _fmt(value: float | None) -> str:
@@ -180,27 +173,60 @@ class ConfigRun:
     name: str
     results: list[CaseResult]
     metrics: Metrics
-    cost_usd: float = 0.0
-    ai_calls: int = 0
-    ai_failures: int = 0
+    cost_usd: float | None = 0.0
+    ai_calls: int | None = 0
+    ai_failures: int | None = 0
+    ai_blocked: int = 0
+    ai_reused: int = 0
+    usage_missing: int = 0
+
+
+def _request_counter(pipeline: AnalysisPipeline) -> int | None:
+    # Este contador aumenta justo antes del transporte, después de reservar presupuesto.
+    # No se deducen solicitudes pagadas a partir de un resultado que también puede venir de caché.
+    from antifraude.ai.base import DisabledAi
+    from antifraude.ai.claude import ClaudeAnalyzer
+    if isinstance(pipeline.ai, DisabledAi):
+        return 0
+    if isinstance(pipeline.ai, ClaudeAnalyzer):
+        return pipeline.ai.guard.requests_sent
+    return None  # el protocolo genérico no promete telemetría de transporte
 
 
 def evaluate_config(name: str, cases: list[EvalCase], pipeline: AnalysisPipeline) -> ConfigRun:
-    """Ejecuta una configuración y suma el coste REAL registrado en ``usage`` (0 si no hubo IA)."""
+    """Mide transportes enviados y usage nuevo; caché/bloqueos no duplican consumo."""
     results: list[CaseResult] = []
-    cost, calls, failures = 0.0, 0, 0
+    cost, calls, failures, blocked, reused, missing = 0.0, 0, 0, 0, 0, 0
+    telemetry_known = True
+    local_blocks = {AiFailureReason.BUDGET_BLOCKED, AiFailureReason.LIMIT_EXCEEDED, AiFailureReason.BUSY}
     for c in cases:
+        before = _request_counter(pipeline)
         out = run_case(c, pipeline)
-        level = out.assessment.risk_level
-        results.append(CaseResult(c.case_id, c.expected.risk_level, list(c.expected.acceptable_levels), level,
-                                  c.expected.must_alert, level in _ALERT, out.latency_ms, c.origin.value))
-        if out.ai is not None and out.ai.status.value != "not_configured":
-            calls += 1
-            failures += out.ai.status.value == "failed"
-            if out.ai.usage is not None and out.ai.usage.cost_usd is not None:
-                cost += out.ai.usage.cost_usd
+        after = _request_counter(pipeline)
+        results.append(_case_result(c, out))
+        if out.ai is not None and out.ai.failure_reason in local_blocks:
+            blocked += 1
+        if before is None or after is None or after < before:
+            telemetry_known = False
+            continue
+        sent = after - before
+        calls += sent
+        if not sent:
+            if out.ai is not None and (out.ai.status is CheckStatus.DONE
+                                       or out.ai.failure_reason is AiFailureReason.REFUSAL):
+                reused += 1
+            continue
+        failures += sent if out.ai is not None and out.ai.status is CheckStatus.FAILED else 0
+        usage = out.ai.usage if out.ai is not None else None
+        if usage is not None and usage.cost_usd is not None:
+            cost += usage.cost_usd
+            missing += max(0, sent - 1)
+        else:
+            missing += sent
     _, metrics = _metrics_from(results)
-    return ConfigRun(name, results, metrics, round(cost, 6), calls, failures)
+    return ConfigRun(name, results, metrics, round(cost, 6) if telemetry_known else None,
+                     calls if telemetry_known else None, failures if telemetry_known else None,
+                     blocked, reused, missing)
 
 
 def _metrics_from(results: list[CaseResult]) -> tuple[list[CaseResult], Metrics]:
@@ -225,19 +251,46 @@ def _metrics_from(results: list[CaseResult]) -> tuple[list[CaseResult], Metrics]
     return results, m
 
 
-def metrics_dict(run: ConfigRun) -> dict[str, object]:
-    m = run.metrics
+def _quality_metrics(results: list[CaseResult], m: Metrics) -> dict[str, object]:
     pos, neg = m.tp + m.fn, m.fp + m.tn
+    expected_quotes = sum(r.expected_quotes for r in results)
+    matched_quotes = sum(r.matched_quotes for r in results)
     return {
-        "configuracion": run.name, "casos": m.n, "deben_alertar": pos, "legitimos": neg, "ambiguos": m.ambiguous_n,
-        "vp": m.tp, "fp": m.fp, "fn": m.fn, "vn": m.tn, "no_concluyente": m.inconclusive, "nivel_aceptable": m.level_ok,
+        "casos": m.n, "deben_alertar": pos, "legitimos": neg, "ambiguos": m.ambiguous_n,
+        "vp": m.tp, "fp": m.fp, "fn": m.fn, "vn": m.tn, "no_concluyente": m.inconclusive,
+        "tasa_no_concluyente": m.inconclusive / m.n if m.n else None,
+        "nivel_aceptable": m.level_ok,
+        "ambiguos_nivel_aceptable": m.ambiguous_level_ok, "ambiguos_con_alerta": m.ambiguous_alerted,
         "precision": m.precision, "recall": m.recall, "f1": m.f1, "tasa_fp": m.false_positive_rate,
+        "precision_ic95_wilson": wilson(m.tp, m.tp + m.fp),
         "recall_ic95_wilson": wilson(m.tp, pos), "tasa_fp_ic95_wilson": wilson(m.fp, neg),
         "latencia_ms_p50": m.percentile(0.5), "latencia_ms_p95": m.percentile(0.95),
-        "llamadas_ia": run.ai_calls, "fallos_ia": run.ai_failures, "coste_real_usd": run.cost_usd,
-        "nota_coste": ("suma del usage de las respuestas; las solicitudes sin usage (tiempo agotado, error) "
-                       "figuran en el libro de gasto con su cargo pesimista"),
+        "analisis_parciales": sum(r.partial for r in results),
+        "citas_esperadas": expected_quotes, "citas_esperadas_cubiertas": matched_quotes,
+        "cobertura_citas_esperadas": matched_quotes / expected_quotes if expected_quotes else None,
     }
+
+
+def metrics_dict(run: ConfigRun) -> dict[str, object]:
+    data = {"configuracion": run.name, **_quality_metrics(run.results, run.metrics),
+            "llamadas_ia": run.ai_calls, "fallos_ia": run.ai_failures,
+            "analisis_ia_bloqueados": run.ai_blocked, "respuestas_ia_reutilizadas": run.ai_reused,
+            "coste_real_usd": run.cost_usd if not run.usage_missing else None,
+            "coste_con_usage_usd": run.cost_usd,
+            "solicitudes_sin_coste_usage": run.usage_missing if run.ai_calls is not None else None,
+            "nota_coste": ("suma del usage de transportes nuevos, no una factura; caché excluida. "
+                           "Coste total null si falta usage o telemetría. Los errores sin usage mantienen "
+                           "el cargo pesimista en el libro de gasto."),
+            "nota_llamadas_ia": ("Contador de transportes CostGuard; sin inferir solicitudes de los hallazgos. "
+                                 "null para un adaptador sin telemetría verificable.")}
+    for field, key in (("origin", "por_origen"), ("medium", "por_medio")):
+        groups = {}
+        for value in sorted({getattr(r, field) for r in run.results}):
+            subset = [r for r in run.results if getattr(r, field) == value]
+            _, metrics = _metrics_from(subset)
+            groups[value] = _quality_metrics(subset, metrics)
+        data[key] = groups
+    return data
 
 
 def _git_commit() -> str | None:
@@ -246,6 +299,16 @@ def _git_commit() -> str | None:
         r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=_ROOT, capture_output=True, text=True,
                            timeout=10)
         return r.stdout.strip() or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _git_dirty() -> bool | None:
+    import subprocess
+    try:
+        result = subprocess.run(["git", "status", "--porcelain=v1", "--untracked-files=normal"],
+                                cwd=_ROOT, capture_output=True, text=True, timeout=10)
+        return bool(result.stdout.strip()) if result.returncode == 0 else None
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -266,6 +329,8 @@ def _inside_repo(path: Path) -> bool:
 def build_report(kind: str, runs: list[ConfigRun], *, model: str | None, sealed_sha256: str | None) -> dict[str, object]:
     """Informe reproducible (JSON). Sin textos de mensajes; en modo sellado, sin identificadores de casos."""
     from datetime import datetime, timezone
+    import platform
+    import sys
 
     from antifraude.ai.prompt import PROMPT_VERSION
     from antifraude.analysis.rules import RULE_VERSION
@@ -274,9 +339,14 @@ def build_report(kind: str, runs: list[ConfigRun], *, model: str | None, sealed_
         "tipo": kind,
         "aviso": ("Conjunto de DESARROLLO: el motor se ajustó con estos casos; NO es una evaluación independiente."
                   if kind == "desarrollo" else
-                  "Conjunto SELLADO ejecutado una vez con el commit congelado; métricas solo agregadas."),
+                  "Conjunto con huella declarada, métricas solo agregadas. La custodia, independencia "
+                  "y congelación del commit requieren verificación humana; el comando no las acredita."),
         "fecha_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "commit": _git_commit(), "rule_version": RULE_VERSION, "prompt_version": PROMPT_VERSION,
+        "commit": _git_commit(), "arbol_trabajo_sucio": _git_dirty(),
+        "python": sys.version.split()[0], "plataforma": platform.platform(),
+        "requirements_lock_sha256": _sha256(_ROOT / "requirements.lock")
+        if (_ROOT / "requirements.lock").is_file() else None,
+        "rule_version": RULE_VERSION, "prompt_version": PROMPT_VERSION,
         "modelo_ia": model, "sha256_conjunto": sealed_sha256,
         "configuraciones": [metrics_dict(r) for r in runs],
     }
@@ -297,7 +367,7 @@ def main(argv: list[str] | None = None) -> int:
     import json
 
     from antifraude.ai.claude import ClaudeAnalyzer
-    from antifraude.ai.budget import estimate_input_tokens, worst_case_cost
+    from antifraude.ai.budget import worst_case_cost
     from antifraude.core.config import Settings
     from antifraude.intel.entities import EntityDirectory
 
@@ -308,6 +378,23 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--salida", type=Path, help="Informe JSON (por defecto, eval/results/).")
     ap.add_argument("--confirmar-gasto", action="store_true", help="Necesario para cualquier modo con IA.")
     args = ap.parse_args(argv)
+
+    analyzer = None
+    policy = None
+    model = None
+    if args.modo in ("ia", "ambos"):
+        settings = Settings.from_env()
+        key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
+        analyzer = ClaudeAnalyzer(policy=settings.ai_policy(), api_key=key)
+        if not analyzer.configured:
+            print(f"IA no disponible: {analyzer.blocked_reason} No se ha gastado nada.")
+            return 3
+        if not args.confirmar_gasto:
+            print("Peor caso estimado: pendiente de validar el número de casos. "
+                  "Falta --confirmar-gasto: no se lee ningún conjunto ni se envía ninguna solicitud.")
+            return 3
+        policy = settings.ai_policy()
+        model = policy.model
 
     kind = "desarrollo"
     sha = None
@@ -331,34 +418,28 @@ def main(argv: list[str] | None = None) -> int:
         cases = load_cases([path])
         # La marca se escribe ANTES de ejecutar: si el proceso cae a mitad, el conjunto no puede repetirse (D-40).
         marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text("en curso", encoding="utf-8")
+        try:
+            with marker.open("x", encoding="utf-8") as opened:
+                opened.write("en curso")
+        except FileExistsError:
+            print("ERROR: este conjunto sellado ya está reservado para una ejecución (D-40).")
+            return 2
     else:
         cases = load_cases(sorted((_ROOT / "eval" / "datasets" / "dev").glob("*.jsonl")))
 
     directory = EntityDirectory.load_default(include_fictitious=True)
     runs: list[ConfigRun] = []
-    model = None
     if args.modo in ("reglas", "ambos"):
         runs.append(evaluate_config("reglas", cases, AnalysisPipeline(directory)))
-    if args.modo in ("ia", "ambos"):
-        settings = Settings.from_env()
-        key = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
-        analyzer = ClaudeAnalyzer(policy=settings.ai_policy(), api_key=key)
-        if not analyzer.configured:
-            print(f"IA no disponible: {analyzer.blocked_reason} No se ha gastado nada.")
-            return 3
-        policy = settings.ai_policy()
-        assert policy.model is not None
-        worst = worst_case_cost(policy.model, estimate_input_tokens("x" * 6000), policy.max_output_tokens) * len(cases)
+    if analyzer is not None:
+        assert policy is not None and model is not None
+        requests = min(len(cases), policy.max_requests)
+        worst = worst_case_cost(model, policy.max_input_tokens, policy.max_output_tokens) * requests
         print(f"Peor caso estimado: {worst} USD para {len(cases)} casos (límite autorizado {policy.budget_usd} USD; "
               f"máx. {policy.max_requests} solicitudes).")
         if worst > policy.budget_usd:
             print("AVISO: el presupuesto autorizado no cubre el peor caso de todos los casos: la IA se detendrá al "
                   "agotarlo y los casos restantes figurarán como «IA no disponible» (análisis parcial).")
-        if not args.confirmar_gasto:
-            print("Falta --confirmar-gasto: no se envía ninguna solicitud.")
-            return 3
-        model = policy.model
         runs.append(evaluate_config("reglas_ia", cases, AnalysisPipeline(directory, analyzer)))
 
     rep = build_report(kind, runs, model=model, sealed_sha256=sha)

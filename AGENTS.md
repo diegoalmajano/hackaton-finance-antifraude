@@ -1,5 +1,7 @@
 # AGENTS.md — Asistente antifraude
 
+> Estado vigente 09-11-2026: rules-0.3.3, 877 Python / 11 JS / 8 SDK simulados; cierre local sin push. Véase «Estado vigente — cierre técnico local» al final y docs/VERIFICACION_FINAL_MVP.md. Las cifras anteriores son historia fechada.
+
 ## Contexto y fuentes
 - Trabaja en español. Proyecto independiente para Hackfinance: prevención de estafas financieras en mensajes escritos; usuario final mayor o vulnerable. El usuario decide siempre.
 - Lee primero `docs/TRASPASO_CODEX.md` (estado comprobado el 08-11-2026), `docs/contexto/15_SEGUIMIENTO.md`, `docs/contexto/09_PENDIENTES.md` y, si existe, `docs/ACCESIBILIDAD_CODEX.md` (protocolo de accesibilidad pendiente). Arquitectura aprobada: `docs/adr/` (0001–0015); contratos: `backend/antifraude/contracts/`. SQLite (ADR-0008) no está implementado: el historial es solo de sesión.
@@ -24,6 +26,7 @@
   $env:AI_ENABLED='0'
   $env:AI_BUDGET_USD='0'
   $env:AI_ALLOW_OPUS='0'
+  $env:APP_GMAIL_ENABLED='0'
   $env:ANTIFRAUDE_PRUEBAS_REALES='0'
   $env:ANTIFRAUDE_PRUEBAS_REALES_GMAIL='0'
   Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
@@ -39,3 +42,19 @@
 - Añadir únicamente rutas explícitas. Sin `git add -A`, force-push, borrado de ramas, reescritura de historial ni comandos destructivos.
 - Nunca versionar `.env`, credenciales, tokens, claves, datos privados, resultados locales, entorno virtual ni ZIP temporales. `.env.example` es una plantilla sin secretos y no se carga automáticamente.
 - Mantener la memoria dentro del repositorio; actualizar seguimiento y pendientes al cerrar trabajo. No atribuir al usuario decisiones que aún no ha tomado.
+
+## Estado vigente — cierre técnico local del 09-11-2026
+
+La continuación autorizada del MVP parte de `dd3e4fb` y conserva el trabajo publicado anterior. Esta misión se consolida en un commit local revisado; **no hay autorización de push, release ni publicación nueva**. El prompt maestro posterior autoriza cambios técnicos, diseño final y commits locales revisados. Las instantáneas anteriores se conservan como historia.
+
+- `rules-0.3.3`: 38 regresiones nuevas de transferencias, OTP, inyección formal y negaciones. El motor mantiene sus cuatro niveles y los límites de pronombres/ingeniería social implícita.
+- Seguridad: uso remoto malformado conserva la reserva pesimista; libro de gasto inconsistente falla cerrado; caché separada por usuario y contexto. El control local no resiste el borrado o sustitución coherente de ambos libros por quien controla Windows: se necesita también límite externo de facturación antes de autorizar gasto.
+- Gmail unido al panel con consentimiento explícito, aislamiento por sesión, caducidad, guardia antes de cada página/lectura, desconexión y limpieza de credencial local. No envía sus mensajes a IA. `APP_GMAIL_ENABLED=0` por defecto. El JSON OAuth debe estar fuera del repositorio. Desconectar no revoca remotamente el permiso en Google; la revocación se hace en la cuenta.
+- Instalación autorizada **solo en el entorno temporal Gmail**: 53 paquetes fijados en `requirements-gmail.lock`, sin cambiar las 26 versiones base ni el `.venv` del proyecto. Ocho comprobaciones con SDK instalado, transporte/OAuth/keyring simulados y red vetada. **OAuth, keyring personal y buzón real no verificados ni autorizados.**
+- IA desactivada, presupuesto autorizado **0 USD**, Opus bloqueado, sin SDK Anthropic instalado ni llamadas reales. El piloto de Sonnet es una propuesta, no una autorización. No se cambia de proveedor.
+- Suite local: **877 passed, 4 skipped, 1 xfailed, 1 warning**; cuatro integraciones reales bloqueadas, pronombre conocido y aviso Starlette/httpx identificados. Las 11 pruebas JS y las 8 de SDK son comprobaciones separadas.
+- UI final visual en verde bosque/crema, resultado principal con nivel, explicación y recomendaciones; detalles secundarios accesibles. Navegador IAB: cuatro .eml, prioridad de archivo, error recuperable, niveles a 320 px y Gmail **SIMULADO** con consentimiento/alerta/desconexión/cierre. Sin infracciones CSP observadas en el recorrido. Esto no acredita accesibilidad completa.
+- Narrador audible, contraste elevado de Windows, recorrido manual completo de teclado y **zoom real 200 % del diseño final** siguen no verificados. Se conserva la confirmación humana de zoom de la versión anterior. No solicitar más pruebas manuales por ahora ni implementar voz.
+- Los 27 casos dev siguen siendo sintéticos y pendientes de revisión humana. 27/27 niveles aceptables en desarrollo no es evaluación independiente. Procedimiento independiente preparado; conjunto sellado no leído ni creado. Las evidencias deterministas no contienen las 62 citas literales esperadas por ese banco: se mide como cobertura 0/62, sin ocultarlo.
+
+Comprobaciones, instalación, artefactos y límites: `docs/VERIFICACION_FINAL_MVP.md`. Pendientes que requieren al usuario: cuenta de pruebas/GCP/OAuth, permiso específico de SDK y presupuesto de Claude, revisión humana/custodia del sellado, nombre y hora exacta de cierre del hackatón. No bloquean la demo manual local.

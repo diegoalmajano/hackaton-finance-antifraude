@@ -7,51 +7,32 @@
 </button>
 {% endblock %}
 {% block contenido %}
-<h1>Su panel de protección</h1>
+<div class="panel-intro"><h1>Su panel de protección</h1><p class="entradilla">Un mensaje, una explicación y un siguiente paso.</p></div>
 
 {% if demo_mode %}
 <p class="etiqueta-simulado" role="note"><span aria-hidden="true">🧪</span> MODO DEMOSTRACIÓN: incluye un banco inventado («Banco Ficticio») y ejemplos de prueba. No son mensajes reales.</p>
 {% endif %}
 
-<div class="rejilla">
-  <section class="tarjeta" aria-labelledby="titulo-estado">
-    <h2 id="titulo-estado">Estado de protección</h2>
-    <ul class="lista-estados" role="list">
-      <li class="estado" data-estado="ok">
-        <span class="icono" aria-hidden="true">✅</span>
-        <span><strong>Este navegador está conectado al asistente</strong> de forma segura.</span>
-      </li>
-      <li class="estado" data-estado="ok">
-        <span class="icono" aria-hidden="true">✅</span>
-        <span><strong>Revisar los mensajes que usted copie aquí:</strong> disponible.</span>
-      </li>
-      <li class="estado" data-estado="{{ 'ok' if ai_configured else 'info' }}">
-        <span class="icono" aria-hidden="true">{{ '✅' if ai_configured else 'ℹ️' }}</span>
-        <span><strong>Análisis con inteligencia artificial:</strong>
-          {% if ai_configured %}configurado.{% else %}no configurado; se usan las reglas y el análisis de enlaces.{% endif %}</span>
-      </li>
-      <li class="estado" data-estado="info">
-        <span class="icono" aria-hidden="true">ℹ️</span>
-        <span><strong>Revisión automática del correo (Gmail):</strong> todavía no disponible.</span>
-      </li>
-    </ul>
-  </section>
+<div class="rejilla panel-trabajo">
 
-  <section class="tarjeta" aria-labelledby="titulo-analizar">
+  <section class="tarjeta tarjeta-entrada" aria-labelledby="titulo-analizar">
     <h2 id="titulo-analizar">Analizar un mensaje</h2>
     <p>Copie y pegue aquí el texto de un correo o SMS que le parezca sospechoso. <strong>No abrimos ningún enlace.</strong></p>
     <form id="form-analizar" class="formulario" hx-post="/analizar" hx-target="#resultado"
           hx-swap="innerHTML" hx-encoding="multipart/form-data" hx-sync="this:replace"
           hx-indicator="#indicador-analisis" data-mensajes="#mensaje-analisis">
       <label for="texto-mensaje" class="etiqueta">Texto del mensaje</label>
-      <textarea id="texto-mensaje" name="texto" class="campo" rows="7" maxlength="100000"
+      <textarea id="texto-mensaje" name="texto" class="campo" rows="5" maxlength="100000"
                 aria-describedby="ayuda-analizar mensaje-analisis"></textarea>
       <p id="ayuda-analizar" class="ayuda">Puede incluir el asunto y el remitente si los tiene.</p>
+      <details class="desplegable archivo-opcional">
+        <summary>¿Prefiere importar un correo guardado (.eml)?</summary>
       <label for="archivo-eml" class="etiqueta">O bien, un correo guardado en el ordenador (archivo .eml)</label>
       <input id="archivo-eml" name="archivo" type="file" accept=".eml,message/rfc822" class="campo"
              aria-describedby="ayuda-archivo archivo-seleccionado mensaje-analisis">
       <p id="ayuda-archivo" class="ayuda">Si pega un texto y además elige un archivo, se analiza el archivo.</p>
       <p id="archivo-seleccionado" class="ayuda">No ha elegido ningún archivo.</p>
+      </details>
       <div class="acciones">
         <button type="submit" class="boton boton-principal">Analizar</button>
         <span id="indicador-analisis" class="indicador htmx-indicator" aria-hidden="true"><span>⏳</span> Analizando el mensaje…</span>
@@ -70,12 +51,19 @@
     {% endif %}
   </section>
 
-  <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-resultado">
+  <section class="tarjeta tarjeta-resultado" aria-labelledby="titulo-resultado">
     <h2 id="titulo-resultado">Resultado</h2>
     <div id="resultado">
       <p class="vacio"><span class="icono" aria-hidden="true">🔎</span> Cuando analice un mensaje, aquí verá el resultado y la explicación.</p>
     </div>
   </section>
+
+  <details class="tarjeta tarjeta-ancha opciones-secundarias" aria-labelledby="titulo-gmail"{% if gmail.enabled %} open{% endif %}>
+    <summary id="titulo-gmail">Su correo Gmail (opcional)</summary>
+    <div id="gmail-contenido">
+      {% include "partials/gmail.html" %}
+    </div>
+  </details>
 
   <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-alertas">
     <h2 id="titulo-alertas">Alertas de esta sesión</h2>
@@ -84,8 +72,8 @@
     </div>
   </section>
 
-  <section class="tarjeta tarjeta-ancha" aria-labelledby="titulo-niveles">
-    <h2 id="titulo-niveles">Cómo le indicamos el riesgo</h2>
+  <details class="tarjeta tarjeta-ancha opciones-secundarias" aria-labelledby="titulo-niveles">
+    <summary id="titulo-niveles">Cómo le indicamos el riesgo</summary>
     <p>Cada mensaje recibe uno de estos cuatro niveles. <strong>Esto es solo una explicación; no son resultados.</strong></p>
     <ul class="niveles" role="list">
       <li class="nivel" data-nivel="bajo"><span class="nivel-icono" aria-hidden="true">✅</span><span class="nivel-nombre">BAJO</span><span class="sr-solo">. </span><span class="nivel-texto">No hemos encontrado indicios de estafa.</span></li>
@@ -93,7 +81,29 @@
       <li class="nivel" data-nivel="alto"><span class="nivel-icono" aria-hidden="true">⛔</span><span class="nivel-nombre">ALTO</span><span class="sr-solo">. </span><span class="nivel-texto">Hay señales claras de estafa. No responda ni pulse enlaces.</span></li>
       <li class="nivel" data-nivel="no-concluyente"><span class="nivel-icono" aria-hidden="true">❔</span><span class="nivel-nombre">NO CONCLUYENTE</span><span class="sr-solo">. </span><span class="nivel-texto">No se ha podido determinar: no hemos podido comprobarlo todo. Antes de actuar, llame a su banco por su teléfono habitual.</span></li>
     </ul>
-    <p class="ayuda">Si algo parece sospechoso verá primero un <strong>aviso preventivo</strong> y, después de comprobarlo, el <strong>resultado definitivo</strong> con la explicación.</p>
-  </section>
+    <p class="ayuda">Si hay señales sospechosas verá un <strong>aviso preventivo</strong> junto al <strong>resultado definitivo</strong> al completar el análisis.</p>
+  </details>
+  <details class="tarjeta tarjeta-ancha opciones-secundarias" aria-labelledby="titulo-estado">
+    <summary id="titulo-estado">Estado de protección y límites</summary>
+    <ul class="lista-estados" role="list">
+      <li class="estado" data-estado="ok">
+        <span class="icono" aria-hidden="true">✅</span>
+        <span><strong>Este navegador está conectado al asistente</strong> de forma segura.</span>
+      </li>
+      <li class="estado" data-estado="ok">
+        <span class="icono" aria-hidden="true">✅</span>
+        <span><strong>Revisar los mensajes que usted copie aquí:</strong> disponible.</span>
+      </li>
+      <li class="estado" data-estado="{{ 'ok' if ai_configured else 'info' }}">
+        <span class="icono" aria-hidden="true">{{ '✅' if ai_configured else 'ℹ️' }}</span>
+        <span><strong>Análisis con inteligencia artificial:</strong>
+          {% if ai_configured %}configurado.{% else %}no configurado; se usan las reglas y el análisis de enlaces.{% endif %}</span>
+      </li>
+      <li class="estado" data-estado="info">
+        <span class="icono" aria-hidden="true">ℹ️</span>
+        <span><strong>Revisión automática del correo (Gmail):</strong> {% if gmail.enabled %}requiere autorización; se controla en la sección de Gmail.{% else %}todavía no disponible; pendiente de configuración y autorización.{% endif %}</span>
+      </li>
+    </ul>
+  </details>
 </div>
 {% endblock %}
