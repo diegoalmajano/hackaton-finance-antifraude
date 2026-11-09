@@ -49,8 +49,9 @@
       <p id="ayuda-analizar" class="ayuda">Puede incluir el asunto y el remitente si los tiene.</p>
       <label for="archivo-eml" class="etiqueta">O bien, un correo guardado en el ordenador (archivo .eml)</label>
       <input id="archivo-eml" name="archivo" type="file" accept=".eml,message/rfc822" class="campo"
-             aria-describedby="ayuda-archivo">
+             aria-describedby="ayuda-archivo archivo-seleccionado mensaje-analisis">
       <p id="ayuda-archivo" class="ayuda">Si pega un texto y además elige un archivo, se analiza el archivo.</p>
+      <p id="archivo-seleccionado" class="ayuda">No ha elegido ningún archivo.</p>
       <div class="acciones">
         <button type="submit" class="boton boton-principal">Analizar</button>
         <span id="indicador-analisis" class="indicador htmx-indicator" aria-hidden="true"><span>⏳</span> Analizando el mensaje…</span>

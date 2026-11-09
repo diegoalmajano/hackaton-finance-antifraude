@@ -34,7 +34,7 @@ Aplicación **local** en un único proceso de Python 3.12 (monolito modular, ADR
 | La IA no decide | Aporta evidencias con **citas literales verificadas**. El nivel lo fija el motor determinista (ADR-0006/0007) |
 | Mensajes = datos no confiables | Defensas frente a *prompt injection*: delimitadores aleatorios, sin herramientas ni red para el modelo, salida con esquema; los intentos de inyección cuentan como señal de riesgo |
 | Privacidad | Minimización antes de guardar o usar IA. El texto de los mensajes no se guarda. Los registros no contienen códigos, cookies, tokens ni contenido |
-| Accesibilidad | Español llano, texto y controles grandes, contraste ≥ 7:1, teclado, foco gestionado, icono + texto (nunca solo color) |
+| Accesibilidad | Español llano, texto y controles grandes, contraste de paleta medido y estados pendientes de revisión, teclado, foco gestionado, icono + texto (nunca solo color) |
 
 ## 3. Contratos
 Modelos Pydantic v2 en `backend/antifraude/contracts/` (fuente única, ADR-0003): `IncomingMessage`, `ScreeningResult`, `UrlAnalysis`, `AiFindings`, `Evidence`, `FraudAssessment`, `Alert`, `EvalCase`, `FinancialEntity`. Son inmutables, rechazan campos desconocidos y no repiten la entrada en los mensajes de error.
@@ -47,7 +47,7 @@ Modelos Pydantic v2 en `backend/antifraude/contracts/` (fuente única, ADR-0003)
 - Errores en español sin detalles técnicos. Las excepciones no controladas se registran sin su mensaje.
 
 ## 5. Calidad
-- **674 pruebas automáticas** (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto, IA y Gmail simulados), más 4 de integración real saltadas por defecto y 1 limitación conocida (`xfail`).
+- **746 pruebas Python automáticas** (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto, IA y Gmail simulados), más 4 de integración real saltadas por defecto y 1 limitación conocida (`xfail`).
 - Tres revisiones independientes con agentes de solo lectura (código, seguridad y accesibilidad), además de una revisión de etiquetas y una prueba adversarial. Cada hallazgo corregido tiene su prueba de regresión.
 
 ## 6. Qué es real, qué es simulado y qué falta

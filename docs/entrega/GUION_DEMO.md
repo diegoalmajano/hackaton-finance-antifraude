@@ -1,9 +1,9 @@
 # Guion de la demostración (≈ 5 minutos)
 
-> Reglas: la demo es la **versión entregada** (mismo commit que el ZIP). Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
+> Reglas: esta es una **preparación local sin publicar**, basada en `71c5917` más cambios pendientes. Antes de publicar, verificar que código y materiales correspondan a la misma versión. Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
 
 ## Preparación (antes de subir al escenario)
-1. Ordenador de la demo con Python 3.12 y el proyecto instalado según el README (probado desde el ZIP en una carpeta limpia).
+1. Ordenador de la demo con Python 3.12 y el proyecto instalado según el README (validación de la copia actual e instalación: ver seguimiento, H6).
 2. PowerShell:
    ```powershell
    cd <carpeta del proyecto>\backend
@@ -13,7 +13,7 @@
 3. Navegador en `http://127.0.0.1:8790/`, zoom al 125–150 % para que se lea desde la sala.
 4. Tener copiado en el portapapeles un mensaje de phishing de ejemplo **ficticio** (por ejemplo el de la sección «Texto libre» más abajo).
 5. Plan B: si el portátil falla, el mismo flujo en otro ordenador con el ZIP. No hay plan B «grabado».
-6. Resultados esperados (comprobados con `rules-0.3.0`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
+6. Resultados esperados (comprobados con `rules-0.3.2`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
 
 ## Desarrollo
 | Min. | Qué se hace | Qué se dice (idea) |
@@ -36,3 +36,23 @@ Banco Ficticio: hemos detectado un acceso no autorizado. Para evitar el bloqueo 
 - «Detecta todas las estafas», «99 % de acierto» o cualquier porcentaje no medido.
 - Presentar las métricas del conjunto de desarrollo como evaluación. Si se mencionan: «en nuestros 27 casos de desarrollo, sintéticos y con los que hemos ajustado el motor…».
 - Afirmar integración con Gmail, con bancos reales o con GPTadvisor.
+
+
+## Comprobación ampliada de la demo actual
+
+Use el bloque «Demo local sin IA» del README, que desactiva IA/presupuesto/Opus e integraciones reales y retira clave/modelo del proceso. No basta con activar APP_DEMO_MODE si la consola heredaba configuración de IA.
+
+Después de los tres botones, importe con teclado los archivos de `docs/entrega/ejemplos/`:
+
+| Archivo sintético | Resultado observado por HTTP local, rules-0.3.2 | Qué explicar |
+|---|---|---|
+| 01-sintetico.eml | BAJO | Aviso informativo sin peticiones sensibles |
+| 02-sintetico.eml | ALTO, parcial | Petición de claves y enlace que imita al banco |
+| 03-sintetico.eml | ALTO, parcial | Enlace engañoso, respuesta externa y autenticación simulada fallida |
+| 04-ambiguo-sintetico.eml | NO CONCLUYENTE, parcial | Un enlace acortado no se abre; no conocemos su destino |
+
+Los cuatro archivos tienen etiquetas sintéticas y dominios reservados. Sus cabeceras de autenticación son **simuladas**. La prueba HTTP local verifica que el archivo tiene prioridad aunque el texto pegado sea diferente; el selector y los anuncios en navegador/lector siguen en la matriz de accesibilidad.
+
+Probar también: envío vacío, archivo de extensión no admitida, corregir y analizar; revisar historial sin cuerpo del mensaje; cerrar sesión y comprobar que /panel exige volver a conectar. El aviso preventivo y el resultado se muestran juntos al completar el análisis local: no se presenta como una notificación asíncrona ya implementada.
+
+Límites relevantes para el jurado: P5 puede alertar en encuestas legítimas; P6 ya no atribuye al remitente una simple mención bancaria; P7 puede quedar NO CONCLUYENTE sin IA. Una descarga directa de ejecutable ahora pide precaución (R-64), sin afirmar que el archivo sea malware. El usuario confirmó zoom real 200 % en el escenario revisado; las comprobaciones de lector, contraste elevado y recorrido manual completo quedan no verificadas y diferidas por el usuario a la fase final indicada en `docs/ACCESIBILIDAD_CODEX.md`.

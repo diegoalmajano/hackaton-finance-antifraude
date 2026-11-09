@@ -44,6 +44,13 @@ class GmailAuthError(Exception):
     """Credenciales caducadas o revocadas (p. ej. refresh token de 7 días en modo Testing)."""
 
 
+class GmailQuotaError(Exception):
+    """Gmail ha limitado las consultas; no implica credenciales inválidas."""
+
+
+_QUOTA_USER_MESSAGE = "Gmail ha limitado las consultas. Lo intentaremos más tarde."
+
+
 class GmailClient(Protocol):
     """Subconjunto de la API de Gmail que usa el conector (implementación real pendiente)."""
 
@@ -117,6 +124,9 @@ class GmailConnector(InputAdapter):
     def fetch_new(self) -> Sequence[RawMessage]:
         try:
             ids = self._collect()
+        except GmailQuotaError:
+            self.status, self.last_error = ConnectorStatus.ERROR, _QUOTA_USER_MESSAGE
+            return []
         except GmailAuthError:
             self.status, self.last_error = ConnectorStatus.AUTH_ERROR, "Hay que volver a autorizar la cuenta de Gmail."
             return []
@@ -134,6 +144,11 @@ class GmailConnector(InputAdapter):
                 break
             try:
                 raw, received = self.client.get_raw_message(mid)
+            except GmailQuotaError:
+                # La cuota afecta al lote, no al contenido de este mensaje: no agotar sus intentos.
+                self._defer(queue[i:])
+                self.status, self.last_error = ConnectorStatus.ERROR, _QUOTA_USER_MESSAGE
+                return out
             except GmailAuthError:
                 self._defer(queue[i:])
                 self.status, self.last_error = ConnectorStatus.AUTH_ERROR, "Hay que volver a autorizar la cuenta de Gmail."

@@ -1,4 +1,4 @@
-# Limitaciones conocidas de la detección (reglas `rules-0.3.0`, sin IA)
+# Limitaciones conocidas de la detección (reglas `rules-0.3.2`, sin IA)
 
 > Estas limitaciones salen de tres pruebas adversariales de caja blanca: la de la misión 2 (unos 140 casos) y la de la misión 3 (unos 245). Las cifras de detección del conjunto de desarrollo **no** son una evaluación independiente (ver `eval/METODOLOGIA_INDEPENDIENTE.md`).
 
@@ -38,3 +38,19 @@
 - **No se ajustan reglas a frases concretas:** cada corrección es de patrón o del motor, y se comprueba contra mensajes legítimos del mismo informe.
 - **No se sube la detección a base de alarmas:** la urgencia sola ya no alerta (es una señal leve que solo corrobora señuelos), y las multas y deudas solo cuentan si llevan un enlace o un teléfono.
 - **Cuando falta información, se declara la incertidumbre** (NO CONCLUYENTE), no se inventa un nivel.
+
+
+## Revisión P5–P7 y R-64 para la demo local
+
+Casos reproducibles en `tests/test_b_pendientes_demo.py`, con DNS y conexiones bloqueados por la propia prueba. No se han cambiado etiquetas del conjunto dev ni se ha leído el sellado.
+
+| Pendiente | Comprobación y resultado actual | Tratamiento / impacto |
+|---|---|---|
+| P5 / R-60 | Banco Ficticio desde su dominio invita a encuesta en encuestas.example: MEDIO, parcial | Sigue abierto: el directorio no representa proveedores autorizados ni permite verificar que la encuesta sea legítima. Puede ser una falsa alarma. No se crea una excepción para remitentes oficiales; una petición de contraseña añadida da ALTO |
+| P6 / R-61 | Una revista menciona Banco Ficticio y enlaza a su propio artículo: NO CONCLUYENTE, parcial | Corregida la atribución mecánica: claimed_entity_id procede del nombre del remitente o del dominio oficial registrado, nunca solo de una mención en el cuerpo. Se mantiene la IA requerida ausente y no se concede BAJO. Peticiones sensibles, imitaciones y errores conservan sus mínimos; no es comprensión semántica de toda representación bancaria |
+| P7 / R-62 | Aviso informativo con acort.test: NO CONCLUYENTE, parcial y destino no comprobado | Límite deliberado de ADR-0005/0006/0015: no seguir el acortador ni dar BAJO cuando la IA requerida falta. El mismo texto puede preceder un destino legítimo o fraudulento. No se rebaja a BAJO ni se afirma que sea fraude |
+| R-64 | Enlace directo a archivo ejecutable, incluida .apk/.exe en ruta percent-encoded o con query: MEDIO por sí solo, parcial sin IA | Corregido para extensiones explícitas de ruta. Señal `url.executable_download`; recomienda no descargar desde el mensaje. Es un archivo potencialmente ejecutable, no prueba de malware. Un distribuidor legítimo también puede recibir MEDIO. Con petición de contraseña se corrobora ALTO incluso en dominio oficial |
+
+R-64 no inspecciona bytes ni Content-Type, no sigue redirecciones y no busca nombres dentro de query/fragmento: una descarga sin extensión, un archivo servido desde un acortador o doble codificación puede no detectarse. Documentos .pdf/.png, .exe.txt y extensiones solo en query/fragmento no disparan esta señal. Las 35 pruebas de este archivo incluyen estas contrapartidas y las regresiones de atribución P6. No se promete resolver toda la ingeniería social con reglas.
+
+P6 no autentica al remitente: el nombre y el campo From pueden falsificarse. La selección del dominio aporta contexto de comparación, no una excepción de confianza. No se infiere una identidad bancaria solo por una afirmación en el cuerpo; las señales de contenido y de imitación siguen analizándose. Casos ambiguos sin otras evidencias pueden quedar NO CONCLUYENTE cuando la IA requerida está ausente.

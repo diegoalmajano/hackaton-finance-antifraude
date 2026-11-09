@@ -2,7 +2,8 @@
 
 ## Contexto y fuentes
 - Trabaja en español. Proyecto independiente para Hackfinance: prevención de estafas financieras en mensajes escritos; usuario final mayor o vulnerable. El usuario decide siempre.
-- Lee primero `docs/TRASPASO_CODEX.md`, `docs/contexto/15_SEGUIMIENTO.md` y `docs/contexto/09_PENDIENTES.md`. Arquitectura aprobada: `docs/adr/` (0001–0015); contratos: `backend/antifraude/contracts/`.
+- Lee primero `docs/TRASPASO_CODEX.md` (estado comprobado el 08-11-2026), `docs/contexto/15_SEGUIMIENTO.md`, `docs/contexto/09_PENDIENTES.md` y, si existe, `docs/ACCESIBILIDAD_CODEX.md` (protocolo de accesibilidad pendiente). Arquitectura aprobada: `docs/adr/` (0001–0015); contratos: `backend/antifraude/contracts/`. SQLite (ADR-0008) no está implementado: el historial es solo de sesión.
+- Si encuentras cambios locales sin confirmar, no los descartes ni sobrescribas: pueden ser trabajo de otra sesión. Pregunta antes de incluirlos en un commit.
 - `CLAUDE.md` conserva contexto histórico y reglas del producto. Para el estado de la migración y la herramienta de desarrollo prevalecen este archivo y el traspaso. Las menciones antiguas a «sin push» quedaron superadas por la publicación autorizada del 08-11-2026.
 - Continúa en `feat/fase-0`. No accedas a proyectos de compañeros ni dependas de rutas externas para comprender el producto.
 
@@ -29,7 +30,7 @@
   Remove-Item Env:CLAUDE_MODEL -ErrorAction SilentlyContinue
   .\.venv\Scripts\python.exe -m pytest -ra
   ```
-- Línea base verificada el 08-11-2026: **674 passed, 4 skipped, 1 xfailed**. La limitación del pronombre «facilítesela» es conocida. Hay un aviso de deprecación de Starlette/httpx; no actualizar dependencias por ello en esta migración.
+- Línea base verificada de nuevo el 08-11-2026 a las 22:03 (HEAD `71c5917`): **674 passed, 4 skipped, 1 xfailed**. Las 4 saltadas son las integraciones reales de Claude y Gmail; no las actives. La limitación del pronombre «facilítesela» es conocida. Hay un aviso de deprecación de Starlette/httpx; no actualizar dependencias por ello en esta migración.
 - Ejecutar aplicación sin IA: desde `backend`, `..\.venv\Scripts\python.exe -m antifraude`. Demo sintética opcional con `APP_DEMO_MODE=1`; ver README.
 
 ## Forma de trabajar

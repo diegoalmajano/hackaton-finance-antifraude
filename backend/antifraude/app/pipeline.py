@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from antifraude.ai.base import AiAnalyzer, DisabledAi, verified_quotes
 from antifraude.analysis.ingest import IngestResult
-from antifraude.analysis.rules import screen
+from antifraude.analysis.rules import mentioned_entities, screen
 from antifraude.contracts.ai import AiFailureReason, AiFindings
 from antifraude.contracts.checks import CheckResult, CheckStatus
 from antifraude.contracts.messages import ExtractedUrl
@@ -65,8 +65,14 @@ class AnalysisPipeline:
     def run(self, ingested: IngestResult) -> AnalysisOutcome:
         t0 = perf_counter()
         message = ingested.message
-        screening, entities = screen(message, self.directory)
-        claimed = entities[0].entity_id if entities else None
+        screening, _ = screen(message, self.directory)
+        # Una mención en el cuerpo no afirma que el remitente sea esa entidad.
+        # El dominio oficial aporta contexto, nunca autenticación ni confianza absoluta.
+        claimed_names = mentioned_entities(message.sender.display_name or "", self.directory)
+        official_sender = (self.directory.official_entity_for_host(message.sender.domain)
+                           if message.sender.domain else None)
+        claimed = (claimed_names[0].entity_id if claimed_names
+                   else official_sender.entity_id if official_sender else None)
         url_analyses = [self._analyze_url(u, claimed) for u in message.urls]
 
         ai_findings: AiFindings | None = None

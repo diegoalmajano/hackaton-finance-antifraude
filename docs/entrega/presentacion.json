@@ -17,8 +17,8 @@
       "1. Aviso legítimo del banco → BAJO (sin falsas alarmas)",
       "2. Estafa evidente: bloqueo de cuenta + petición de claves → ALTO",
       "3. Estafa sofisticada: texto del enlace oficial pero destino ajeno, respuesta a otro dominio → ALTO",
-      "4. Mensaje pegado en directo",
-      "Todo con datos ficticios, etiquetados como «EJEMPLO SINTÉTICO»"]},
+      "4. Texto y archivo .eml; caso ambiguo: NO CONCLUYENTE, sin IA",
+      "Datos ficticios etiquetados; no hay llamadas a IA ni Gmail reales"]},
     {"titulo": "Por qué confiar en el resultado", "puntos": [
       "Sin porcentajes inventados: cuatro niveles claros, con icono y texto",
       "Cada resultado dice POR QUÉ (evidencias) y QUÉ NO SE PUDO COMPROBAR",
@@ -32,7 +32,7 @@
       "Elección Opus 5.5 / Sonnet 5.5 pendiente de medir calidad, coste y latencia"]},
     {"titulo": "Pensado para personas mayores", "puntos": [
       "Español llano, sin tecnicismos en la explicación principal",
-      "Texto y botones grandes, contraste alto (≥ 7:1), uso completo con teclado",
+      "Texto grande; zoom 200 % revisado en ejemplo 2; lector y contraste de Windows pendientes",
       "El riesgo nunca se comunica solo con color: siempre icono + texto + borde",
       "Recomendaciones concretas: «llame a su banco al teléfono de siempre»"]},
     {"titulo": "Seguridad y privacidad", "puntos": [
@@ -46,12 +46,12 @@
       "Control de gasto local: IA desactivada por defecto, presupuesto y límites; coste real aún sin medir",
       "Valor para el banco: menos fraude y más confianza de sus clientes vulnerables"]},
     {"titulo": "Calidad comprobada", "puntos": [
-      "674 pruebas automáticas (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto)",
-      "Revisiones independientes: código, seguridad, accesibilidad, etiquetas y pruebas adversariales",
+      "746 pruebas Python y 11 JS correctas; cuatro integraciones reales bloqueadas y una limitación conocida",
+      "Revisiones asistidas de código, seguridad y accesibilidad; validación manual aún parcial",
       "Métricas de DESARROLLO solo para ajustar (no son evaluación independiente)",
       "Metodología de evaluación independiente preparada (conjunto sellado pendiente)"]},
     {"titulo": "Estado y próximos pasos", "puntos": [
-      "Hoy: análisis manual completo, interfaz accesible y modo demostración",
+      "Hoy: análisis manual, interfaz en español, accesibilidad parcial y demo sintética",
       "Preparado y probado con simulaciones: IA (Claude) y Gmail",
       "Siguiente: Gmail real con OAuth, comparativa de modelos con presupuesto",
       "Después: completar dominios de bancos (hoy, registro del Banco de España), escritorio, voz (fase 2)"]},

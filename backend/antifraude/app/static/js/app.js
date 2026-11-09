@@ -15,11 +15,20 @@
   var ICONOS = { ok: "✅", info: "ℹ️", aviso: "⚠️", error: "⛔" };
   var PREFIJOS = { ok: "", info: "", aviso: "Aviso: ", error: "Error: " };
 
+  var anuncioPendiente = null;
+
   function anunciar(id, texto) {
+    // La única región de estado no debe recuperar una espera ya terminada.
+    window.clearTimeout(anuncioPendiente);
+    anuncioPendiente = null;
     var el = document.getElementById(id);
     if (!el) { return; }
     el.textContent = "";
-    window.setTimeout(function () { el.textContent = texto; }, 50);  // fuerza el anuncio
+    if (!texto) { return; }
+    anuncioPendiente = window.setTimeout(function () {
+      anuncioPendiente = null;
+      el.textContent = texto;
+    }, 50);  // fuerza el anuncio
   }
 
   function mostrar(selector, texto, tipo) {
@@ -117,6 +126,7 @@
     var xhr = evt.detail.xhr;
     var selector = destinoMensajes(evt.detail.elt);
     if (!xhr) { return; }
+    if (!evt.detail.successful && esAnalisis(evt.detail.elt)) { anunciar("estado-sr", ""); }
     if (xhr.status === 0) {
       if (selector) { mostrar(selector, MSG_SIN_CONEXION, "error"); }
       return;
@@ -132,7 +142,6 @@
         var campo = document.getElementById("codigo");
         if (campo) { campo.setAttribute("aria-invalid", "true"); campo.focus(); campo.select(); }
       }
-      if (esAnalisis(evt.detail.elt)) { anunciar("estado-sr", ""); }
     }
   });
 
@@ -147,12 +156,26 @@
   });
 
   document.addEventListener("htmx:timeout", function (evt) {
+    if (esAnalisis(evt.detail.elt)) { anunciar("estado-sr", ""); }
     var selector = destinoMensajes(evt.detail.elt) || "#aviso-global";
     mostrar(selector, "La operación está tardando demasiado. Inténtelo de nuevo en un momento.", "error");
   });
 
   document.addEventListener("htmx:sendError", function (evt) {
+    if (esAnalisis(evt.detail.elt)) { anunciar("estado-sr", ""); }
     mostrar(destinoMensajes(evt.detail.elt) || "#aviso-global", MSG_SIN_CONEXION, "error");
+  });
+
+  // El nombre nativo puede quedar recortado en ventanas estrechas.
+  // textContent mantiene cualquier nombre de archivo como texto no ejecutable.
+  document.addEventListener("change", function (evt) {
+    var campo = evt.target;
+    if (!campo || campo.id !== "archivo-eml") { return; }
+    var nombre = document.getElementById("archivo-seleccionado");
+    if (!nombre) { return; }
+    nombre.textContent = campo.files && campo.files.length
+      ? "Archivo seleccionado: " + campo.files[0].name
+      : "No ha elegido ningún archivo.";
   });
 
   document.addEventListener("DOMContentLoaded", cargarCsrf);

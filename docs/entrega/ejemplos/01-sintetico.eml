@@ -1,0 +1,25 @@
+From: Banco Ficticio <avisos@bancoficticio.example>
+To: destinatario@demo.example
+Subject: =?utf-8?q?=5BSINT=C3=89TICO=5D_Su_extracto_de_octubre_ya_est=C3=A1?=
+ disponible
+Authentication-Results: demo.example; spf=pass; dkim=pass; dmarc=pass
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+MENSAJE SINT=C3=89TICO PARA DEMOSTRACI=C3=93N.
+
+Hola:
+
+Le informamos de que su extracto mensual de octubre ya est=C3=A1 disponible e=
+n la aplicaci=C3=B3n de Banco Ficticio, en el apartado =C2=ABDocumentos=C2=BB.
+
+No necesita hacer nada m=C3=A1s. Si tiene dudas, puede llamarnos al tel=C3=A9=
+fono que figura en el reverso de su tarjeta o consultar la ayuda en www.banco=
+ficticio.example/ayuda.
+
+Recuerde: nunca le pediremos sus claves, contrase=C3=B1as ni c=C3=B3digos por=
+ correo electr=C3=B3nico, SMS o tel=C3=A9fono.
+
+Un saludo,
+Banco Ficticio

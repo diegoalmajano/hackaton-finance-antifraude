@@ -67,3 +67,20 @@ def test_lenguaje_mas_llano(harness: Harness) -> None:
     html = panel(harness)
     assert "archivo .eml" in html and "Si pega un texto y además elige un archivo" in html
     assert "Detalles técnicos" not in html
+
+
+def test_errores_asociados_a_sus_campos(harness: Harness) -> None:
+    html = harness.client.get("/emparejar").text
+    codigo = re.search(r'<input id="codigo"[^>]+>', html)
+    assert codigo and 'aria-describedby="ayuda-codigo mensaje-emparejar"' in codigo.group(0)
+    assert '<p id="mensaje-emparejar" class="mensaje" role="alert">' in html
+    html = panel(harness)
+    archivo = re.search(r'<input id="archivo-eml"[^>]+>', html)
+    assert archivo and 'aria-describedby="ayuda-archivo archivo-seleccionado mensaje-analisis"' in archivo.group(0)
+    assert '<p id="mensaje-analisis" class="mensaje" role="alert">' in html
+
+
+def test_estado_inicial_del_archivo_se_explica_en_texto(harness: Harness) -> None:
+    html = panel(harness)
+    assert '<p id="archivo-seleccionado" class="ayuda">' in html
+    assert 'No ha elegido ningún archivo.</p>' in html

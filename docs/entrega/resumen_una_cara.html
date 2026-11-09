@@ -46,7 +46,7 @@
 </div>
 <ul>
   <li><strong>Qué nivel de riesgo</strong> tiene el mensaje, siempre con icono y texto, nunca solo con color, y <strong>sin porcentajes inventados</strong>.</li>
-  <li><strong>Por qué</strong>: evidencias concretas con citas literales del mensaje. Y <strong>qué no se ha podido comprobar</strong>.</li>
+  <li><strong>Por qué</strong>: evidencias concretas; la IA opcional exige citas verificadas. Y <strong>qué no se ha podido comprobar</strong>.</li>
   <li><strong>Qué hacer</strong>: no compartir códigos y llamar al banco al teléfono de siempre. <strong>La decisión es siempre del usuario.</strong></li>
 </ul>
 
@@ -58,14 +58,14 @@
   <li><strong>Análisis pasivo de enlaces y remitente</strong>: dominios que imitan al banco, texto del enlace distinto de su destino, acortadores, respuestas a otro dominio y autenticación del correo.</li>
   <li><strong>IA (Claude), opcional</strong>: aporta contexto con citas verificadas literalmente. Nunca decide sola.</li>
   <li><strong>Motor de riesgo determinista</strong>: fija el nivel. <strong>Un error nunca da «BAJO»</strong>, y una petición de claves u OTP nunca se considera segura.</li>
-  <li><strong>Alertas en dos fases</strong>: un aviso preventivo inmediato y después el resultado explicado.</li>
+  <li><strong>Alertas en dos fases</strong>: aviso preventivo y resultado explicado al completar el análisis.</li>
 </ol>
 </div>
 <div>
 <h2>Por qué es diferente</h2>
 <ul>
   <li><strong>Explica y reconoce sus límites</strong>: separa el nivel, las evidencias y las incertidumbres.</li>
-  <li><strong>Pensado para personas mayores</strong>: texto y botones grandes, contraste alto, manejo completo con teclado y sin tecnicismos.</li>
+  <li><strong>Pensado para personas mayores</strong>: texto y botones grandes, contraste alto, recorrido de teclado revisado y sin tecnicismos.</li>
   <li><strong>Privacidad</strong>: funciona en el ordenador del usuario. Oculta códigos, tarjetas, IBAN, DNI y teléfonos antes de usar la IA, y no guarda el texto de los mensajes.</li>
   <li><strong>Seguro por diseño</strong>: no visita enlaces, resiste los mensajes que intentan manipular a la IA y protege el acceso local con un código de un solo uso, cookie segura, CSRF y CSP estricta.</li>
 </ul>
@@ -78,9 +78,9 @@
 <table>
   <tr><th>Funciona hoy (probado)</th><th>Preparado, probado solo con simulaciones</th><th>Pendiente</th></tr>
   <tr>
-    <td>Análisis manual (texto y <code>.eml</code>), enlaces, reglas, motor, alertas, interfaz accesible y modo de demostración con datos ficticios. 674 pruebas automáticas.</td>
+    <td>Análisis manual (texto y <code>.eml</code>), enlaces, reglas, motor, alertas, interfaz en español con accesibilidad parcialmente verificada y modo de demostración con datos ficticios. 746 pruebas Python y 11 pruebas JS.</td>
     <td>Cliente de Claude (con salida estructurada y citas verificadas) y conector de Gmail (lectura y sondeo de mensajes nuevos).</td>
-    <td>Conexión real con Gmail y Claude (credenciales y presupuesto; la IA está desactivada y con 0 USD autorizados), dominios completos de bancos reales (hoy, solo la web del registro del Banco de España) y evaluación independiente con un conjunto sellado.</td>
+    <td>Conexión real con Gmail y Claude (credenciales y presupuesto; la IA está desactivada y con 0 USD autorizados), dominios completos de bancos reales (hoy, solo la web del registro del Banco de España), evaluación independiente con un conjunto sellado y validación manual completa de accesibilidad.</td>
   </tr>
 </table>
 

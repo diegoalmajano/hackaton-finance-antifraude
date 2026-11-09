@@ -1,0 +1,25 @@
+From: Banco Ficticio - Seguridad <alertas@bancoficticio-verificacion.example>
+To: destinatario@demo.example
+Subject: =?utf-8?q?=5BSINT=C3=89TICO=5D_URGENTE=3A_su_cuenta_ser=C3=A1?=
+ bloqueada en 24 horas
+Authentication-Results: demo.example; spf=none; dkim=none; dmarc=none
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+MENSAJE SINT=C3=89TICO PARA DEMOSTRACI=C3=93N.
+
+Estimado cliente:
+
+Hemos detectado un acceso no autorizado a su cuenta. Por su seguridad, su cue=
+nta ser=C3=A1 bloqueada en 24 horas si no verifica sus datos.
+
+Para evitar el bloqueo, acceda al siguiente enlace e introduzca su usuario, s=
+u contrase=C3=B1a y el c=C3=B3digo que recibir=C3=A1 por SMS:
+
+http://bancoficticio-verificacion.example/acceso
+
+Si no completa la verificaci=C3=B3n, no podr=C3=A1 usar sus tarjetas.
+
+Departamento de Seguridad
+Banco Ficticio

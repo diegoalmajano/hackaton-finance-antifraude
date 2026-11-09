@@ -1,12 +1,12 @@
 # Integración con Gmail: estado y pasos para activarla
 
-> Estado (2026-11-08): **preparada, NO conectada**. La lógica está probada con un servicio de Gmail **simulado** (`tests/test_e_gmail_simulado.py`, `tests/test_e_gmail_api_simulada.py`). La parte de OAuth y keyring (`build_gmail_service`) está escrita pero **sin probar**, porque faltan las librerías y el cliente OAuth. No se ha accedido a ninguna cuenta real.
+> Estado (2026-11-08): **preparada, NO conectada**. La lógica está probada con un servicio de Gmail **simulado** (`tests/test_e_gmail_simulado.py`, `tests/test_e_gmail_api_simulada.py`, `tests/test_e_gmail_cuota.py`). La parte de OAuth y keyring (`build_gmail_service`) está escrita pero **sin probar**, porque faltan las librerías y el cliente OAuth. No se ha accedido a ninguna cuenta real.
 
 ## Piezas preparadas
 | Pieza | Archivo | Estado |
 |---|---|---|
 | Conector `history.list` (primera consulta sin leer el buzón antiguo, resincronización si el historyId caduca, deduplicación, SPAM, autorización caducada) | `connectors/gmail.py` | Probado (simulado) |
-| Adaptador de la API real (paginación, `format=raw`, traducción de errores 404/401/403) | `connectors/gmail_api.py` → `GmailApiClient` | Probado con un servicio simulado |
+| Adaptador de la API real (paginación, `format=raw`, traducción de errores 404/401/403/429) | `connectors/gmail_api.py` → `GmailApiClient` | Probado con un servicio simulado |
 | Sondeo en segundo plano con parada limpia | `connectors/gmail_api.py` → `GmailPoller` | Probado |
 | OAuth de app de escritorio (redirección loopback) + token en el keyring de Windows | `connectors/gmail_api.py` → `build_gmail_service` | **Sin probar** |
 | Ingesta común RFC 822 → pipeline | `analysis/ingest.py` → `from_raw` | Probado |
@@ -29,7 +29,7 @@
 ## Permisos mínimos
 - Solo `https://www.googleapis.com/auth/gmail.readonly`: leer mensajes y el historial. **No** se usan `gmail.modify` ni `gmail.send`; nada se marca como leído, se mueve ni se borra.
 - Cuotas (verificadas en la sesión 4, `12`): 6 000 unidades por minuto y usuario; `history.list` cuesta 2 y `messages.get` en formato `raw` cuesta 60. Con un sondeo cada 30 s y como máximo **40** mensajes por consulta (misión 3, antes 50), el peor caso es 2 × (2 + 40 × 60) = 4 804 unidades/min, por debajo del límite. Con 50 se llegaba a 6 004. El uso normal (pocos correos nuevos) es mucho menor.
-- Errores: 401/403 → «hay que volver a autorizar»; 404 del historial → resincronización con los 20 mensajes recientes (deduplicados); otros errores → estado «No se pudo consultar Gmail», y se reintenta en la siguiente consulta. Un 403 por límite de cuota se trata hoy como fallo de autorización (limitación conocida).
+- Errores: 401 y 403 desconocidos/de permisos conservan el tratamiento de autorización. Los 403 con motivos explícitos dailyLimitExceeded, rateLimitExceeded o userRateLimitExceeded, y los 429, se tratan como cuota: estado de error visible, lote detenido y mensajes pendientes conservados sin consumir intentos de descarga ni marcarlos vistos por ese motivo. 404 del historial → resincronización con los 20 mensajes recientes (deduplicados); otros errores → estado «No se pudo consultar Gmail». La siguiente consulta del sondeo puede reintentar; no hay bucle inmediato dentro del lote. R-69 corregido con simulaciones, sin acceso real.
 
 ## Prueba de integración real preparada
 `tests/integracion_real/test_gmail_real.py`: se salta salvo `ANTIFRAUDE_PRUEBAS_REALES_GMAIL=1`, con las librerías instaladas y `GMAIL_CLIENT_SECRET` apuntando al JSON fuera del repositorio. Ver `docs/PRUEBAS_INTEGRACION_REAL.md`.
@@ -42,3 +42,9 @@
 ## Limitaciones conocidas
 - Datos de un scope restringido: un producto comercial necesitaría verificación de Google y una evaluación CASA. Enviar fragmentos a la IA podría contar como «transmisión» (V-15). Prototipo académico: no afirmar que cumple esos requisitos.
 - Los correos de prueba pueden llegar a SPAM: el conector los incluye.
+
+
+## R-69: alcance comprobado sin cuenta real
+- 30 regresiones nuevas: cuota inicial, consulta del historial con pendientes y descarga parcial; conservación del cursor/cola, recuperación y deduplicación. JSON desconocido, mixto o malformado no se reclasifica como cuota; se limita el detalle remoto a 65 536 caracteres/bytes y no se muestra su mensaje.
+- Clasificación basada en la [documentación oficial de errores de Gmail](https://developers.google.com/workspace/gmail/api/guides/handle-errors). No implica haber consultado la API de Gmail.
+- Sigue pendiente antes de activar Gmail: OAuth/SDK/cuenta de pruebas, arranque desde la aplicación, alertas en panel y política de espera adaptativa/Retry-After. El sondeo actual conserva su intervalo fijo; esta corrección no implementa retroceso exponencial ni garantiza recuperación inmediata de cuotas diarias. Un 403 de política de dominio puede requerir intervención administrativa, no basta siempre con reautorizar.

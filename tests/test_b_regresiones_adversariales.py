@@ -7,8 +7,9 @@ que es el suelo de seguridad: con IA real los niveles solo pueden afinarse, nunc
 - Falsos positivos (sección B, P1–P4): consejos de seguridad y avisos legítimos deben ser BAJO.
 - Buenos casos (sección C): deben seguir resolviéndose igual.
 
-Limitación declarada: P5/P6 (enlaces de terceros en correos oficiales o que mencionan un banco) y P7
-(mensajes informativos que quedan en NO CONCLUYENTE sin IA) NO se han corregido; se documentan como riesgos.
+P5 (proveedores externos no representados) y P7 (incertidumbre sin IA) mantienen sus límites.
+P6: la atribución mecánica de menciones bancarias se corrigió después en rules-0.3.2;
+regresiones y alcance actual en test_b_pendientes_demo.py y LIMITACIONES_DETECCION.md.
 A12 depende de verificar los dominios reales de los bancos (V-27/T-10).
 """
 

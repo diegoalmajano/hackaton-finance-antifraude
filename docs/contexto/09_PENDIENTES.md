@@ -5,7 +5,7 @@
 ## 0. Autorizaciones pendientes del usuario para completar el MVP (sesión 6)
 - **IA real:** instalar `anthropic` (SDK oficial) + clave + **presupuesto** para la comparativa Opus/Sonnet (D-24, D-32).
 - **Gmail real:** proyecto GCP + OAuth «Desktop» + cuenta de pruebas (B-04) e instalar `google-auth-oauthlib`, `google-api-python-client`, `keyring`.
-- **Publicación:** push a GitHub (el ZIP oficial se descarga de GitHub). La copia local equivalente (`git archive`) ya se verificó en una carpeta limpia: 528 pruebas en verde y el servidor arranca.
+- **Publicación inicial:** completada; traspaso en `71c5917`. Futuros commits, push o PR requieren autorización específica. ZIP oficial de la versión final: pendiente; la prueba histórica de la copia local figura en el seguimiento.
 - **Revisión humana** de los 27 casos sintéticos (R-47) y de las dudas del agente de datos (dev-0009, dev-0025, dev-0027).
 - **Dominios bancarios reales** (V-27) y **nombre del producto** (A-07).
 - (sesión 6) Riesgos nuevos: R-55 dominio registrable aproximado **sin PSL** (lista corta de sufijos); R-56 reglas **solo en español** (inglés/catalán no se detectan por contenido; documentarlo); R-57 los casos dev se usaron para ajustar el motor → sus métricas no son evaluación; R-58 accesibilidad corregida solo por revisión estática (falta navegador real y lector de pantalla); R-59 HTML > 300 KB se analiza solo en parte (declarado).
@@ -14,7 +14,7 @@
   - R-61 (P6): un tercero que menciona un banco y pone un enlace sale MEDIO.
   - R-62 (P7): sin IA, los mensajes informativos con una sola señal media quedan en NO CONCLUYENTE.
   - R-63 (A12): **mitigado en la misión 3.** Hay 5 dominios del registro del Banco de España con cobertura parcial, y las imitaciones con el nombre del banco dan MEDIO, no ALTO. **Pendiente:** completar los dominios web y de correo con las fuentes de cada entidad (V-27, revisión humana).
-  - R-64 (A17): un enlace a `.apk`/`.exe` no es señal propia.
+  - R-64 (A17): **corregido de forma acotada en rules-0.3.1**: extensión de ejecutable en la ruta genera precaución; no inspecciona contenido ni sigue redirecciones. Límites y 29 regresiones: `docs/LIMITACIONES_DETECCION.md`.
 - (misión 3) Riesgos y pendientes nuevos:
   - R-66: el límite de gasto es **preventivo y local**; el efectivo es el de Anthropic Console. Fijarlo antes de autorizar gasto (`docs/CONTROL_COSTES_IA.md` §4).
   - R-67: el coste real por análisis, la latencia y los rechazos con Claude siguen **sin medir** (V-28).
@@ -83,3 +83,66 @@
 - Continuación con Codex según AGENTS.md y docs/TRASPASO_CODEX.md; ECC no se ejecuta ni se requiere.
 - Verificación local: 674 pruebas correctas, 4 saltadas y 1 fallo esperado; Anthropic desactivado, presupuesto 0 USD, ninguna llamada real durante el traspaso.
 - Las autorizaciones de IA/Gmail reales, revisión humana y evaluación independiente siguen pendientes. No se cambia el proveedor de IA de la aplicación.
+
+
+## Continuación con Codex — accesibilidad parcial, 08-11-2026
+- Git inicial: `feat/fase-0` limpia, HEAD y referencia local de origin en `71c5917`; no se consultó el remoto ni se publicó.
+- Línea base repetida: **674 passed, 4 skipped, 1 xfailed, 1 warning**; IA y pruebas reales desactivadas, presupuesto cero.
+- Siguiente pendiente concreto: **R-58/V-26**, accesibilidad del flujo local. Criterios y protocolo en [ACCESIBILIDAD_CODEX.md](../ACCESIBILIDAD_CODEX.md).
+- Contraste calculado sobre la paleta CSS: pares de texto/bordes revisados superan los objetivos; foco sobre cabecera requiere comprobar el conjunto contorno/halo y colores forzados. R-43/R-58/V-26 siguen abiertos.
+- No se ha operado un navegador ni lector de pantalla. Revisión humana R-47, integraciones reales y evaluación independiente siguen pendientes; conjunto sellado no leído.
+- Solo documentación en este bloque; sin cambios de comportamiento, dependencias, proveedor, commit, push ni PR.
+
+
+## Accesibilidad con Codex — navegador y correcciones, 08-11-2026
+- Conservados los cinco documentos locales pendientes al inicio; rama `feat/fase-0`, HEAD `71c5917`, sin commit/push/PR.
+- Corregidos A11Y-01 (anuncio de espera persistente tras fallos; cancelación de temporizadores) y A11Y-02 (asociar error al campo de conexión y selector de archivo). Cambios limitados a JS y dos plantillas, sin cambios de motor, proveedor ni seguridad.
+- Navegador local: salto, emparejamiento, Tab/Shift+Tab, validación vacía, análisis de texto/ejemplo, foco de resultado, desplegable con Espacio, desconexión real controlada y cierre con /panel protegido. Reflujo parcial a 320 px sin desbordamiento de página.
+- Python: **675 passed, 4 skipped, 1 xfailed, 1 warning**. JS opcional con Node ya instalado: **9 correctas**, DOM/temporizadores simulados (no lector de pantalla).
+- R-58/V-26/R-43/V-25 siguen abiertos: zoom real 200 %, lector de pantalla, colores forzados, cobertura completa de contraste, .eml en navegador/prioridad y cabeceras reales. El envío automatizado de .eml falló; causa sin confirmar, no se da por validado.
+- Evidencia y matriz vigente: [ACCESIBILIDAD_CODEX.md](../ACCESIBILIDAD_CODEX.md), sección «Segunda revisión». IA desactivada, presupuesto cero, integraciones reales bloqueadas; sin llamadas de pago ni lectura del sellado. Servidores propios y pestaña temporal cerrados.
+
+
+## Misión de versión demostrable: estado actual
+- R-64 corregido con análisis pasivo y contrapartidas legítimas; P5/P6 siguen siendo posibles falsas alarmas y P7 incertidumbre deliberada. Revisión delimitada en `docs/LIMITACIONES_DETECCION.md`, sin cambios de etiquetas ni lectura del sellado.
+- Usuario confirma manualmente bienvenida/panel, error vacío anunciado por Narrador, ejemplo 2 ALTO y zoom real 200 % legible/sin barra horizontal. No dar por superados anuncios de espera/resultado, teclado completo, CSP/cabeceras, versiones del lector/navegador ni contraste elevado. Matriz vigente: tercera revisión en `docs/ACCESIBILIDAD_CODEX.md`.
+- Instalación de pip/requirements.lock autorizada **solo** en el entorno temporal de la misión; completada y verificada. El entorno del repositorio y los archivos de dependencias no se modifican. No se autoriza ninguna integración real.
+- Meta **no completada** por las comprobaciones manuales obligatorias pendientes. Sin rediseño visual, commit, push, PR ni publicación.
+
+
+### Actualización: accesibilidad estrecha y navegador real
+A11Y-03/A11Y-04 corregidos: nombre completo de archivo y etiqueta NO CONCLUYENTE legible a 320 px. IAB verificó cuatro .eml, prioridad, errores y recuperación, recorrido automatizado de teclado, consola CSP y cabeceras reales de operaciones ensayadas (V-25 acotado). Matriz vigente: cuarta revisión de docs/ACCESIBILIDAD_CODEX.md. **710 Python correctas, 4 skipped, 1 xfailed; 11 JS correctas**. Materiales actualizados. Siguen pendientes Narrador audible completo, versiones, contraste Windows y comprobación manual nativa/zoom afectado. Sin rediseño definitivo ni publicación; meta abierta.
+
+
+## Decisión del usuario: accesibilidad diferida a fase final
+- No implementar lectura de pantalla propia, voz ni reproducción de audio. Se conserva compatibilidad básica con lectores mediante HTML semántico, etiquetas y atributos accesibles.
+- No dedicar más tiempo por ahora a Narrador ni solicitar pruebas manuales de accesibilidad. Los anuncios auditivos pendientes, el tema de contraste elevado y el recorrido manual completo siguen **no verificados**, no superados.
+- Simplificación visual y diseño definitivo reservados para la etapa final. La validación completa de accesibilidad/usabilidad se retomará antes de presentar el proyecto.
+- Estas comprobaciones **no bloquean el trabajo técnico autorizado actual**. Prioridad: detector, fiabilidad, seguridad y preparación de integraciones. Esto no autoriza APIs de pago, claves reales, OAuth real, SDK nuevos, cambiar proveedor ni publicación; continúan las restricciones existentes.
+
+
+## Estado técnico vigente tras R-69 y P6 (sin publicar)
+- `rules-0.3.2`: P6 corregido de forma acotada. Una mención bancaria en el cuerpo no se convierte en identidad del remitente; el nombre/dominio oficial aportan contexto sin autenticar ni crear una excepción de confianza. Cinco fallos reproducidos antes de corregir; 35 regresiones P5–P7/R-64 en verde después. P5 y P7 mantienen sus límites documentados.
+- R-69: 403 de cuota explícita y 429 separan cuota de autorización; se detiene el lote y se conservan pendientes sin agotar intentos de mensaje. 30 regresiones nuevas con servicio simulado, incluyendo historial/descarga/recuperación. SDK, OAuth y cuenta real siguen sin usar; espera adaptativa e integración al panel pendientes antes de activar Gmail.
+- Suite completa: **746 passed, 4 skipped, 1 xfailed, 1 warning** en 13,19 s; **11 JS correctas**. No nuevos skips ni etiquetas dev modificadas. Los 27 casos dev mantienen nivel aceptable 27/27 (VP14, FP0, FN0, VN10; tres ambiguos aparte): **desarrollo, no evaluación independiente**. Sellado no leído.
+- Accesibilidad manual auditiva, contraste elevado y recorrido completo: **no verificados**, diferidos por decisión del usuario a la fase final; no bloquean trabajo técnico. Se conservan controles semánticos; sin voz/audio ni rediseño definitivo.
+- IA/presupuesto/integraciones reales a cero, proveedor y entorno del proyecto conservados. Sin commit, push, PR ni publicación. Reproducción final y materiales se revalidan tras estas correcciones.
+
+
+### Cierre del bloque técnico autorizado actual
+- Reproducción final: `.mvp-build/clean-fuente-3`, 163 fuentes actuales seleccionadas, entorno temporal nuevo ya autorizado (sin reinstalar). **746 passed, 4 skipped, 1 xfailed, 1 warning** en 13,08 s; **11 JS correctas**. CLI real desde la copia: cuatro .eml BAJO/ALTO/ALTO/NO CONCLUYENTE, cierre protegido, desconexión y recuperación tras reiniciar. Todos los procesos propios terminados; códigos/tokens solo en memoria.
+- PPTX: 12 diapositivas; cambio de cifras renderizado e inspeccionado; paquete, geometría y reimportación correctos (validation5.json); todas las cadenas cotejadas con JSON. PDF: una página A4, 746/11 comprobados por extracción y render inspeccionado. Materiales coherentes, sin afirmar integración real ni accesibilidad completa.
+- Diff revisado: código, pruebas y fuentes/materiales; `git diff --check` sin errores. Se conserva el trabajo local previo; no hay archivos preparados en el índice. HEAD 71c5917 y rama feat/fase-0 conservados; sin commit/push/PR. Solo documentación de evidencia y comentario histórico se ajustaron después de la última suite; no cambió comportamiento.
+- **Bloque técnico actual completado**, con accesibilidad manual diferida expresamente por el usuario. No equivale a aprobación final para presentar: siguen no verificadas las pruebas auditivas, contraste elevado y recorrido manual completo, reservadas para la fase final. Sin más solicitudes manuales en esta fase.
+- Próximos trabajos fuera de este bloque: validación humana de casos, completar fuentes bancarias y evaluación independiente. SDK/OAuth/Gmail real o IA con presupuesto requieren autorización específica. Nada de ello se considera realizado ni se activa en este bloque.
+
+
+## Consolidación autorizada en GitHub privado — 09-11-2026
+El usuario autoriza un commit con el progreso revisado y push exclusivamente de feat/fase-0 a origin, sin force, merge ni cambios en main o visibilidad. Esta autorización sustituye para esta consolidación los avisos históricos de «sin autorización para commit/push»; no autoriza futuras publicaciones ni una nueva fase de desarrollo.
+
+Comprobaciones previas al commit:
+- Destino efectivo de fetch y push: https://github.com/diegoalmajano/hackaton-finance-antifraude.git. GitHub confirma visibility=private. Rama remota y HEAD inicial coinciden en 71c59178a9a20a8f55495d39399601c123c9357c; main solo existe localmente.
+- 37 archivos candidatos explícitos: 28 modificados y 9 nuevos; código, tests, AGENTS.md, documentación, cuatro correos sintéticos y materiales. Revisión de patrones y de contenido, incluido PDF extraído y miembros descomprimidos del PPTX: sin secretos reales detectados con este alcance. Sin objetos incrustados en el PPTX. No es garantía absoluta para cualquier formato de secreto.
+- Exclusiones comprobadas: .env y variantes, credenciales/tokens/clave privada, .venv, cachés, ZIP, temporales, exportaciones/mensajes privados y conjunto sellado. Los temporales de la misión permanecen fuera del repositorio y no se añaden; el sellado no se lee.
+- Revalidación: 746 passed, 4 skipped, 1 xfailed, 1 warning en 20,19 s y 11 JS correctas. Integraciones reales bloqueadas; IA=0, presupuesto=0, sin claves reales ni APIs de pago. Ningún cambio funcional nuevo en esta consolidación.
+- Se preparan solo rutas explícitas y se comprueba el índice antes del commit. El resultado del push y la coincidencia del commit local/remoto se verificarán al terminar; no se presupone su éxito en esta nota previa.

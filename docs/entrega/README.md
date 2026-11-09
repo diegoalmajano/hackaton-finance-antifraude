@@ -10,4 +10,12 @@
 
 Reglas: las cifras deben coincidir con la última ejecución de las pruebas. No se incluyen estadísticas externas sin verificar. Las métricas del conjunto de desarrollo no se presentan como evaluación independiente. Claude y Gmail reales no se presentan como funcionando hasta verificarlos.
 
-El ZIP oficial evaluado es el que se descarga de GitHub tras el push (pendiente de autorización). Para un ZIP local equivalente: `git archive --format=zip -o antifraude.zip HEAD`.
+La publicación inicial ya se completó. El 09-11-2026 el usuario autorizó consolidar esta revisión en un commit y subir solo feat/fase-0 al mismo repositorio privado. Antes de confirmar los cambios, git archive HEAD solo empaqueta el commit anterior; las comprobaciones de esta revisión utilizaron una copia temporal con las fuentes actuales.
+
+
+## Revisión local preparada para consolidación
+- PPTX de 12 diapositivas: corregido sobre la presentación existente con Artifact Tool del runtime ya disponible. Se conservaron tamaños, diseño y tipografías, se inspeccionaron las 12 diapositivas renderizadas y pasaron validación de paquete/geometría y reimportación. No se ha abierto en PowerPoint en esta revisión. `presentacion.json` conserva el contenido actualizado para regeneración con el script existente.
+- PDF: actualizado desde el HTML con ReportLab del runtime incluido, sin instalar paquetes en el proyecto. Una página A4, texto extraído comprobado y render PNG inspeccionado. La maquetación tiene pequeñas diferencias respecto a la impresión HTML original. El HTML sigue siendo la fuente de contenido.
+- Ambos materiales reflejan 746 pruebas Python y 11 JS, IA/Gmail reales sin activar y accesibilidad parcial. No afirman conformidad WCAG general.
+- Los `.eml` de `ejemplos/` son exclusivamente sintéticos. Su resultado HTTP se verifica en `tests/test_demo_http_local.py`; las cabeceras de autenticación de esos ejemplos son simuladas.
+- `git archive HEAD` **no** incluye las correcciones locales sin commit: no usarlo como entrega actual. La copia temporal de verificación incluye únicamente fuentes publicables seleccionadas explícitamente, con los cambios actuales y sin entorno virtual ni archivos ignorados. Su evidencia y los límites de instalación se registran en el seguimiento. No se genera ni se versiona un ZIP temporal. La autorización actual solo cubre el commit y push de esta revisión; registro de comprobaciones en el seguimiento.

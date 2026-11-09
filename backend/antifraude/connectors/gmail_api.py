@@ -13,6 +13,7 @@ Solo lectura (scope ``gmail.readonly``). Nada se marca como leído ni se modific
 
 from __future__ import annotations
 
+import json
 import threading
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -23,6 +24,7 @@ from antifraude.connectors.gmail import (
     GmailAuthError,
     GmailConnector,
     GmailHistoryExpired,
+    GmailQuotaError,
     decode_gmail_raw,
 )
 from antifraude.contracts.messages import RawMessage
@@ -46,10 +48,33 @@ def _status_of(exc: Exception) -> int | None:
         return None
 
 
+_QUOTA_REASONS = frozenset({"dailyLimitExceeded", "rateLimitExceeded", "userRateLimitExceeded"})
+_MAX_ERROR_CONTENT = 65_536
+
+
+def _is_quota_403(exc: Exception) -> bool:
+    """Solo motivos explícitos de cuota; JSON remoto acotado, nunca mensajes ni logs."""
+    content = getattr(exc, "content", None)
+    if not isinstance(content, (str, bytes, bytearray)) or len(content) > _MAX_ERROR_CONTENT:
+        return False
+    try:
+        payload = json.loads(content)
+    except (ValueError, UnicodeError, RecursionError):
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    details = error.get("errors") if isinstance(error, dict) else None
+    return isinstance(details, list) and bool(details) and all(
+        isinstance(item, dict) and isinstance(item.get("reason"), str)
+        and item["reason"] in _QUOTA_REASONS for item in details
+    )
+
+
 def _translate(exc: Exception) -> Exception:
     status = _status_of(exc)
     if status == 404:
         return GmailHistoryExpired()
+    if status == 429 or (status == 403 and _is_quota_403(exc)):
+        return GmailQuotaError()
     if status in (401, 403):
         return GmailAuthError()
     return exc

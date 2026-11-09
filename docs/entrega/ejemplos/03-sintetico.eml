@@ -1,0 +1,53 @@
+From: Banco Ficticio =?utf-8?q?=C2=B7?= Su gestor personal
+ <gestor.personal@bancoficticio.example>
+To: destinatario@demo.example
+Subject: =?utf-8?q?=5BSINT=C3=89TICO=5D_Actualizaci=C3=B3n?= del servicio de
+ banca a distancia
+Reply-To: gestor.bancoficticio@correo-gratuito.example
+Authentication-Results: demo.example; spf=softfail; dkim=none; dmarc=fail
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============3418616973079323098=="
+
+--===============3418616973079323098==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+MENSAJE SINT=C3=89TICO PARA DEMOSTRACI=C3=93N.
+
+Buenos d=C3=ADas:
+
+Como cada a=C3=B1o, estamos revisando los dispositivos autorizados para opera=
+r con su banca a distancia. Seg=C3=BAn nuestros registros, su dispositivo act=
+ual todav=C3=ADa no figura en el nuevo sistema de verificaci=C3=B3n.
+
+Puede completar el registro con tranquilidad cuando le venga bien durante est=
+a semana desde nuestra web: www.bancoficticio.example
+
+Una vez dentro, el sistema le pedir=C3=A1 que confirme su identidad con sus d=
+atos habituales de acceso.
+
+Si lo prefiere, puede responder a este correo y le ayudar=C3=A9 personalmente.
+
+Atentamente,
+Su gestor personal
+Banco Ficticio
+
+--===============3418616973079323098==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<p>MENSAJE SINT=C3=89TICO PARA DEMOSTRACI=C3=93N.</p><p>Buenos d=C3=ADas:</p>=
+<p>Como cada a=C3=B1o, estamos revisando los dispositivos autorizados para op=
+erar con su banca a distancia. Seg=C3=BAn nuestros registros, su dispositivo =
+actual todav=C3=ADa no figura en el nuevo sistema de verificaci=C3=B3n.</p><p=
+>Puede completar el registro con tranquilidad cuando le venga bien durante es=
+ta semana desde nuestra web: <a href=3D"https://bancoficticio.example.validac=
+ion-dispositivos.test/inicio">www.bancoficticio.example</a></p><p>Una vez den=
+tro, el sistema le pedir=C3=A1 que confirme su identidad con sus datos habitu=
+ales de acceso.</p><p>Si lo prefiere, puede responder a este correo y le ayud=
+ar=C3=A9 personalmente.</p><p>Atentamente,<br>Su gestor personal<br>Banco Fic=
+ticio</p>
+
+--===============3418616973079323098==--

@@ -14,7 +14,7 @@ import ipaddress
 import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 from uuid import UUID
 
 from antifraude.analysis.text import fold
@@ -41,6 +41,8 @@ SHORTENERS = frozenset({
 
 STANDARD_PORTS = {None, 80, 443}
 SIMILARITY_THRESHOLD = 0.8
+# Solo la extensión del último componente de la ruta; no consulta ni fragmento.
+_EXECUTABLE_PATH = re.compile(r"\.(?:apk|exe|msi|scr|com|bat|cmd|ps1|hta|jar|vbs|vbe|js|jse|pif|lnk)$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -288,6 +290,11 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
                                     "El enlace escribe la dirección de una entidad antes de una «@», pero lleva a otra web.",
                                     f"{brand_hit} en la parte de usuario de la URL"))
     path = urlsplit_path(url.raw)
+    if _EXECUTABLE_PATH.search(unquote(path)):
+        findings.append(_signal("url.executable_download", Severity.HIGH,
+                                "El enlace apunta a un archivo que puede instalar o ejecutar un programa. "
+                                "No lo descargue desde el mensaje; compruébelo por un canal conocido.",
+                                "extensión de ejecutable en la ruta del enlace (sin descargar el archivo)"))
     if path and official is None and not lookalike_of:
         in_path = _brand_mentioned(path, directory, domains_only=True)
         if in_path:

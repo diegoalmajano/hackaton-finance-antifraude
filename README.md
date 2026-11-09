@@ -17,7 +17,7 @@ Para continuar el desarrollo con Codex: [guía de traspaso](docs/TRASPASO_CODEX.
 Abra PowerShell en la carpeta del proyecto (la que contiene este README):
 ```powershell
 py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock
 ```
 - `requirements.txt` contiene las dependencias de ejecución, con versiones exactas.
 - `requirements-dev.txt` añade las de pruebas.
@@ -93,7 +93,7 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **674 pruebas en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`. También pasan desde una copia limpia del proyecto (sin `.git`), como la que se descarga en ZIP.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **746 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
 
 ## 6. Seguridad y privacidad (resumen)
 - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y no hay recursos externos.
@@ -108,7 +108,7 @@ Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuraci�
 | Análisis **pasivo** de enlaces (dominios parecidos, texto visible ≠ destino, acortadores, IP, punycode) | Implementado y probado |
 | Motor de riesgo determinista (4 niveles, sin porcentajes; un error nunca da BAJO) | Implementado y probado |
 | Alertas preventiva y definitiva con explicación, evidencias, incertidumbres y recomendaciones | Implementado y probado |
-| Interfaz accesible en español con sesión segura | Implementada; prueba manual en navegador hecha; pendientes: CSP en consola, teclado completo, zoom 200 % y contraste medido |
+| Interfaz en español con sesión segura | Verificación parcial de teclado, foco y reflujo; usuario confirma zoom real 200 % en el escenario probado. Lector completo y colores forzados pendientes. Matriz: `docs/ACCESIBILIDAD_CODEX.md` |
 | Análisis con Claude | Implementado y probado **con respuestas simuladas**; sin llamadas reales (falta autorizar la librería y el presupuesto). **Gasto real: 0 USD** |
 | Control de gasto de la IA | Implementado y probado con clientes simulados (31 pruebas) |
 | Gmail | Conector implementado y probado con un **Gmail simulado**; conexión real **bloqueada** (credenciales OAuth y librerías no autorizadas) |
@@ -138,9 +138,32 @@ Documentación útil:
 ## 8. Estructura
 ```
 backend/antifraude/   aplicación (contracts, core, connectors, analysis, intel, ai, risk, app)
-backend/data/         directorio de entidades (reales pendientes de verificar + ficticias de prueba)
+backend/data/         directorio de entidades (cinco webs verificadas, cobertura parcial + ficticias de prueba)
 eval/                 banco de evaluación (casos sintéticos de desarrollo)
 tests/                pruebas automáticas
 docs/                 ADR, contexto del proyecto, configuración y dependencias
 vendor/htmx/          htmx 2.0.11 (servido localmente)
 ```
+
+
+## Demo local sin IA: configuración explícita
+Desde la raíz del proyecto, en una consola PowerShell nueva:
+```powershell
+$env:AI_ENABLED='0'
+$env:AI_BUDGET_USD='0'
+$env:AI_ALLOW_OPUS='0'
+$env:ANTIFRAUDE_PRUEBAS_REALES='0'
+$env:ANTIFRAUDE_PRUEBAS_REALES_GMAIL='0'
+Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
+Remove-Item Env:CLAUDE_MODEL -ErrorAction SilentlyContinue
+$env:APP_DEMO_MODE='1'
+cd backend
+..\.venv\Scripts\python.exe -m antifraude
+```
+Abra `http://127.0.0.1:8790/`, pulse Empezar e introduzca el código de esa consola. Los tres botones son ejemplos sintéticos. Para probar archivos use `docs/entrega/ejemplos/01-sintetico.eml` a `03-sintetico.eml` (BAJO, ALTO, ALTO) y `04-ambiguo-sintetico.eml` (NO CONCLUYENTE). Si hay texto y archivo, el archivo tiene prioridad. Los campos Authentication-Results de esos archivos son datos de prueba, no autenticación real de correo. No abra sus enlaces. Guion completo: `docs/entrega/GUION_DEMO.md`.
+
+Para repetir las pruebas JavaScript adicionales desde la raíz, si Node ya está instalado:
+```powershell
+node --test tests/ui/test_accesibilidad.cjs
+```
+Son once pruebas con DOM/temporizadores simulados; no sustituyen la verificación manual del lector ni requieren Node para ejecutar la aplicación. La suite Python incluye cinco pruebas HTTP contra Uvicorn real en loopback, con claves de sesión solo en memoria.

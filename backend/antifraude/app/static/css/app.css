@@ -207,3 +207,11 @@ input[type="file"]::file-selector-button {
   border-radius: 10px; cursor: pointer;
 }
 #t-resultado:focus { outline: 4px solid var(--texto); outline-offset: 4px; }
+
+#archivo-seleccionado { overflow-wrap: anywhere; }
+
+/* Conserva espacio para leer el nombre completo del nivel a 320 px. */
+@media (max-width: 40rem) {
+  .alerta { padding: 0.75rem 0.5rem; }
+  .alerta .nivel-nombre { letter-spacing: 0; }
+}

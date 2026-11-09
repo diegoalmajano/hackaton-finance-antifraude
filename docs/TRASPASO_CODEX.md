@@ -1,63 +1,185 @@
-# Traspaso de Claude Code/ECC a Codex — 08-11-2026
+# Traspaso a Codex — estado comprobado el 08-11-2026 (22:03, hora peninsular)
 
-## Resultado y alcance
-La herramienta de desarrollo pasa a Codex. No se cambia el proveedor de IA de la aplicación, sus contratos, dependencias ni funcionamiento. ECC queda como configuración histórica local; no hace falta ejecutarlo ni desinstalarlo para continuar.
+> Actualización 09-11-2026: versión local rules-0.3.2, 746 pruebas Python y 11 JS; consolidación y push de feat/fase-0 autorizados expresamente. Los estados Git anteriores son instantáneas históricas. Véase el registro de consolidación al final.
 
-Repositorio privado: https://github.com/diegoalmajano/hackaton-finance-antifraude
-Rama de trabajo: `feat/fase-0`.
-Ruta local existente: `C:\Users\dialm\Desktop\hackaton-finance-antifraude`.
-Primer push verificado: `58bc5f9cb0180dee898bf16766d582ffbf5b129c`, sin forzar, solo esta rama, sin etiquetas. No se publicó `main`.
+> Este documento sustituye al traspaso inicial del mismo día (commit `71c5917`). Todo lo marcado «comprobado» se ha verificado en esta revisión; lo histórico se indica como tal.
 
-## Revisión antes de publicar
-- Árbol de trabajo limpio y remoto GitHub privado confirmado mediante el conector de GitHub.
-- Remoto inicialmente sin ramas; los **28 commits** de `feat/fase-0` eran locales (no solo los 9 de la misión 3).
-- Revisión de los **316 blobs únicos** y **153 rutas históricas** alcanzables desde la rama: sin rutas de `.env` real, credenciales, claves privadas o ZIP; la plantilla `.env.example` sí se versiona.
-- Búsqueda por patrones de tokens de proveedores, claves privadas, asignaciones de credenciales y URL con contraseña. Las 16 coincidencias revisadas eran textos de error, una ruta de ejemplo y claves ficticias de pruebas. No se detectaron secretos reales con este alcance; no es una garantía absoluta sobre todo formato de secreto.
-- Exclusiones verificadas: `.env`, `.env.local`, `credentials*.json`, `client_secret*.json`, `token*.json`, `secrets/`, `.claude/settings.local.json` y `dist/antifraude_58bc5f9.zip`. El ZIP temporal permanece local; no se elimina ni se publica. Se añade `*.zip` como protección para futuras copias fuera de `dist/`.
-- No se copian credenciales ni configuración privada a Codex. No se reescribe historial.
+## 1. Repositorio y Git (comprobado)
+- Ruta local: `C:\Users\dialm\Desktop\hackaton-finance-antifraude`. Repositorio privado: https://github.com/diegoalmajano/hackaton-finance-antifraude
+- Rama de trabajo: `feat/fase-0`. El nombre es histórico: el proyecto está mucho más allá de la «fase 0».
+- El remoto se consultó con `git ls-remote --heads origin`. `origin` solo tiene `refs/heads/feat/fase-0` = `71c59178a9a20a8f55495d39399601c123c9357c`.
+- HEAD local = `71c5917` = `origin/feat/fase-0`: **0 commits pendientes de subir y 0 por bajar**.
+- `main` existe solo en local, con el commit inicial de documentación, y **no está publicada**.
+- Cambios locales **sin confirmar ni publicar**, de una sesión de Codex posterior a `71c5917`. Son solo documentación:
+  - `docs/contexto/09_PENDIENTES.md` y `docs/contexto/15_SEGUIMIENTO.md`: nota de publicación y bloque «Continuación con Codex — accesibilidad parcial».
+  - `docs/ACCESIBILIDAD_CODEX.md` (sin seguimiento): contraste calculado sobre la paleta CSS y protocolo de aceptación de accesibilidad.
+  - No se han modificado en esta revisión. Decidir con el usuario si se confirman.
+- Ignorados locales, que no se publican:
+  - `dist/antifraude_58bc5f9.zip`: ZIP de `58bc5f9`; `71c5917` solo añade documentación.
+  - `eval/results/`: un informe de desarrollo.
+  - `.claude/` y `.pytest_cache/`.
 
-## Arquitectura que se conserva
-Python 3.12, FastAPI, Pydantic v2; monolito modular con UI HTML/Jinja/htmx vendorizado. Fuentes de verdad: `docs/adr/` y contratos Pydantic. SQLite/keyring son decisiones de arquitectura; no asumir que toda la persistencia y los flujos reales están terminados.
+## 2. Avances
+- **Desde `71c5917`:** ningún commit. Solo los cambios de documentación sin confirmar del punto 1. No hay cambios de código ni de comportamiento.
+- **Hasta `71c5917`** (histórico; detalle en `docs/contexto/15_SEGUIMIENTO.md`):
+  - Misión 1 (`4c96eaa`…`6d76468`): motor, IA simulada, interfaz de análisis, Gmail simulado y entregables preliminares.
+  - Misión 2 (`63c66cf`…`aac5fb8`): auditoría de la API de Claude, adaptador de Gmail, revisión de etiquetas, regresiones adversariales, PPTX, PDF, y prueba desde ZIP.
+  - Misión 3 (`6dbfea3`…`58bc5f9`): control de gasto de la IA, correcciones de seguridad, `rules-0.3.0`, dominios bancarios del Banco de España, ejecutor de evaluación y pruebas de integración real preparadas.
+  - `71c5917`: traspaso a Codex, `AGENTS.md` y `*.zip` en `.gitignore`.
 
-Flujo: conector manual/.eml o simulado → ingesta y minimización → reglas `rules-0.3.0` → enlaces pasivos/directorio bancario → analizador IA opcional → motor determinista → alertas preventiva y definitiva.
-
-| Área | Estado comprobado |
+## 3. Fase real
+| Estado | Qué |
 |---|---|
-| Ingesta, reglas, enlaces, riesgo, UI local y alertas | Implementados y probados localmente |
-| Claude | Adaptador y control de gasto probados con simulaciones; API real sin verificar y desactivada |
-| Gmail | Conector/adaptador/poller probados con simulaciones; OAuth real y librerías pendientes |
-| Bancos | Cinco webs corporativas con cobertura parcial; falta completar/verificar dominios de correo |
-| Evaluación | Ejecutor y metodología preparados; cifras dev no independientes; revisión humana y conjunto sellado pendientes |
-| Entrega | PPTX/PDF/guion existentes; revisar coherencia con la versión final y descargar ZIP oficial desde GitHub cuando corresponda |
-| Escritorio, bandeja y avisos nativos | No implementados; alcance opcional |
+| Implementado y probado localmente | Análisis manual de texto y `.eml`, minimización, reglas `rules-0.3.0`, enlaces pasivos, directorio de entidades, motor determinista de 4 niveles, alertas en 2 fases, UI local segura en español, modo demo sintético, control de gasto, ejecutor de evaluación |
+| Probado solo con simulaciones | Cliente de Claude (transportes falsos); conector, adaptador y sondeo de Gmail (servicio y keyring falsos) |
+| Implementado y no probado | `build_gmail_service` (OAuth de escritorio y keyring) |
+| Bloqueado (autorizaciones) | Claude real (SDK, clave, presupuesto); Gmail real (GCP/OAuth, cuenta de pruebas, librerías); evaluación independiente (conjunto sellado y su ubicación); ZIP oficial final (descargar de GitHub tras confirmar la versión) |
+| Pendiente, sin bloqueo | Accesibilidad en navegador y lector de pantalla (R-58/V-26/R-43/V-25; protocolo en `docs/ACCESIBILIDAD_CODEX.md`); revisión humana de los 27 casos (R-47) y de los 5 bancos; falsos positivos P5–P7; R-64 |
+| No implementado (alcance opcional o posterior) | Persistencia SQLite (ADR-0008), escritorio (bandeja y notificaciones), correlación de varios mensajes, segundo canal, voz (fase 2) |
 
-## Validación sin gasto
-Ejecutadas las pruebas en el entorno existente con IA desactivada, presupuesto cero, clave/modelo retirados del proceso y ambas banderas de integración real a cero:
-**674 passed, 4 skipped, 1 xfailed, 1 warning**, en 10,59 segundos.
+**Criterios que faltan para dar el MVP por terminado:**
+- verificación manual de accesibilidad;
+- revisión humana de los casos;
+- prueba real de Claude con presupuesto autorizado y su coste medido;
+- Gmail real o, si no se autoriza, demo solo manual y simulada, que es la principal según D-34;
+- entregables coherentes con la versión final y ZIP oficial descargado de GitHub;
+- hora de cierre (Q-01) y nombre del producto.
 
-Las cuatro pruebas reales de Claude/Gmail se saltaron. El fallo esperado corresponde a resolver el pronombre «facilítesela». El aviso es una deprecación de Starlette/httpx; no impide las pruebas. No se instalaron dependencias ni se hicieron llamadas a Anthropic API durante el traspaso. No se comprobó facturación de cuentas externas.
+## 4. Arquitectura actual
+- Python 3.12.10, FastAPI, Pydantic v2 y Uvicorn. UI HTML, Jinja y htmx vendorizado. Solo `127.0.0.1:8790`.
+- Monolito modular en `backend/antifraude/`: `connectors`, `analysis`, `intel`, `ai`, `risk`, `app`, más `contracts` y `core`.
+- **Flujo:** entrada manual, `.eml` o simulada → ingesta, minimización y cabeza+cola si es muy largo → reglas → enlaces pasivos y directorio → IA opcional (bloqueada por `CostGuard`) → motor determinista → alertas.
+- **Persistencia real:**
+  - El historial vive en la memoria de la sesión y no guarda el texto.
+  - El libro de gasto de la IA es un JSON fuera del repositorio (`%LOCALAPPDATA%\antifraude\gasto_ia.json` y su copia `.bak`).
+  - El directorio de entidades es JSON versionado.
+  - **SQLite no está implementado.** `keyring` solo se usa, de forma diferida, en Gmail, y no está instalado.
+- **Cambios respecto a los ADR**, registrados como decisiones; no hay ADR nuevos:
+  - D-57: control de gasto; Sonnet previsto y Opus bloqueado. ADR-0007 sigue vigente: el modelo es configuración sin valor por defecto.
+  - `domain_coverage` en el contrato de entidades (cobertura parcial).
+  - Nuevo comprobante `ingest.complete`.
+  - Sin *fallback* de modelo.
 
-Para repetir los comandos seguros, ver `AGENTS.md`. La aplicación no carga `.env` automáticamente. Mantener **AI_ENABLED=0, AI_BUDGET_USD=0, AI_ALLOW_OPUS=0**. La suscripción usada para desarrollar con Codex no configura ni autoriza llamadas de IA de esta aplicación.
+## 5. Validación (repetida en esta revisión, 08-11-2026 22:03)
+- Entorno: `.venv` con Python 3.12.10.
+- Consola con `AI_ENABLED=0`, `AI_BUDGET_USD=0`, `AI_ALLOW_OPUS=0` y `ANTIFRAUDE_PRUEBAS_REALES*=0`, sin `ANTHROPIC_API_KEY` ni `CLAUDE_MODEL`.
+- `python -m pytest -p no:cacheprovider -ra` → **674 passed, 4 skipped, 1 xfailed, 1 warning** (7,69 s).
+  - Saltadas: 3 de Claude real y 1 de Gmail real.
+  - `xfail`: limitación del pronombre «facilítesela».
+  - Aviso: deprecación de Starlette/httpx.
+- `python -m antifraude.evaluation --salida <temporal>`:
+  - 27 casos dev: VP 14, FP 0, FN 0, VN 10, 3 ambiguos aparte, nivel aceptable 27/27.
+  - Son **métricas de desarrollo, no evaluación**.
+- Comprobación de instalaciones: `anthropic`, `googleapiclient`, `google_auth_oauthlib` y `keyring` **no instalados**.
+- **No ejecutado en esta revisión:** integraciones reales (prohibidas), prueba desde una carpeta limpia (histórica: misión 3, en `ec3774c`, con el mismo resultado de pruebas) y pruebas manuales en navegador o con lector de pantalla (nunca hechas).
 
-## Pendientes recomendados, sin API de pago
-1. Revisar manualmente los 27 casos dev, especialmente dev-0009, dev-0025 y dev-0027; mantener separado el test sellado y no ajustar reglas con él.
-2. Probar interfaz con teclado, zoom 200 %, contraste y lector de pantalla; comprobar CSP y flujo completo local.
-3. Revisar falsos positivos P5/P6 (enlaces externos y menciones bancarias), P7 sin IA, sufijos de dominio aproximados sin PSL y enlaces a ejecutables (R-64). Añadir regresiones cuando se corrija comportamiento.
-4. Completar la verificación de dominios oficiales y de correo; no convertir el remitente de confianza en excepción absoluta.
-5. Revisar PDF/PPTX/README, ensayar demo sintética sin red y preparar el ZIP oficial de la misma versión. Hora exacta de entrega y nombre del producto siguen pendientes de confirmación.
+## 6. IA y costes
+- Proveedor de la aplicación: Anthropic (Claude), adaptador opcional. **IA desactivada**:
+  - `AI_ENABLED=0` por defecto;
+  - presupuesto autorizado 0 USD (el previsto de 0,50 USD no está autorizado);
+  - Sonnet 5.5 previsto para las primeras pruebas;
+  - Opus bloqueado sin `AI_ALLOW_OPUS=1`;
+  - SDK no instalado.
+- **Llamadas reales de la aplicación: ninguna registrada.** No existe el libro de gasto en la ruta por defecto, el SDK no está instalado y las pruebas reales están saltadas.
+  - No se puede verificar desde el repositorio el uso de otras claves fuera de la aplicación ni la facturación de la cuenta: hay que revisarlo en Anthropic Console.
+- **Claude Code** (la herramienta de desarrollo usada hasta `58bc5f9`) se autenticaba con su inicio de sesión propio, no con una clave del proyecto. Su consumo es independiente de la API de la aplicación y no se ha verificado su facturación.
+- **Codex:** no configura ni autoriza llamadas de IA de la aplicación.
+- **Controles de gasto** (`docs/CONTROL_COSTES_IA.md`):
+  - reserva del peor caso antes de enviar y liquidación con el `usage` real;
+  - límites de tokens y de solicitudes, una solicitud a la vez;
+  - sin reintentos ni *fallback*;
+  - libro fuera del repositorio con copia `.bak`.
+  - Es un límite **local**: el efectivo es el de Anthropic Console.
 
-Gmail real sigue requiriendo cuenta de pruebas, GCP/OAuth y autorización para librerías. IA real y cualquier cambio a otro proveedor quedan fuera de este traspaso: no usar los créditos restantes de Anthropic.
+## 7. Pendientes y riesgos
+- **Errores y limitaciones conocidas:**
+  - pronombres referidos («facilítesela»);
+  - ingeniería social sin palabras clave (sin IA queda BAJO);
+  - P5/P6 (enlaces de terceros, menciones de bancos) y P7 (NO CONCLUYENTE sin IA);
+  - un correo real de un banco desde un dominio no registrado sale MEDIO o NO CONCLUYENTE;
+  - un 403 de cuota de Gmail se trata como fallo de autorización;
+  - aviso de deprecación de Starlette/httpx.
+  - Detalle: `docs/LIMITACIONES_DETECCION.md` y `docs/contexto/09_PENDIENTES.md`.
+- **Decisiones pendientes del usuario:**
+  - gasto de la API y modelo final (D-24/D-32);
+  - Gmail real;
+  - ubicación del conjunto sellado (T-14) y regla de denegación (T-18);
+  - nombre del producto;
+  - hora de cierre (Q-01);
+  - si se confirman los cambios de documentación locales;
+  - futuros commits, push o PR.
+- **Tres próximas tareas recomendadas (sin gasto):**
+  1. Verificación manual de accesibilidad según `docs/ACCESIBILIDAD_CODEX.md` (R-58/V-26/R-43/V-25): teclado, zoom 200 %, 320 px, lector de pantalla, CSP y cabeceras reales.
+  2. Revisión humana de los 27 casos dev (R-47) y de las 5 fichas bancarias. Completar los dominios web y de correo desde fuentes oficiales de cada banco.
+  3. Corregir P5–P7 y R-64 con casos sintéticos y regresiones, y después reconciliar README, PDF, PPTX y guion con la versión final.
 
-## Abrir la carpeta en Codex
-1. En Codex de escritorio, abre o añade como proyecto la carpeta local indicada arriba. Selecciona trabajar en esa carpeta existente. Los nombres de los controles pueden variar con la versión.
-2. Inicia un chat dentro de ese proyecto y comprueba que la carpeta es la correcta y que `git branch --show-current` muestra `feat/fase-0`. No hace falta clonar otra copia en este ordenador.
-3. Codex lee `AGENTS.md` al iniciar el trabajo. Si ya había un chat abierto antes de crear el archivo, inicia uno nuevo y pide que confirme las instrucciones cargadas.
-4. Usa el acceso con tu cuenta de ChatGPT para desarrollar según las condiciones de tu cuenta; no introduzcas una clave Anthropic ni una clave OpenAI para esta migración.
-5. En otro ordenador, clona con autenticación de GitHub ya configurada: `git clone --branch feat/fase-0 https://github.com/diegoalmajano/hackaton-finance-antifraude.git`. Crea `.venv` con Python 3.12 e instala `requirements-dev.txt` como indica README; eso requiere acceso para descargar paquetes, pero no llamadas a Anthropic.
-
-Documentación oficial consultada:
-- Abrir una carpeta/proyecto e iniciar el trabajo: https://learn.chatgpt.com/docs/app
-- Instrucciones de repositorio: https://learn.chatgpt.com/docs/agent-configuration/agents-md
+## 8. Cómo continuar en Codex
+- **Abrir:** en Codex de escritorio, abrir la carpeta local existente y comprobar con `git branch --show-current` que la rama es `feat/fase-0`. Codex lee `AGENTS.md` al empezar; si el chat es anterior al archivo, iniciar uno nuevo. En otro ordenador: `git clone --branch feat/fase-0 https://github.com/diegoalmajano/hackaton-finance-antifraude.git`.
+- **Instalación** (solo si falta `.venv`; requiere descargar paquetes):
+  ```powershell
+  py -3.12 -m venv .venv
+  .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+  ```
+- **Pruebas sin gasto:** ver `AGENTS.md`. **Arranque sin IA:** `cd backend` y `..\.venv\Scripts\python.exe -m antifraude`, y abrir `http://127.0.0.1:8790/` con el código de la consola. Para la demo sintética, añadir `APP_DEMO_MODE=1`.
+- **Documentos a leer, en orden:**
+  1. `AGENTS.md` y este archivo.
+  2. `docs/contexto/09_PENDIENTES.md` y `docs/contexto/15_SEGUIMIENTO.md`.
+  3. `docs/ACCESIBILIDAD_CODEX.md`.
+  4. `docs/adr/` y `docs/ARQUITECTURA.md`.
+  5. `docs/CONTROL_COSTES_IA.md`, `docs/LIMITACIONES_DETECCION.md`, `docs/DOMINIOS_BANCARIOS.md` y `eval/EJECUCION.md`.
+- **Instrucciones obsoletas o superadas:**
+  - en `CLAUDE.md` §8 y en el seguimiento histórico: «sin push», «F0-09 pendiente de aprobación», «siguiente etapa F0-07» y «Aún sin detector»;
+  - las reglas de ECC (§10 bis) solo aplican a Claude Code;
+  - «Coordinador: Claude Code».
+  - **Siguen vigentes:** las reglas de producto de `CLAUDE.md` §4, los ADR y las decisiones D-xx.
 
 ## Prompt para continuar
-> Continúa este proyecto antifraude en la rama feat/fase-0. Lee AGENTS.md, docs/TRASPASO_CODEX.md y el seguimiento/pendientes del proyecto. Confirma estado Git y línea base de pruebas. Mantén IA desactivada, presupuesto 0 USD y pruebas reales bloqueadas; no uses claves reales, Claude Code ni ECC. Prioriza la revisión local de accesibilidad y las limitaciones documentadas del detector con casos sintéticos. No leas el conjunto sellado. Antes de cambiar comportamiento, identifica el pendiente concreto y los criterios de aceptación; conserva contratos, controles de seguridad y análisis pasivo. Informa qué verificaste y qué sigue pendiente. No cambies proveedor de IA ni publiques nuevos cambios sin autorización.
+> Continúa este proyecto antifraude en la rama feat/fase-0 (HEAD publicado 71c5917; hay cambios de documentación locales sin confirmar en 09_PENDIENTES.md, 15_SEGUIMIENTO.md y docs/ACCESIBILIDAD_CODEX.md: no los descartes). Lee AGENTS.md, docs/TRASPASO_CODEX.md, 09/15 y docs/ACCESIBILIDAD_CODEX.md. Confirma estado Git y línea base (674 passed, 4 skipped, 1 xfailed). Mantén IA desactivada, presupuesto 0 USD y pruebas reales bloqueadas; no uses claves reales, Claude Code ni ECC. Prioriza la verificación manual de accesibilidad y luego la revisión humana de casos y P5–P7 con casos sintéticos. No leas el conjunto sellado. Antes de cambiar comportamiento, fija el pendiente concreto y sus criterios; conserva contratos, controles de seguridad y análisis pasivo. No cambies proveedor de IA ni hagas commit/push/PR sin autorización.
+
+
+## Actualización posterior: accesibilidad con Codex (08-11-2026, sin confirmar)
+
+El estado de las secciones anteriores corresponde a la revisión de las 22:03. Después se continuó la revisión autorizada, conservando los cambios locales anteriores. Ahora existen también cambios de código sin confirmar: `backend/antifraude/app/static/js/app.js`, `backend/antifraude/app/templates/emparejar.html`, `backend/antifraude/app/templates/panel.html`, `tests/test_d_accesibilidad.py` y el nuevo `tests/ui/test_accesibilidad.cjs`.
+
+Se corrigieron anuncios de espera que permanecían tras errores y se asociaron los mensajes de error a sus campos. Se comprobó parte del flujo en el navegador integrado: teclado, emparejamiento, validación, resultado, reflujo a 320 px, desconexión y cierre. **No equivale a una auditoría completa:** zoom real 200 %, lector de pantalla, colores forzados, .eml/prioridad en navegador y cabeceras reales siguen pendientes. Detalle y evidencia en [ACCESIBILIDAD_CODEX.md](ACCESIBILIDAD_CODEX.md), sección «Segunda revisión».
+
+Validación vigente: **675 passed, 4 skipped, 1 xfailed, 1 warning** en Python; **9 pruebas JS correctas** con DOM/temporizadores simulados (`node --test tests/ui/test_accesibilidad.cjs`, opcional; Node ya instalado). No se instalaron dependencias. IA desactivada, presupuesto cero, pruebas reales bloqueadas, sellado no leído. HEAD permanece en `71c5917`; **sin commit, push ni PR**. Servidores y pestaña propios de esta prueba cerrados.
+
+
+## Estado vigente de la misión de demo local (08-11-2026, sin publicar)
+- Las secciones previas son revisiones fechadas. Ahora: `rules-0.3.1`, R-64 acotado corregido, cuatro .eml sintéticos de demo y cinco pruebas HTTP reales de loopback. P5–P7 revisados y técnicamente delimitados, sin afirmar que estén corregidos.
+- **709 pruebas Python correctas, 4 integraciones reales saltadas, 1 xfail conocido y 1 aviso**; **9 JS correctas**. Copia limpia de fuentes actuales con cambios sin commit e instalación nueva temporal autorizada: mismas suites y CLI/demo/recuperación correctos. No se copió .venv.
+- README, arquitectura, guion, fuentes, PPTX (12 diapositivas) y PDF (una página) reconciliados; originales generados conservados fuera del repositorio. Accesibilidad sigue parcial.
+- Usuario confirma zoom real 200 % en el escenario probado y anuncio de error vacío con Narrador. Pendientes: anuncios automáticos de espera/resultado, recorrido completo de teclado, versiones, contraste de Windows, reflujo 320 completo y consola/cabeceras reales. No realizar rediseño visual definitivo.
+- Metodología y evidencias en seguimiento H1–H6 y tercera revisión de `docs/ACCESIBILIDAD_CODEX.md`. **Meta abierta, sin commit/push/PR/publicación**, IA=0 y presupuesto=0, proveedor conservado y sellado no leído.
+
+
+### Actualización: accesibilidad estrecha y navegador real
+A11Y-03/A11Y-04 corregidos: nombre completo de archivo y etiqueta NO CONCLUYENTE legible a 320 px. IAB verificó cuatro .eml, prioridad, errores y recuperación, recorrido automatizado de teclado, consola CSP y cabeceras reales de operaciones ensayadas (V-25 acotado). Matriz vigente: cuarta revisión de docs/ACCESIBILIDAD_CODEX.md. **710 Python correctas, 4 skipped, 1 xfailed; 11 JS correctas**. Materiales actualizados. Siguen pendientes Narrador audible completo, versiones, contraste Windows y comprobación manual nativa/zoom afectado. Sin rediseño definitivo ni publicación; meta abierta.
+
+
+## Estado técnico vigente tras R-69 y P6 (sin publicar)
+- `rules-0.3.2`: P6 corregido de forma acotada. Una mención bancaria en el cuerpo no se convierte en identidad del remitente; el nombre/dominio oficial aportan contexto sin autenticar ni crear una excepción de confianza. Cinco fallos reproducidos antes de corregir; 35 regresiones P5–P7/R-64 en verde después. P5 y P7 mantienen sus límites documentados.
+- R-69: 403 de cuota explícita y 429 separan cuota de autorización; se detiene el lote y se conservan pendientes sin agotar intentos de mensaje. 30 regresiones nuevas con servicio simulado, incluyendo historial/descarga/recuperación. SDK, OAuth y cuenta real siguen sin usar; espera adaptativa e integración al panel pendientes antes de activar Gmail.
+- Suite completa: **746 passed, 4 skipped, 1 xfailed, 1 warning** en 13,19 s; **11 JS correctas**. No nuevos skips ni etiquetas dev modificadas. Los 27 casos dev mantienen nivel aceptable 27/27 (VP14, FP0, FN0, VN10; tres ambiguos aparte): **desarrollo, no evaluación independiente**. Sellado no leído.
+- Accesibilidad manual auditiva, contraste elevado y recorrido completo: **no verificados**, diferidos por decisión del usuario a la fase final; no bloquean trabajo técnico. Se conservan controles semánticos; sin voz/audio ni rediseño definitivo.
+- IA/presupuesto/integraciones reales a cero, proveedor y entorno del proyecto conservados. Sin commit, push, PR ni publicación. Reproducción final y materiales se revalidan tras estas correcciones.
+
+
+### Cierre del bloque técnico autorizado actual
+- Reproducción final: `.mvp-build/clean-fuente-3`, 163 fuentes actuales seleccionadas, entorno temporal nuevo ya autorizado (sin reinstalar). **746 passed, 4 skipped, 1 xfailed, 1 warning** en 13,08 s; **11 JS correctas**. CLI real desde la copia: cuatro .eml BAJO/ALTO/ALTO/NO CONCLUYENTE, cierre protegido, desconexión y recuperación tras reiniciar. Todos los procesos propios terminados; códigos/tokens solo en memoria.
+- PPTX: 12 diapositivas; cambio de cifras renderizado e inspeccionado; paquete, geometría y reimportación correctos (validation5.json); todas las cadenas cotejadas con JSON. PDF: una página A4, 746/11 comprobados por extracción y render inspeccionado. Materiales coherentes, sin afirmar integración real ni accesibilidad completa.
+- Diff revisado: código, pruebas y fuentes/materiales; `git diff --check` sin errores. Se conserva el trabajo local previo; no hay archivos preparados en el índice. HEAD 71c5917 y rama feat/fase-0 conservados; sin commit/push/PR. Solo documentación de evidencia y comentario histórico se ajustaron después de la última suite; no cambió comportamiento.
+- **Bloque técnico actual completado**, con accesibilidad manual diferida expresamente por el usuario. No equivale a aprobación final para presentar: siguen no verificadas las pruebas auditivas, contraste elevado y recorrido manual completo, reservadas para la fase final. Sin más solicitudes manuales en esta fase.
+- Próximos trabajos fuera de este bloque: validación humana de casos, completar fuentes bancarias y evaluación independiente. SDK/OAuth/Gmail real o IA con presupuesto requieren autorización específica. Nada de ello se considera realizado ni se activa en este bloque.
+
+
+## Consolidación autorizada en GitHub privado — 09-11-2026
+El usuario autoriza un commit con el progreso revisado y push exclusivamente de feat/fase-0 a origin, sin force, merge ni cambios en main o visibilidad. Esta autorización sustituye para esta consolidación los avisos históricos de «sin autorización para commit/push»; no autoriza futuras publicaciones ni una nueva fase de desarrollo.
+
+Comprobaciones previas al commit:
+- Destino efectivo de fetch y push: https://github.com/diegoalmajano/hackaton-finance-antifraude.git. GitHub confirma visibility=private. Rama remota y HEAD inicial coinciden en 71c59178a9a20a8f55495d39399601c123c9357c; main solo existe localmente.
+- 37 archivos candidatos explícitos: 28 modificados y 9 nuevos; código, tests, AGENTS.md, documentación, cuatro correos sintéticos y materiales. Revisión de patrones y de contenido, incluido PDF extraído y miembros descomprimidos del PPTX: sin secretos reales detectados con este alcance. Sin objetos incrustados en el PPTX. No es garantía absoluta para cualquier formato de secreto.
+- Exclusiones comprobadas: .env y variantes, credenciales/tokens/clave privada, .venv, cachés, ZIP, temporales, exportaciones/mensajes privados y conjunto sellado. Los temporales de la misión permanecen fuera del repositorio y no se añaden; el sellado no se lee.
+- Revalidación: 746 passed, 4 skipped, 1 xfailed, 1 warning en 20,19 s y 11 JS correctas. Integraciones reales bloqueadas; IA=0, presupuesto=0, sin claves reales ni APIs de pago. Ningún cambio funcional nuevo en esta consolidación.
+- Se preparan solo rutas explícitas y se comprueba el índice antes del commit. El resultado del push y la coincidencia del commit local/remoto se verificarán al terminar; no se presupone su éxito en esta nota previa.
