@@ -58,3 +58,10 @@ La continuación autorizada del MVP parte de `dd3e4fb` y conserva el trabajo pub
 - Los 27 casos dev siguen siendo sintéticos y pendientes de revisión humana. 27/27 niveles aceptables en desarrollo no es evaluación independiente. Procedimiento independiente preparado; conjunto sellado no leído ni creado. Las evidencias deterministas no contienen las 62 citas literales esperadas por ese banco: se mide como cobertura 0/62, sin ocultarlo.
 
 Comprobaciones, instalación, artefactos y límites: `docs/VERIFICACION_FINAL_MVP.md`. Pendientes que requieren al usuario: cuenta de pruebas/GCP/OAuth, permiso específico de SDK y presupuesto de Claude, revisión humana/custodia del sellado, nombre y hora exacta de cierre del hackatón. No bloquean la demo manual local.
+
+## Autorizacion posterior de publicacion — 09-11-2026
+El usuario solicita ahora subir a GitHub todo el trabajo preparado. Esta instruccion sustituye la prohibicion de push de la instantanea de cierre local anterior y autoriza esta publicacion concreta de feat/fase-0; no es permiso permanente para publicaciones futuras.
+
+Estado comprobado antes de publicar: arbol limpio, HEAD local 9778ffb y remoto dd3e4fb; GitHub confirma repositorio privado. Se suben el commit funcional revisado y esta nota documental, sin reescribir historia, force-push, alterar main ni cambiar visibilidad. Se conservan las exclusiones de secretos, datos privados, conjuntos sellados, entornos y ZIP temporales. No se activan IA, presupuesto ni integraciones reales.
+
+Validacion funcional vigente: 877 Python correctas, 4 integraciones reales saltadas, 1 xfail conocido y 1 aviso; 11 JS y 8 comprobaciones SDK Gmail simuladas correctas. Esta nota no modifica comportamiento ni requiere repetir las suites. El resultado del push se verifica comparando HEAD con refs/heads/feat/fase-0 mediante git ls-remote y comprobando el arbol limpio; no se presupone exito antes de ejecutarlo.
