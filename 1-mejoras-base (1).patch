@@ -1,0 +1,449 @@
+diff --git a/README.md b/README.md
+index ca7a3c0..a128830 100644
+--- a/README.md
++++ b/README.md
+@@ -7,7 +7,7 @@ Asistente antifraude con IA opcional que **ayuda a reconocer estafas financieras
+ Para continuar el desarrollo con Codex: [guía de traspaso](docs/TRASPASO_CODEX.md) e [instrucciones del repositorio](AGENTS.md). Anthropic API permanece desactivada y con presupuesto de 0 USD.
+ 
+ ## 1. Requisitos
+-- Windows 10/11 con PowerShell (probado en Windows 11).
++- Windows 10/11 con PowerShell (probado en Windows 11). También funciona en Linux (probado; ver «Linux o macOS» en la sección 2).
+ - **Python 3.12** (64 bits). Comprobación: `py -3.12 --version`.
+   - Si no lo tiene: instálelo desde python.org o con el gestor oficial de Python (`pymanager install 3.12-64`).
+ - Un navegador moderno (Edge, Chrome o Firefox).
+@@ -19,6 +19,19 @@ Abra PowerShell en la carpeta del proyecto (la que contiene este README):
+ py -3.12 -m venv .venv
+ .\.venv\Scripts\python.exe -m pip install -r requirements.lock
+ ```
++### Linux o macOS (alternativa)
++Con Python 3.12 instalado (`python3.12 --version`), desde la carpeta del proyecto:
++```bash
++python3.12 -m venv .venv
++.venv/bin/python -m pip install -r requirements.lock
++```
++Para ejecutar, sustituya `..\.venv\Scripts\python.exe` por `../.venv/bin/python` y defina las variables con `export NOMBRE=valor` en lugar de `$env:NOMBRE = "valor"`. Por ejemplo, la demo sin IA:
++```bash
++cd backend
++AI_ENABLED=0 AI_BUDGET_USD=0 APP_GMAIL_ENABLED=0 APP_DEMO_MODE=1 ../.venv/bin/python -m antifraude
++```
++Comprobado el 09-11-2026 en Linux x86_64 con Python 3.12.3 y `requirements.lock`: misma suite (877 correctas antes de los cambios del 09-11; 899 después, 4 saltadas, 1 `xfail`) y mismo recorrido de demo (tres ejemplos, texto libre y cuatro `.eml` con los niveles esperados). macOS no se ha probado.
++
+ - `requirements.txt` contiene las dependencias de ejecución, con versiones exactas.
+ - `requirements-dev.txt` añade las de pruebas.
+ - `requirements.lock` es el bloqueo completo del entorno base.
+@@ -101,7 +114,7 @@ Desde la carpeta del proyecto:
+ ```powershell
+ .\.venv\Scripts\python.exe -m pytest
+ ```
+-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución: **877 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
++Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución (09-11-2026, tras la regla del Bizum inverso y las correcciones de accesibilidad): **899 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
+ 
+ ## 6. Seguridad y privacidad (resumen)
+ - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y los recursos estáticos se sirven localmente.
+diff --git a/backend/antifraude/analysis/rules.py b/backend/antifraude/analysis/rules.py
+index 112a598..2ac1e3a 100644
+--- a/backend/antifraude/analysis/rules.py
++++ b/backend/antifraude/analysis/rules.py
+@@ -21,7 +21,7 @@ from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily
+ from antifraude.intel.entities import EntityDirectory
+ from antifraude.intel.urls import UNVERIFIED_BRAND, find_lookalike, registrable_domain
+ 
+-RULE_VERSION = "rules-0.3.3"
++RULE_VERSION = "rules-0.3.4"
+ 
+ #: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
+ #: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
+@@ -195,6 +195,19 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
+               r"(nuev\w*|cambi\w*|actualizad\w*|a partir de ahora|desde ahora)[^.!?\n]{0,60}\[iban [a-z]{2} \.\.\.|"
+               r"\[iban [a-z]{2} \.\.\.[^\]]*\][^.!?\n]{0,40}(nuev\w*|cambi\w*|a partir de ahora))"),
+           "Le indican una cuenta bancaria nueva o diferente para pagar.", "cambio de datos de pago"),
++    # Bizum inverso / solicitud de dinero disfrazada de cobro: para RECIBIR dinero nunca hay que aceptar una
++    # solicitud; aceptarla es pagar. Puede cruzar una frase («…para recibir el reembolso. Acéptela…»), pero no
++    # un salto de línea. Tipología pública (avisos de INCIBE/OSI y del Banco de España); ver ``_ACCEPT_NEGATED``.
++    _Rule("content.reverse_payment_request", SignalFamily.CONTENT, Severity.HIGH,
++          _rx(r"solicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,120}?\b(para (recibir|cobrar|que (se )?le ingres|"
++              r"que (te|le) llegue)|reembols\w*|devoluc\w*|ingres\w*)[^\n]{0,120}?\b(acept|autoric|aprueb|aprob)\w*|"
++              r"\b(para (recibir|cobrar)|reembols\w*|devoluc\w*)[^\n]{0,120}?\b(acept|autoric|aprueb|aprob)\w*"
++              r"[^\n]{0,40}\bsolicitud|"
++              r"\b(acept|autoric|aprueb|aprob)\w*[^\n]{0,40}\bsolicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,80}"
++              r"(para (recibir|cobrar|que (se )?(te|le) (llegue|ingres))|reembols|devoluc|ingres)"),
++          "Le piden que acepte una solicitud de Bizum o de pago para «recibir» dinero. Aceptar una solicitud es "
++          "PAGAR: para cobrar nunca tiene que aceptar nada.", "solicitud de pago disfrazada de cobro (Bizum inverso)",
++          negatable=True),
+     _Rule("content.investment_promise", SignalFamily.CONTENT, Severity.HIGH,
+           _rx(r"(rentabilidad(es)? (garantizad|asegurad)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
+               r"sin (ningun )?riesgo|ganancias? (garantizad|diari|semanal)|beneficios? garantizad|"
+@@ -269,6 +282,11 @@ _NOVELTY = re.compile(r"\b(nuev\w*|cambi\w*|anterior|cancelad\w*|anulad\w*|a par
+ _CALL_TO_ACTION = re.compile(r"\b(acced\w*|consult\w*|puls\w*|haga clic|pinch\w*|siga|complete|regularic\w*|"
+                              r"abon\w*|pagu\w*|pagando|descargu\w*|actualic\w*|verifiqu\w*|entre|visite|recib\w*)\b")
+ _USUAL = re.compile(r"\b(de siempre|habitual)\b")
++#: Consejo, no petición: «si recibe una solicitud de Bizum para cobrar, NO la acepte» (la negación va DENTRO
++#: de la coincidencia, después de «solicitud», y ``_is_negated`` solo mira antes).
++_ACCEPT_NEGATED = re.compile(r"\b(no|nunca|jamas)\s+((la|lo|las|los|le|se|debe|deben|tiene|tienes|hay|necesita|"
++                             r"necesitas|que|es necesario|hace falta)\s+){0,3}(acept|autoric|aprueb|aprob)\w*|"
++                             r"\bsin (tener que |necesidad de )?(acept|autoriz|aprob)\w*")
+ 
+ 
+ def _matches(pattern: re.Pattern[str], text: str, limit: int = 40) -> list[re.Match[str]]:
+@@ -354,6 +372,9 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
+             if rule.code == "content.payment_details_change" and (not _has_payment_instruction(folded)
+                                                                  or _NOTHING_TO_DO.search(folded)):
+                 continue  # «su nueva cuenta ya está operativa» informa; solo es riesgo si le piden pagar allí (B1)
++            if rule.code == "content.reverse_payment_request" and _ACCEPT_NEGATED.search(
++                    folded[max(0, m.start() - 40):m.end() + 5]):
++                continue
+             if rule.code == "content.prize_or_refund" and _REFUND_DONE.search(folded):
+                 continue
+             if rule.code == "content.account_threat" and _OFFICIAL_CHANNEL.search(folded[m.end():m.end() + 120]):
+diff --git a/backend/antifraude/app/static/css/app.css b/backend/antifraude/app/static/css/app.css
+index e667322..7b645f5 100644
+--- a/backend/antifraude/app/static/css/app.css
++++ b/backend/antifraude/app/static/css/app.css
+@@ -293,7 +293,8 @@ input[type="checkbox"] { width: 1.25rem; height: 1.25rem; accent-color: var(--pr
+ }
+ @media (prefers-reduced-motion: reduce) { .boton { transition: none; } }
+ @media (forced-colors: active) {
+-  .marca-icono, .guia-emblema { background: CanvasText; }
++  /* El escudo es blanco: se conserva su fondo propio para que no quede invisible en ningún tema de contraste */
++  .marca-icono, .guia-emblema { forced-color-adjust: none; background: #103f37; outline: 1px solid CanvasText; }
+   .portada-guia, .portada, .tarjeta { border: 1px solid CanvasText; }
+ }
+ 
+diff --git a/backend/antifraude/app/templates/bienvenida.html b/backend/antifraude/app/templates/bienvenida.html
+index c533019..407c4b3 100644
+--- a/backend/antifraude/app/templates/bienvenida.html
++++ b/backend/antifraude/app/templates/bienvenida.html
+@@ -30,7 +30,7 @@
+ 
+   <p class="confianza-local">Sin abrir enlaces. Sin entrar en sus cuentas bancarias.</p>
+   </div>
+-  <aside class="portada-guia" aria-label="Cómo le ayuda el asistente">
++  <div class="portada-guia" role="group" aria-label="Cómo le ayuda el asistente">
+     <div class="guia-emblema" aria-hidden="true"><img src="/static/img/escudo.svg" width="54" height="54" alt=""></div>
+     <p class="sobrelinea">CLARIDAD PARA DECIDIR</p>
+     <h2>Antes de responder,<br>compruebe el mensaje.</h2>
+@@ -40,6 +40,6 @@
+       <li><span aria-hidden="true">03</span><div><strong>Decida con calma</strong><p>Reciba una recomendación concreta. Usted mantiene el control.</p></div></li>
+     </ol>
+     <p class="guia-cierre">Una ayuda para verificar.<br><strong>La decisión siempre es suya.</strong></p>
+-  </aside>
++  </div>
+ </section>
+ {% endblock %}
+diff --git a/backend/antifraude/app/templates/partials/historial.html b/backend/antifraude/app/templates/partials/historial.html
+index d08acd9..3ca0b9b 100644
+--- a/backend/antifraude/app/templates/partials/historial.html
++++ b/backend/antifraude/app/templates/partials/historial.html
+@@ -3,7 +3,7 @@
+ <ol class="historial">
+   {% for h in historial %}
+   <li data-nivel="{{ h.clase }}">
+-    <span aria-hidden="true">{{ h.icono }}</span> <strong>{{ h.nivel }}</strong> — {{ h.titulo }}
++    <span aria-hidden="true">{{ h.icono }}</span> <strong>{{ h.nivel }}</strong> — {{ h.titulo | replace(h.nivel ~ ": ", "", 1) }}
+     <span class="ayuda">({{ h.origen }}, {{ h.hora }}{% if h.parcial == "sí" %}, análisis parcial{% endif %})</span>
+   </li>
+   {% endfor %}
+diff --git a/backend/antifraude/intel/urls.py b/backend/antifraude/intel/urls.py
+index ae8edc9..1fe766e 100644
+--- a/backend/antifraude/intel/urls.py
++++ b/backend/antifraude/intel/urls.py
+@@ -273,7 +273,7 @@ def analyze_url(url: ExtractedUrl, directory: EntityDirectory, claimed_entity_id
+                                         f"{lookalike_of} usado como subdominio de {reg}"))
+             else:
+                 findings.append(_signal(code, Severity.CRITICAL,
+-                                        "La dirección se parece a la de una entidad, pero no es la oficial.",
++                                        "La dirección web del enlace se parece a la de una entidad, pero no es la oficial.",
+                                         f"{reg} se parece a {lookalike_of}"))
+         sub = host[: -len(reg)].strip(".") if reg and host.endswith(reg) else ""
+         if not found and any(lbl in _TLD_LIKE for lbl in sub.split(".")[1:]):  # «es.wikipedia.org» no cuenta
+diff --git a/docs/LIMITACIONES_DETECCION.md b/docs/LIMITACIONES_DETECCION.md
+index 8c5f7b0..ba12c38 100644
+--- a/docs/LIMITACIONES_DETECCION.md
++++ b/docs/LIMITACIONES_DETECCION.md
+@@ -1,4 +1,4 @@
+-# Limitaciones conocidas de la detección (reglas `rules-0.3.3`, sin IA)
++# Limitaciones conocidas de la detección (reglas `rules-0.3.4`, sin IA)
+ 
+ > Estas limitaciones salen de tres pruebas adversariales de caja blanca: la de la misión 2 (unos 140 casos) y la de la misión 3 (unos 245). Las cifras de detección del conjunto de desarrollo **no** son una evaluación independiente (ver `eval/METODOLOGIA_INDEPENDIENTE.md`).
+ 
+@@ -72,3 +72,14 @@ Se añadieron **38 regresiones sintéticas** en `tests/test_b_finalizacion.py`,
+ Antes de estas correcciones se reprodujeron 24 fallos entre las primeras 33 regresiones. La ampliación de negación coordinada reprodujo otros dos fallos entre las 38 finales; después pasaron las 38. No se cambió el motor de riesgo, sus contratos ni el xfail conocido del pronombre.
+ 
+ **Límites conservados:** las reglas no comprenden toda la semántica ni relaciones arbitrarias entre frases. «No comparta su código. Para verificar su identidad, envíelo a nuestro gestor» todavía puede quedar BAJO, igual que «¿Estás? Necesito un favor rápido». Estas ausencias de señales no demuestran seguridad; una IA contextual o correlación podrían aportar información, pero su eficacia real sigue sin verificar. Las negaciones se reconocen mediante patrones y ventanas acotadas; estructuras más complejas pueden seguir causando omisiones o falsas alarmas. Ninguna prueba de este bloque usó IA real.
++
++## rules-0.3.4: Bizum inverso (09-11-2026)
++
++Hueco encontrado en un sondeo informal con 18 mensajes nuevos (`docs/VERIFICACION_LINUX_2026-11-09.md`): «le hemos enviado una solicitud de Bizum para recibir el reembolso… acéptela» quedaba **NO CONCLUYENTE** (solo la señal media de reembolso). Es una de las estafas más frecuentes en España.
++
++| Corrección | Comprobación | Alcance |
++|---|---|---|
++| Regla `content.reverse_payment_request` (ALTA): solicitud de Bizum/pago/dinero + «para recibir/cobrar», reembolso o devolución + aceptar/autorizar/aprobar, en cualquier orden, cruzando como mucho una frase (no un salto de línea) | 7 estafas con redacciones distintas → MEDIO/ALTO; 7 legítimos (consejos «no la acepte», «nunca tiene que aceptar», «sin tener que aceptar» y notificaciones reales de Bizum y reembolso) → sin la señal; las notificaciones quedan en BAJO (`tests/test_h_bizum_inverso.py`) | Los ejemplos se redactaron a partir de la tipología pública (avisos de INCIBE/OSI y del Banco de España), no del conjunto dev, pero **los escribió una IA**: no son una evaluación independiente. Conviene añadir ejemplos reales escritos por el equipo |
++| Negación dentro de la coincidencia (`_ACCEPT_NEGATED`): «no la acepte», «nunca tiene que aceptar», «sin tener que aceptar» | «No pierda su reembolso: acepte la solicitud…» sigue alertando (la negación no afecta a «aceptar») | `_is_negated` solo mira antes de la coincidencia; en esta regla la negación suele ir después de «solicitud» |
++
++Sin cambios en el motor de riesgo, en los contratos ni en las etiquetas dev. Evaluación de desarrollo tras el cambio: 27/27 niveles aceptables, VP=14, FP=0. Sondeo informal: 11/12 estafas con alerta y 5/5 legítimos en BAJO; siguen sin resolverse el enlace acortado (NO CONCLUYENTE por diseño) y «¿tienes un momento? Necesito un favor» (BAJO, límite ya documentado).
+diff --git a/docs/VERIFICACION_ACCESIBILIDAD_2026-11-09.md b/docs/VERIFICACION_ACCESIBILIDAD_2026-11-09.md
+new file mode 100644
+index 0000000..c837a54
+--- /dev/null
++++ b/docs/VERIFICACION_ACCESIBILIDAD_2026-11-09.md
+@@ -0,0 +1,31 @@
++# Verificación automática de accesibilidad — 09-11-2026
++
++> Hecha por un compañero del equipo con Claude, en Linux con Chromium sin interfaz (Playwright) y axe-core 4.10.2 (reglas WCAG 2.0/2.1/2.2 A y AA + buenas prácticas), contra `127.0.0.1` en modo demostración. Sin IA, sin red externa, sin gasto. **Lo automático no sustituye** a una persona con lector de pantalla: ver «No verificado».
++
++## Resultados (después de las correcciones)
++| Comprobación | Resultado | Estado |
++|---|---|---|
++| axe-core: bienvenida, emparejar, panel vacío y panel con resultado ALTO | **0 infracciones** en las cuatro pantallas | **Probado** |
++| Recorrido con Tab (bienvenida, emparejar, panel) | Orden lógico; **foco visible en todos** los elementos; sin trampas de foco | **Probado** |
++| Emparejar solo con teclado (escribir el código + Enter) | Llega al panel | **Probado** |
++| Foco tras analizar con teclado (Enter en «2. Estafa evidente») | El foco va al título del resultado («Riesgo ALTO») | **Probado** |
++| Zoom 200 % (ventana de 640 px CSS a 2×) en bienvenida y panel con resultado | Sin desplazamiento horizontal ni botones o títulos cortados | **Probado** (emulado) |
++| Contraste forzado (`forced-colors: active`, como el contraste alto de Windows) | El nivel se ve con **texto + icono**; bordes y enlaces visibles | **Probado** (emulado) |
++| `prefers-reduced-motion: reduce` | Ninguna animación ni transición activa | **Probado** (emulado) |
++| Pruebas JS de eventos y foco (`tests/ui/test_accesibilidad.cjs`) | 11/11 | **Probado** |
++
++## Problemas encontrados y corregidos
++1. **`<aside>` dentro de otro punto de referencia** en la portada (axe `landmark-complementary-is-top-level`, moderado). Ahora es un `div` con `role="group"` y la misma etiqueta. → 0 infracciones.
++2. **Escudo invisible en contraste forzado**: el icono es blanco y el fondo pasaba a `CanvasText` (blanco en temas oscuros). Ahora conserva su fondo propio con `forced-color-adjust: none` y un contorno del sistema.
++3. **Dos frases casi iguales en «Por qué»**: «La dirección de correo imita…» (remitente) y «La dirección se parece…» (enlace). La segunda dice ahora «La dirección web del enlace se parece…», para que una persona mayor sepa de qué dirección se habla.
++4. **Historial con el nivel repetido**: «ALTO — ALTO: probable estafa» pasa a «ALTO — probable estafa».
++
++Pruebas de regresión: `tests/test_h_accesibilidad.py`.
++
++## No verificado (requiere personas)
++- **Narrador de Windows (o NVDA) audible** con el diseño final.
++- **Contraste alto real de Windows** (aquí solo se emula `forced-colors`).
++- **Zoom real del navegador al 200 %** en Windows (aquí, emulado por tamaño de ventana).
++- Comprensión por personas mayores reales.
++
++Estimación: 30 minutos de una persona del equipo con Windows (Narrador con Ctrl+Win+Enter, contraste alto con Alt+Mayús izquierda+Impr Pant, zoom con Ctrl y +).
+diff --git a/docs/VERIFICACION_LINUX_2026-11-09.md b/docs/VERIFICACION_LINUX_2026-11-09.md
+new file mode 100644
+index 0000000..dc950c5
+--- /dev/null
++++ b/docs/VERIFICACION_LINUX_2026-11-09.md
+@@ -0,0 +1,41 @@
++# Verificación independiente en Linux — 09-11-2026
++
++> Verificación hecha por un compañero del equipo con Claude a partir del ZIP de `feat/fase-0` descargado de GitHub, en un entorno Linux temporal y separado. Sin llamadas a la API de Claude, sin claves, sin Gmail real y sin gasto (IA=0, presupuesto=0). No se cambió código del producto, reglas ni etiquetas.
++
++## Entorno
++- Linux x86_64, Python 3.12.3, entorno virtual nuevo con `requirements.lock` (26 paquetes; `colorama` se instala sin problema aunque solo se usa en Windows).
++- Navegador: Chromium sin interfaz (Playwright), solo contra `127.0.0.1`.
++
++## Resultados
++| Comprobación | Resultado | Estado |
++|---|---|---|
++| Suite Python (`pytest`) | 877 passed, 4 skipped, 1 xfailed, 1 warning: coincide con lo declarado | **Probado** |
++| Informe de desarrollo (`python -m antifraude.evaluation`) | 27/27 aceptables, latencia local p50 1 ms / p95 2 ms. Sigue siendo **desarrollo**, no evaluación | **Probado** |
++| Arranque con `APP_DEMO_MODE=1` | Código de emparejamiento en consola y servidor solo en 127.0.0.1:8790 | **Probado** |
++| Emparejamiento → panel | Correcto en navegador real | **Probado** |
++| Ejemplos 1, 2 y 3 | BAJO, ALTO y ALTO (lo que dice `GUION_DEMO.md`) | **Probado** |
++| Texto libre del guion | ALTO | **Probado** |
++| `.eml` 01–04 | BAJO, ALTO, ALTO y NO CONCLUYENTE | **Probado** |
++| Tiempo de respuesta en navegador | Unos 360–390 ms por análisis (incluye la petición htmx) | **Probado** |
++| Reflujo a 320 px | Sin desbordamiento horizontal | **Probado** (automático) |
++| Cerrar sesión → `/panel` | Protegido | **Probado** |
++| Consola del navegador | Sin infracciones de CSP. Un único 401 esperado al pedir `/panel` tras cerrar sesión | **Probado** |
++| Instrucciones nuevas de Linux en el README | Ejecutadas tal cual en una copia limpia: instalación y arranque correctos | **Probado** |
++| macOS | — | **No probado** |
++| Lector de pantalla, contraste elevado, teclado manual completo | — | **No probado** (sigue diferido) |
++
++## Sondeo informal de generalización (no es evaluación)
++Se pasaron 18 mensajes **nuevos**, que no están en el conjunto dev, redactados por Claude en esta sesión a partir de tipologías públicas de estafa en España. Mismo riesgo de circularidad que R-26: **no usar como métrica ante el jurado**, solo como orientación del equipo.
++
++- Estafas con alerta (MEDIO/ALTO): **10 de 12**. Correos-aduanas, DGT, Hacienda, «hijo con número nuevo», falso soporte técnico, cripto, falso empleo, Amazon suplantado, cargo no reconocido con teléfono y «cuenta segura».
++- Legítimos en BAJO: **5 de 5**. Cita médica, Bizum recibido, código OTP con aviso de no compartir, pedido enviado y aviso de la comunidad.
++- Fallos, todos ya cubiertos por límites documentados y ninguno en BAJO salvo el último:
++  - **Bizum inverso** («le hemos enviado una solicitud de Bizum para recibir el reembolso… acéptela»): NO CONCLUYENTE. Es una estafa muy común en España; el texto no pide claves ni lleva enlace. Candidata a regla de patrón, o a la IA. **Actualización del mismo día: resuelto con la regla `content.reverse_payment_request` (rules-0.3.4); ver `docs/LIMITACIONES_DETECCION.md`.**
++  - **Corte de suministro con enlace acortado** (bit.ly): NO CONCLUYENTE, por diseño (no se abren acortadores).
++  - **«¿Tienes un momento? Necesito un favor rápido»**: BAJO. Limitación ya documentada en `LIMITACIONES_DETECCION.md` (ingeniería social sin palabras clave).
++
++Estos tres casos son buenos argumentos para la capa de IA: es justo lo que las reglas no resuelven sin falsas alarmas.
++
++## Cambios aplicados
++- `README.md`: requisitos y nueva subsección «Linux o macOS (alternativa)» con los comandos comprobados. Sin cambios de comportamiento.
++- Este documento.
+diff --git a/docs/contexto/15_SEGUIMIENTO.md b/docs/contexto/15_SEGUIMIENTO.md
+index a49fe6a..0f25f51 100644
+--- a/docs/contexto/15_SEGUIMIENTO.md
++++ b/docs/contexto/15_SEGUIMIENTO.md
+@@ -227,3 +227,13 @@ El usuario solicita ahora subir a GitHub todo el trabajo preparado. Esta instruc
+ Estado comprobado antes de publicar: arbol limpio, HEAD local 9778ffb y remoto dd3e4fb; GitHub confirma repositorio privado. Se suben el commit funcional revisado y esta nota documental, sin reescribir historia, force-push, alterar main ni cambiar visibilidad. Se conservan las exclusiones de secretos, datos privados, conjuntos sellados, entornos y ZIP temporales. No se activan IA, presupuesto ni integraciones reales.
+ 
+ Validacion funcional vigente: 877 Python correctas, 4 integraciones reales saltadas, 1 xfail conocido y 1 aviso; 11 JS y 8 comprobaciones SDK Gmail simuladas correctas. Esta nota no modifica comportamiento ni requiere repetir las suites. El resultado del push se verifica comparando HEAD con refs/heads/feat/fase-0 mediante git ls-remote y comprobando el arbol limpio; no se presupone exito antes de ejecutarlo.
++
++## Aportación de Rafa (compañero) con Claude — 09-11-2026, noche
++
++Trabajo hecho en una copia de `feat/fase-0` (idéntica al ZIP de GitHub a las 21:30) y entregado como **parches** para que el propietario los revise y los aplique: sin commits ni push al repositorio, sin IA real, sin gasto y sin dependencias nuevas del proyecto.
++
++- **Verificación independiente en Linux:** suite, informe dev y recorrido completo de la demo en Chromium (`docs/VERIFICACION_LINUX_2026-11-09.md`). README con instrucciones de Linux comprobadas en una copia limpia.
++- **rules-0.3.4:** regla del Bizum inverso con 18 pruebas nuevas (`tests/test_h_bizum_inverso.py`, `docs/LIMITACIONES_DETECCION.md`). Ejemplos de tipología pública escritos por IA: conviene añadir ejemplos reales del equipo.
++- **Accesibilidad automática** (axe-core, teclado, zoom 200 % emulado, contraste forzado emulado, movimiento reducido): 4 correcciones y 0 infracciones axe después (`docs/VERIFICACION_ACCESIBILIDAD_2026-11-09.md`, `tests/test_h_accesibilidad.py`). Narrador, contraste alto real y zoom real de Windows siguen **no verificados**.
++- Suite tras estos cambios: **899 passed, 4 skipped, 1 xfailed, 1 warning**; 11/11 JS. Evaluación dev 27/27 aceptables, FP=0. Demo: mismos niveles que `GUION_DEMO.md`.
++- **Pendiente de decisión del equipo:** los materiales de `docs/entrega/` (PPTX, resumen de una cara, presentación) siguen citando 877 pruebas y rules-0.3.3; no se han regenerado.
+diff --git a/tests/test_h_accesibilidad.py b/tests/test_h_accesibilidad.py
+new file mode 100644
+index 0000000..19f6439
+--- /dev/null
++++ b/tests/test_h_accesibilidad.py
+@@ -0,0 +1,65 @@
++"""Correcciones de accesibilidad y claridad de la verificación del 09-11-2026.
++
++axe-core marcó un ``<aside>`` dentro de otro punto de referencia en la portada; el historial repetía el
++nivel («ALTO — ALTO: …»); dos frases casi idénticas en «Por qué» (remitente y enlace). La parte de navegador
++real (axe, teclado, zoom 200 %, contraste forzado) está en ``docs/VERIFICACION_ACCESIBILIDAD_2026-11-09.md``.
++"""
++
++from __future__ import annotations
++
++from pathlib import Path
++from uuid import uuid4
++
++import pytest
++from fastapi.testclient import TestClient
++from conftest import BASE_URL, ORIGIN, CodeCapture, FakeClock, Harness
++
++from antifraude.analysis.ingest import build_message
++from antifraude.app.main import create_app
++from antifraude.app.pipeline import AnalysisPipeline
++from antifraude.contracts import Channel
++from antifraude.core.config import Settings
++from antifraude.intel.entities import EntityDirectory
++
++CSS = (Path(__file__).resolve().parents[1] / "backend/antifraude/app/static/css/app.css").read_text(encoding="utf-8")
++
++
++@pytest.fixture
++def demo() -> Harness:
++    clock, codes = FakeClock(), CodeCapture()
++    app = create_app(Settings.from_env({"APP_DEMO_MODE": "1"}), clock=clock, code_sink=codes)
++    h = Harness(client=TestClient(app, base_url=BASE_URL), clock=clock, codes=codes)
++    h.pair()
++    return h
++
++
++def analizar_ejemplo(h: Harness, n: int = 2) -> str:
++    cab = {"Origin": ORIGIN, "HX-Request": "true", "X-CSRF-Token": h.csrf()}
++    r = h.client.post(f"/analizar/ejemplo/{n}", headers=cab)
++    assert r.status_code == 200, r.text
++    return r.text
++
++
++def test_portada_sin_aside_anidado(harness: Harness) -> None:
++    html = harness.client.get("/").text
++    assert "<aside" not in html
++    assert 'class="portada-guia" role="group" aria-label="Cómo le ayuda el asistente"' in html
++
++
++def test_historial_no_repite_el_nivel(demo: Harness) -> None:
++    html = analizar_ejemplo(demo)
++    assert "ALTO</strong> — ALTO:" not in html
++    assert "ALTO</strong> — probable estafa" in html
++
++
++def test_frases_de_remitente_y_enlace_distinguibles() -> None:
++    p = AnalysisPipeline(EntityDirectory.load_default(include_fictitious=True))
++    m = build_message(user_id=uuid4(), channel=Channel.MANUAL, body_html=None,
++                      body_text="Acceda a https://bancoficticio-seguro.example/login para verificar su cuenta.")
++    textos = [s.description_user for u in p.run(m).url_analyses for s in u.findings]
++    assert "La dirección web del enlace se parece a la de una entidad, pero no es la oficial." in textos
++
++
++def test_escudo_visible_en_contraste_forzado() -> None:
++    bloque = CSS[CSS.rindex("@media (forced-colors: active)"):]
++    assert "forced-color-adjust: none" in bloque.split("}")[0] + bloque.split("}")[1]
+diff --git a/tests/test_h_bizum_inverso.py b/tests/test_h_bizum_inverso.py
+new file mode 100644
+index 0000000..0d2c283
+--- /dev/null
++++ b/tests/test_h_bizum_inverso.py
+@@ -0,0 +1,87 @@
++"""Regla ``content.reverse_payment_request`` (Bizum inverso), rules-0.3.4.
++
++Hueco encontrado en la verificación independiente del 09-11-2026 (``docs/VERIFICACION_LINUX_2026-11-09.md``):
++«le hemos enviado una solicitud de Bizum para recibir el reembolso… acéptela» daba NO CONCLUYENTE.
++
++Ejemplos redactados a partir de la tipología pública (avisos de INCIBE/OSI y del Banco de España sobre el
++«Bizum inverso»), NO a partir del conjunto dev, y con variantes de redacción para no ajustar a una frase.
++Los legítimos cubren consejos de seguridad y notificaciones reales de Bizum que no deben alertar.
++"""
++
++from __future__ import annotations
++
++from uuid import uuid4
++
++import pytest
++
++from antifraude.analysis.ingest import build_message
++from antifraude.app.pipeline import AnalysisPipeline
++from antifraude.contracts import Channel, RiskLevel
++from antifraude.intel.entities import EntityDirectory
++
++USER = uuid4()
++CODIGO = "content.reverse_payment_request"
++
++
++@pytest.fixture(scope="module")
++def pipeline() -> AnalysisPipeline:
++    return AnalysisPipeline(EntityDirectory.load_default(include_fictitious=True))
++
++
++def analizar(p: AnalysisPipeline, texto: str):
++    return p.run(build_message(user_id=USER, channel=Channel.MANUAL, body_text=texto, body_html=None))
++
++
++ESTAFAS = [
++    # el caso del sondeo (cruza una frase)
++    "Le hemos enviado una solicitud de Bizum para recibir el reembolso de su compra en Wallapop. Acéptela en su app "
++    "para que se le ingrese el dinero.",
++    # comprador falso en plataforma de segunda mano
++    "Hola, ya te he pagado el artículo. Te llegará una solicitud de Bizum para cobrar los 45 €, solo tienes que "
++    "aceptarla y el dinero te entra en la cuenta.",
++    # orden invertido: primero el verbo
++    "Para completar la devolución, acepte la solicitud de pago de 120 € que le ha llegado para recibir su dinero.",
++    "Acepta la solicitud de Bizum que te he mandado para que te llegue el dinero del alquiler.",
++    # devolución de un supuesto cargo duplicado
++    "Le hemos cobrado dos veces. Para la devolución del importe, autorice la solicitud de dinero que verá en su app.",
++    # «aprobar» en lugar de «aceptar»
++    "Su reembolso está listo: apruebe la solicitud de cobro en Bizum para recibirlo hoy.",
++    # señuelo «no pierda su dinero» (la palabra «no» no es una negación de aceptar)
++    "No pierda su reembolso de 89 €: acepte la solicitud de Bizum que le hemos enviado para recibirlo.",
++]
++
++LEGITIMOS = [
++    # consejos de seguridad del banco o de la OSI: describen la estafa y dicen que NO se acepte
++    "Recuerde: si recibe una solicitud de Bizum para cobrar un reembolso, no la acepte. Para recibir dinero nunca "
++    "tiene que aceptar nada.",
++    "Consejo de seguridad: para recibir un Bizum no es necesario aceptar ninguna solicitud de pago.",
++    "Nunca aceptes una solicitud de Bizum de alguien que dice que te va a devolver dinero.",
++    "Con Bizum puede recibir dinero sin tener que aceptar ninguna solicitud.",
++    # notificaciones reales
++    "Has recibido un Bizum de 15,00 EUR de LAURA G. Concepto: cena viernes.",
++    "Has enviado un Bizum de 20,00 EUR a PEDRO M. Concepto: regalo.",
++    "Tu reembolso de 34,99 € ha sido procesado y lo verás en tu cuenta en 3-5 días hábiles.",
++]
++
++
++@pytest.mark.parametrize("texto", ESTAFAS)
++def test_bizum_inverso_alerta(pipeline: AnalysisPipeline, texto: str) -> None:
++    out = analizar(pipeline, texto)
++    assert CODIGO in {s.code for s in out.screening.signals}, texto
++    assert out.assessment.risk_level in (RiskLevel.MEDIUM, RiskLevel.HIGH), texto
++
++
++@pytest.mark.parametrize("texto", LEGITIMOS)
++def test_consejos_y_notificaciones_no_disparan_la_regla(pipeline: AnalysisPipeline, texto: str) -> None:
++    out = analizar(pipeline, texto)
++    assert CODIGO not in {s.code for s in out.screening.signals}, texto
++
++
++@pytest.mark.parametrize("texto", LEGITIMOS[4:])
++def test_notificaciones_reales_quedan_en_bajo(pipeline: AnalysisPipeline, texto: str) -> None:
++    assert analizar(pipeline, texto).assessment.risk_level is RiskLevel.LOW, texto
++
++
++def test_no_cruza_saltos_de_linea(pipeline: AnalysisPipeline) -> None:
++    texto = "Le enviamos una solicitud de pago por la cuota del club.\n\nAcepte el reglamento para recibir el carné."
++    assert CODIGO not in {s.code for s in analizar(pipeline, texto).screening.signals}
