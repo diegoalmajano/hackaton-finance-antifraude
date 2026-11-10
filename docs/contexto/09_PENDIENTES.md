@@ -1,5 +1,7 @@
 # 09 — Pendientes, dudas, riesgos y contradicciones
 
+> Estado vigente de cierre, 10-11-2026: rules-0.3.5, 926 Python / 11 JS / 8 SDK Gmail simulados. Rama codex/cierre-mvp, base compartida c013f5b, sin publicación nueva. Evidencia y pendientes: [CIERRE_MVP_2026-11-10.md](../CIERRE_MVP_2026-11-10.md). Las secciones fechadas anteriores son históricas.
+
 > Adaptado (sesión 5) del documento homónimo de la memoria original: solo lo vigente para el asistente antifraude (las preguntas y riesgos de la idea fiscal son históricos y se omiten). Identificadores originales conservados. Cerrar una entrada = anotarlo aquí con fecha y fuente.
 
 ## 0. Autorizaciones pendientes del usuario para completar el MVP (sesión 6)

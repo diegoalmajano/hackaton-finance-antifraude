@@ -1,6 +1,6 @@
 # Propuesta de piloto Sonnet — pendiente de autorización
 
-Fecha de revisión: **09-11-2026**. Este documento prepara una aprobación concreta; **no concede permiso ni activa nada**. Presupuesto autorizado actual: **0 USD**. IA, Opus e integraciones reales permanecen desactivados. No se instala el SDK ni se usa una clave al redactar este plan.
+Fecha de revisión: **10-11-2026**. Este documento prepara una aprobación concreta; **no concede permiso ni activa nada**. Presupuesto autorizado actual: **0 USD**. IA, Opus e integraciones reales permanecen desactivados. No se instala el SDK ni se usa una clave al redactar este plan.
 
 ## Alcance propuesto
 
@@ -16,7 +16,7 @@ Fecha de revisión: **09-11-2026**. Este documento prepara una aprobación concr
 | Reintentos y alternativas | 0 reintentos SDK; sin repetición manual automática, fallback ni Opus |
 | Datos | Solo los tres textos sintéticos descritos abajo; ningún correo Gmail ni conjunto sellado |
 
-El identificador y las tarifas se han comprobado en las fuentes oficiales de [modelos](https://platform.claude.com/docs/en/models/overview) y [precios](https://platform.claude.com/docs/en/about-claude/pricing). Son comprobaciones web, no peticiones autenticadas a la API.
+El 10-11-2026 se han vuelto a comprobar el identificador y las tarifas en las fuentes oficiales de [modelos](https://platform.claude.com/docs/en/models/overview) y [precios](https://platform.claude.com/docs/en/about-claude/pricing). Son comprobaciones web, no peticiones autenticadas a la API. Que el catálogo público liste este ID no verifica aún su disponibilidad para la organización concreta.
 
 ## Cálculo conservador previo
 
@@ -61,9 +61,15 @@ La petición existente usa caché `ephemeral` solo para el prompt de sistema; no
 
 Localmente se guardarían solo estado por caso, modelo, versión de prompt, contadores de intentos, tokens, coste y duración; sin claves, prompts, respuestas completas, citas ni datos de mensajes en los registros. Las salidas necesarias para verificar citas se inspeccionarían en memoria. Cualquier evidencia que se entregue se revisará antes de publicarla.
 
+## Revalidación documental del 10-11-2026
+
+Las fuentes oficiales mantienen `claude-sonnet-5-5` y los precios de 2,00 USD/M de entrada, 2,50 USD/M de escritura de caché de 5 minutos y 10,00 USD/M de salida. Por ello la reserva calculada de **0,165 USD para tres intentos** sigue cabiendo en la propuesta de **0,20 USD**. No se ha consultado el saldo ni la configuración de la organización, y la cifra no se convierte en permiso por volver a calcularla.
+
+Se han releído la política comercial de entrenamiento, la retención estándar y la elegibilidad de las funciones API enlazadas arriba. El plan sigue asumiendo conservadoramente la política estándar y no atribuye ZDR a esta cuenta. Las páginas pueden cambiar: antes de pedir la ejecución se cotejarán otra vez precio, acceso al modelo, condiciones aplicables y límite efectivo de Console. No se ha hecho una llamada a Messages, Token Counting, Models u otra API autenticada.
+
 ## SDK y preparación sin gasto
 
-El candidato observado es **`anthropic==2.6.0`**, publicado el 05-11-2026, con Python ≥3.10; Python 3.12 cumple ese requisito. La versión se ha consultado en [PyPI oficial del paquete](https://pypi.org/project/anthropic/2.6.0/), sin descargarla ni instalarla. La compatibilidad de esta versión con nuestro adaptador **todavía no está verificada**.
+El candidato observado es **`anthropic==2.7.0`**, publicado el 09-11-2026, con Python ≥3.10; Python 3.12 cumple ese requisito. La versión se ha consultado en [PyPI oficial del paquete](https://pypi.org/project/anthropic/2.7.0/), sin descargarla ni instalarla. La consulta del 10-11-2026 sustituye el candidato documental 2.6.0 anterior; no es una actualización instalada. La compatibilidad de esta versión con nuestro adaptador **todavía no está verificada**.
 
 La eventual instalación necesita autorización separada y se propone únicamente en un entorno temporal nuevo: `C:/Users/dialm/Documents/ChatGPT/Hackaton/.mvp-final/sonnet-venv`, distinto del entorno del proyecto y del entorno temporal Gmail. Antes de usar una clave: fijar y registrar dependencias resueltas, pasar `pip check`, comprobar la forma del SDK con transporte HTTP falso y verificar `max_retries=0`, timeout de 60 segundos, salida estructurada, caché y ausencia de herramientas/fallbacks. La instalación y estas verificaciones deben mantener IA/presupuesto/flags reales en cero y red bloqueada para los dobles. No se ofrece aquí un comando de instalación autorizado.
 

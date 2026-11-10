@@ -1,6 +1,6 @@
 # Guion de la demostración (≈ 5 minutos)
 
-> Reglas: esta es una **preparación local sin publicar**, basada en `dd3e4fb` más la continuación local del MVP. Antes de publicar, verificar que código y materiales correspondan a la misma versión. Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
+> Reglas: esta es una **preparación local sin publicar**, basada en `c013f5b` más la rama local `codex/cierre-mvp`. Antes de publicar, verificar que código y materiales correspondan a la misma versión. Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
 
 ## Preparación (antes de subir al escenario)
 1. Ordenador de la demo con Python 3.12 y el proyecto instalado según el README (validación de la copia actual e instalación: ver seguimiento, H6).
@@ -13,7 +13,7 @@
 3. Navegador en `http://127.0.0.1:8790/`, zoom al 125–150 % para que se lea desde la sala.
 4. Tener copiado en el portapapeles un mensaje de phishing de ejemplo **ficticio** (por ejemplo el de la sección «Texto libre» más abajo).
 5. Plan B: si el portátil falla, el mismo flujo en otro ordenador con el ZIP. No hay plan B «grabado».
-6. Resultados esperados (comprobados con `rules-0.3.3`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
+6. Resultados esperados (comprobados con `rules-0.3.5`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
 
 ## Desarrollo
 | Min. | Qué se hace | Qué se dice (idea) |
@@ -44,7 +44,7 @@ Use el bloque «Demo local sin IA» del README, que desactiva IA/presupuesto/Opu
 
 Después de los tres botones, importe con teclado los archivos de `docs/entrega/ejemplos/`:
 
-| Archivo sintético | Resultado observado por HTTP local, rules-0.3.3 | Qué explicar |
+| Archivo sintético | Resultado observado por HTTP local, rules-0.3.5 | Qué explicar |
 |---|---|---|
 | 01-sintetico.eml | BAJO | Aviso informativo sin peticiones sensibles |
 | 02-sintetico.eml | ALTO, parcial | Petición de claves y enlace que imita al banco |
@@ -60,3 +60,7 @@ Límites relevantes para el jurado: P5 puede alertar en encuestas legítimas; P6
 
 ## Integraciones y límites de esta presentación
 Gmail real permanece apagado. El panel está implementado, pero las ocho pruebas SDK usan transporte y OAuth simulados. No iniciar OAuth ni mostrar un buzón real sin permiso. Claude sigue desactivado y con presupuesto cero. La demo principal no depende de red ni servicios externos. En «Más detalles» se ven evidencias, comprobaciones y limitaciones: el texto principal responde nivel, por qué y qué hacer. No afirmar que una cabecera Authentication-Results escrita en un .eml sea una autenticación real comprobada por nosotros.
+
+
+## Cierre de esta revisión
+No afirmar que basta con activar la IA para entender todos los mensajes: el filtro decide qué escala. La nueva señal contextual de datos referidos es acotada y conserva incertidumbre. La comparación comercial y el ensayo humano se describen en los documentos de cierre, sin atribuir resultados aún no medidos. Antes de enviar: confirmar hora/formulario/duración/responsable, publicar solo con permiso, descargar el ZIP oficial y ensayar esa misma versión. El ZIP candidato local no sustituye ese paso.

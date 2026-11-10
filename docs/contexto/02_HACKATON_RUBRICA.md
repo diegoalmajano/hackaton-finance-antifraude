@@ -1,5 +1,7 @@
 # 02 — Hackatón: rúbrica, requisitos y entregables
 
+> Aclaración del usuario, 10-11-2026: cierre miércoles 11-11-2026 a las 23:59, hora de Madrid. Sustituye la fecha prevista del equipo 12-nov que figura en la historia. Formulario rellenado; envío no confirmado. Duración pendiente. Esta fecha es confirmación del usuario, no una nueva transcripción del PDF.
+
 > Adaptado (sesión 5) del documento homónimo de la memoria original. Fuente única y oficial: el PDF del hackatón; su **texto literal** está en `../referencia/rubrica_oficial_texto.md`. Todo lo de este documento es ✅ PDF salvo que se indique.
 
 ## 1. Rúbrica completa (suma 100 %)

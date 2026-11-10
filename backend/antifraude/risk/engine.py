@@ -42,6 +42,7 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
     "content.otp_request": FraudCategory.ACCOUNT_TAKEOVER,
     "content.card_request": FraudCategory.CREDENTIAL_THEFT,
     "content.payment_request": FraudCategory.PAYMENT_FRAUD,
+    "content.reverse_payment_request": FraudCategory.PAYMENT_FRAUD,
     "content.payment_details_change": FraudCategory.PAYMENT_FRAUD,
     "content.investment_promise": FraudCategory.INVESTMENT_SCAM,
     "content.remote_access": FraudCategory.ACCOUNT_TAKEOVER,
@@ -83,7 +84,7 @@ _CATEGORY_BY_CODE: dict[str, FraudCategory] = {
 #: Peticiones que nunca son seguras (D-29).
 _SENSITIVE_REQUESTS = {"content.credential_request", "content.otp_request", "content.card_request",
                        "content.otp_share", "content.credential_request_en", "content.identity_data_request"}
-_PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request", "content.debt_lure"}
+_PAYMENT_REQUESTS = {"content.payment_details_change", "content.payment_request", "content.reverse_payment_request", "content.debt_lure"}
 #: Señuelos graves: con una corroboración de otra señal, el nivel es ALTO (ADR-0006, regla 1).
 _LURES = _SENSITIVE_REQUESTS | {
     "content.payment_details_change", "content.investment_promise", "content.remote_access",
@@ -96,7 +97,7 @@ _CORROBORATORS = {
     "url.ip_literal", "url.userinfo", "url.punycode", "url.shortener", "url.unofficial_link",
     "sender.brand_mismatch", "sender.body_brand_mismatch", "sender.dmarc_fail", "sender.reply_to_mismatch",
     "content.account_threat",
-    "content.urgency", "content.injection_attempt", "content.payment_request",
+    "content.urgency", "content.injection_attempt", "content.payment_request", "content.reverse_payment_request",
     "content.obfuscation", "content.invisible_chars", "url.unparseable",
     "content.call_lure", "content.secrecy", "content.debt_lure", "content.public_body_link",
     "url.brand_in_path", "url.domain_in_subdomain", "url.brand_name_unverified", "sender.brand_name_unverified",

@@ -114,7 +114,7 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución (09-11-2026, tras la regla del Bizum inverso y las correcciones de accesibilidad): **899 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución (10-11-2026, cierre local del detector): **926 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
 
 ## 6. Seguridad y privacidad (resumen)
 - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y los recursos estáticos se sirven localmente.
@@ -189,3 +189,7 @@ Para repetir las pruebas JavaScript adicionales desde la raíz, si Node ya está
 node --test tests/ui/test_accesibilidad.cjs
 ```
 Son once pruebas con DOM/temporizadores simulados; no sustituyen la verificación manual del lector ni requieren Node para ejecutar la aplicación. La suite Python incluye cinco pruebas HTTP contra Uvicorn real en loopback, con claves de sesión solo en memoria.
+
+
+## Cierre local del 10 de noviembre
+Ver [estado actual y evidencia](docs/CIERRE_MVP_2026-11-10.md), [revisión humana preparada](docs/REVISION_HUMANA_MVP.md) y [valor diferencial e hipótesis de negocio](docs/VALOR_DIFERENCIAL.md). Gmail real, Claude real, revisión humana y evaluación independiente siguen pendientes de sus permisos/datos. El sondeo de Linux del compañero es evidencia de portabilidad de la versión anterior; no una evaluación independiente de eficacia.

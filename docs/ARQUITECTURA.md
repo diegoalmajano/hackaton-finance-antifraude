@@ -14,7 +14,7 @@ Aplicación **local** en un único proceso de Python 3.12 (monolito modular, ADR
    Entrada ─────────────┤  connectors: manual (texto/.eml) · simulado (etiquetado) · Gmail (integrado en panel, apagado por defecto)
                         ▼
                   analysis/ingest   → limpieza, minimización de datos sensibles, extracción de enlaces (texto + HTML)
-                  analysis/rules    → rules-0.3.3, filtro rápido (señales con código estable)
+                  analysis/rules    → rules-0.3.5, filtro rápido (señales con código estable)
                   intel/urls        → análisis PASIVO de enlaces + intel/entities (directorio de bancos)
                   ai/claude         → (opcional) Claude con salida JSON estricta y citas verificadas
                   risk/engine       → motor DETERMINISTA: BAJO / MEDIO / ALTO / NO CONCLUYENTE
@@ -47,7 +47,7 @@ Modelos Pydantic v2 en `backend/antifraude/contracts/` (fuente única, ADR-0003)
 - Errores en español sin detalles técnicos. Las excepciones no controladas se registran sin su mensaje.
 
 ## 5. Calidad
-- **877 pruebas Python automáticas** (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto, IA y Gmail simulados), más 4 de integración real saltadas por defecto, 1 limitación conocida (`xfail`) y 1 aviso de deprecación. Se registran por separado 11 pruebas JavaScript y 8 comprobaciones de SDK con transportes HTTP/OAuth/keyring simulados; estas últimas no acreditan una cuenta real.
+- **926 pruebas Python automáticas** (contratos, seguridad, interfaz, motor, regresiones adversariales, control de gasto, IA y Gmail simulados), más 4 de integración real saltadas por defecto, 1 limitación conocida (`xfail`) y 1 aviso de deprecación. Se registran por separado 11 pruebas JavaScript y 8 comprobaciones de SDK con transportes HTTP/OAuth/keyring simulados; estas últimas no acreditan una cuenta real.
 - Revisiones asistidas de código, seguridad, accesibilidad y etiquetas, además de pruebas adversariales y regresiones. Se distinguen de la evaluación independiente, cuyo conjunto sellado sigue pendiente.
 
 ## 6. Qué es real, qué es simulado y qué falta

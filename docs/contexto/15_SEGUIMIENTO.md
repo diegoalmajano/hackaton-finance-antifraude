@@ -1,5 +1,7 @@
 # 15 — Seguimiento del desarrollo autónomo hacia el MVP (D-54, misión 2)
 
+> Estado vigente de cierre, 10-11-2026: rules-0.3.5, 926 Python / 11 JS / 8 SDK Gmail simulados. Rama codex/cierre-mvp, base compartida c013f5b, sin publicación nueva. Evidencia y pendientes: [CIERRE_MVP_2026-11-10.md](../CIERRE_MVP_2026-11-10.md). Las secciones fechadas anteriores son históricas.
+
 > Documento vivo para retomar el trabajo si se interrumpe la sesión. Actualizar al cerrar cada bloque.
 > Estado vigente: Codex, rama `feat/fase-0`; publicación inicial completada. El registro de misiones anteriores se conserva como histórico; sus menciones a «sin push» no son bloqueos actuales.
 

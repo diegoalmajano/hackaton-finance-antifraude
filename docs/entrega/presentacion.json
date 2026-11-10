@@ -50,14 +50,14 @@
         "Citas verificadas literalmente: lo que la IA no puede citar, se descarta",
         "Defensas frente a mensajes que intentan manipular a la IA (y eso cuenta como señal de riesgo)",
         "Si la IA no está disponible, el análisis sigue y se declara «análisis parcial»",
-        "Elección Opus 5.5 / Sonnet 5.5 pendiente de medir calidad, coste y latencia"
+        "IA desactivada y presupuesto cero; integración real y valor añadido pendientes de medir"
       ]
     },
     {
       "titulo": "Pensado para personas mayores",
       "puntos": [
         "Español llano, sin tecnicismos en la explicación principal",
-        "Texto y botones grandes; reflujo a 320 px comprobado; zoom final, lector y contraste Windows pendientes",
+        "Texto y botones grandes; reflujo y pruebas automáticas; validación humana completa aún pendiente",
         "El riesgo nunca se comunica solo con color: siempre icono + texto + borde",
         "Recomendaciones concretas: «llame a su banco al teléfono de siempre»"
       ]
@@ -83,7 +83,7 @@
     {
       "titulo": "Calidad comprobada",
       "puntos": [
-        "877 pruebas Python y 11 JS correctas; cuatro integraciones reales saltadas y un fallo esperado conocido",
+        "926 pruebas Python y 11 JS correctas; cuatro integraciones reales saltadas y un fallo esperado conocido",
         "Revisiones asistidas de código, seguridad y accesibilidad; validación manual aún parcial",
         "Métricas de DESARROLLO solo para ajustar (no son evaluación independiente)",
         "Metodología de evaluación independiente preparada (conjunto sellado pendiente)"
@@ -94,7 +94,7 @@
       "puntos": [
         "Hoy: análisis manual, diseño final en español y demo sintética sin Internet",
         "Gmail en el panel y 8 comprobaciones SDK: autorización y transporte simulados; Claude simulado",
-        "Pendiente: OAuth en cuenta de pruebas, piloto Sonnet autorizado y evaluación independiente",
+        "Pendiente: OAuth de pruebas, permiso para piloto Sonnet y evaluación humana independiente",
         "Completar dominios bancarios y validación manual de accesibilidad antes de presentar"
       ]
     },

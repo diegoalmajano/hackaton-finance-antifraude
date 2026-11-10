@@ -21,7 +21,7 @@ from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily
 from antifraude.intel.entities import EntityDirectory
 from antifraude.intel.urls import UNVERIFIED_BRAND, find_lookalike, registrable_domain
 
-RULE_VERSION = "rules-0.3.4"
+RULE_VERSION = "rules-0.3.5"
 
 #: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
 #: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
@@ -30,8 +30,9 @@ _NEGATION = re.compile(
     r"\b(nunca|jamas|no)\b[^.!?\n:;]{0,30}\b(pedi\w*|pide\w*|pida\w*|pediran|solicit\w*|pregunt\w*|requer\w*|"
     r"exig\w*|reclam\w*)\b(\s+(le|te|les|nos|os|su|sus|tu|tus|el|la|los|las|que|a usted|de usted))*\s*$")
 #: Negación directa del verbo de la petición («nunca facilite», «no debe facilitar», «evite introducir»).
-_DIRECT_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)(\s+(me|le|te|se lo|se la|nos|les|lo|la))?"
-                              r"(\s+(debe|deberia|tiene que|tienes que|hay que|debemos))?(\s+nunca)?\s*$")
+_DIRECT_NEGATION = re.compile(r"\b(no|nunca|jamas|evite|evita)(\s+(me|le|te|se lo|se la|se|nos|les|lo|la))?"
+                              r"(\s+(debo|debes|debe|debemos|debeis|deben|deberia|deberias|deberiamos|deberiais|deberian|"
+                              r"tengo que|tienes que|tiene que|tenemos que|teneis que|tienen que|hay que))?(\s+nunca)?\s*$")
 #: Discurso referido: «si alguien le pide que confirme…», «los estafadores le dirán «introduzca…»».
 _REPORTED = re.compile(r"\b(alguien|desconocid\w*|estafador\w*|delincuent\w*|ciberdelincuent\w*|terceros?|"
                        r"nadie|otra persona|un supuesto|una supuesta)\b[^.!?\n]{0,50}\b(le|te|les)\s+"
@@ -195,19 +196,17 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
               r"(nuev\w*|cambi\w*|actualizad\w*|a partir de ahora|desde ahora)[^.!?\n]{0,60}\[iban [a-z]{2} \.\.\.|"
               r"\[iban [a-z]{2} \.\.\.[^\]]*\][^.!?\n]{0,40}(nuev\w*|cambi\w*|a partir de ahora))"),
           "Le indican una cuenta bancaria nueva o diferente para pagar.", "cambio de datos de pago"),
-    # Bizum inverso / solicitud de dinero disfrazada de cobro: para RECIBIR dinero nunca hay que aceptar una
-    # solicitud; aceptarla es pagar. Puede cruzar una frase («…para recibir el reembolso. Acéptela…»), pero no
-    # un salto de línea. Tipología pública (avisos de INCIBE/OSI y del Banco de España); ver ``_ACCEPT_NEGATED``.
+    # Bizum inverso: continuidad acotada dentro del párrafo, incluido un salto simple de maquetación.
+    # Los párrafos en blanco cortan; se comprueba la negación del verbo emparejado, no de otra frase.
     _Rule("content.reverse_payment_request", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"solicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,120}?\b(para (recibir|cobrar|que (se )?le ingres|"
-              r"que (te|le) llegue)|reembols\w*|devoluc\w*|ingres\w*)[^\n]{0,120}?\b(acept|autoric|aprueb|aprob)\w*|"
-              r"\b(para (recibir|cobrar)|reembols\w*|devoluc\w*)[^\n]{0,120}?\b(acept|autoric|aprueb|aprob)\w*"
-              r"[^\n]{0,40}\bsolicitud|"
-              r"\b(acept|autoric|aprueb|aprob)\w*[^\n]{0,40}\bsolicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,80}"
+              r"que (te|le) llegue)|reembols\w*|devoluc\w*|ingres\w*)[^\n]{0,120}?\b(?P<reverse_after>(acept|autoric|aprueb|aprob)\w*)|"
+              r"\b(para (recibir|cobrar)|reembols\w*|devoluc\w*)[^\n]{0,120}?\b(?P<reverse_middle>(acept|autoric|aprueb|aprob)\w*)"
+              r"[^.!?;:\n]{0,40}\bsolicitud|"
+              r"\b(?P<reverse_before>(acept|autoric|aprueb|aprob)\w*)[^.!?;:\n]{0,40}\bsolicitud(es)? de (bizum|pago|dinero|cobro)[^\n]{0,80}"
               r"(para (recibir|cobrar|que (se )?(te|le) (llegue|ingres))|reembols|devoluc|ingres)"),
           "Le piden que acepte una solicitud de Bizum o de pago para «recibir» dinero. Aceptar una solicitud es "
-          "PAGAR: para cobrar nunca tiene que aceptar nada.", "solicitud de pago disfrazada de cobro (Bizum inverso)",
-          negatable=True),
+          "PAGAR: para cobrar nunca tiene que aceptar nada.", "solicitud de pago disfrazada de cobro (Bizum inverso)"),
     _Rule("content.investment_promise", SignalFamily.CONTENT, Severity.HIGH,
           _rx(r"(rentabilidad(es)? (garantizad|asegurad)|(duplic|tripl|multiplic)\w* (su|tu) (dinero|inversion)|"
               r"sin (ningun )?riesgo|ganancias? (garantizad|diari|semanal)|beneficios? garantizad|"
@@ -282,11 +281,19 @@ _NOVELTY = re.compile(r"\b(nuev\w*|cambi\w*|anterior|cancelad\w*|anulad\w*|a par
 _CALL_TO_ACTION = re.compile(r"\b(acced\w*|consult\w*|puls\w*|haga clic|pinch\w*|siga|complete|regularic\w*|"
                              r"abon\w*|pagu\w*|pagando|descargu\w*|actualic\w*|verifiqu\w*|entre|visite|recib\w*)\b")
 _USUAL = re.compile(r"\b(de siempre|habitual)\b")
-#: Consejo, no petición: «si recibe una solicitud de Bizum para cobrar, NO la acepte» (la negación va DENTRO
-#: de la coincidencia, después de «solicitud», y ``_is_negated`` solo mira antes).
-_ACCEPT_NEGATED = re.compile(r"\b(no|nunca|jamas)\s+((la|lo|las|los|le|se|debe|deben|tiene|tienes|hay|necesita|"
-                             r"necesitas|que|es necesario|hace falta)\s+){0,3}(acept|autoric|aprueb|aprob)\w*|"
-                             r"\bsin (tener que |necesidad de )?(acept|autoriz|aprob)\w*")
+#: Complemento impersonal: se aplica al prefijo inmediato del verbo, dentro de su cláusula.
+_ACCEPT_NEGATED = re.compile(
+    r"\b(?:sin (?:tener que |necesidad de )?|"
+    r"(?:no es necesario|no hace falta|no necesit(?:o|as|a|amos|ais|an))(?:\s+que)?\s*)$")
+_SENSITIVE_REFERENCE = re.compile(
+    r"\b(contrasena|claves?|pin|otp|codigo(?!\s+(postal|de (conducta|seguimiento|pedido|reserva|vestimenta)|"
+    r"del (pedido|producto))))\b")
+_REFERRED_SHARE = re.compile(
+    r"\b(envie|envia|reenvie|reenvia|comparta|comparte|comunique)(lo|la|los|las)\b")
+_REFERENCE_RECIPIENT = re.compile(
+    r"^\s*((a|al)\s+((nuestro|nuestra|su|tu|el|la|un|una)\s+)?"
+    r"(gestor|gestora|agente|asesor|asesora|operador|operadora|soporte|empleado|empleada)\b|"
+    r"(por|mediante|en)\s+(correo|email|sms|whatsapp|respuesta)\b)")
 
 
 def _matches(pattern: re.Pattern[str], text: str, limit: int = 40) -> list[re.Match[str]]:
@@ -304,6 +311,33 @@ def _matches(pattern: re.Pattern[str], text: str, limit: int = 40) -> list[re.Ma
         out.append(m)
         pos = m.start() + 1
     return out
+
+
+def _reverse_action_negated(text: str, match: re.Match[str]) -> bool:
+    """Negación de la acción concreta, sin que otra oferta o frase suprima la señal."""
+    group = next(name for name in ("reverse_after", "reverse_middle", "reverse_before")
+                 if match.group(name) is not None)
+    start, end = match.span(group)
+    if _is_negated(text, start, end, no_need=False):
+        return True
+    clause = _CLAUSE_CUT.split(text[max(0, start - 100):start])[-1]
+    return _ACCEPT_NEGATED.search(clause) is not None
+
+
+def _needs_sensitive_reference_review(folded: str) -> bool:
+    """Disparador acotado: antecedente sensible + envío referido a un tercero/canal.
+
+    No demuestra a qué se refiere el pronombre; pide revisión contextual y nunca
+    cambia por sí solo una incertidumbre en fraude. No cruza párrafos en blanco.
+    """
+    for action in _matches(_REFERRED_SHARE, folded):
+        if _is_negated(folded, action.start(), action.end(), no_need=True):
+            continue
+        before = folded[max(0, action.start() - 200):action.start()].rsplit("\n\n", 1)[-1]
+        after = re.split(r"[.!?\n:;]", folded[action.end():action.end() + 80], maxsplit=1)[0]
+        if _SENSITIVE_REFERENCE.search(before) and _REFERENCE_RECIPIENT.search(after):
+            return True
+    return False
 
 
 def _has_payment_instruction(folded: str) -> bool:
@@ -357,7 +391,9 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
     """Aplica las reglas y devuelve el resultado del filtro y las entidades mencionadas."""
     t0 = perf_counter()
     visible = (message.subject or "") + "\n" + message.text
-    folded = fold(visible)
+    # Un salto simple puede ser maquetación; los párrafos en blanco sí cortan asociaciones.
+    # Se conserva la puntuación fuerte del texto, usada también para negar cada cláusula.
+    folded = "\n\n".join(fold(p) for p in re.split(r"\n[ \t]*\n+", visible))
     signals: list[Signal] = []
 
     has_link_or_phone = bool(message.urls) or "[telefono]" in folded
@@ -372,8 +408,7 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
             if rule.code == "content.payment_details_change" and (not _has_payment_instruction(folded)
                                                                  or _NOTHING_TO_DO.search(folded)):
                 continue  # «su nueva cuenta ya está operativa» informa; solo es riesgo si le piden pagar allí (B1)
-            if rule.code == "content.reverse_payment_request" and _ACCEPT_NEGATED.search(
-                    folded[max(0, m.start() - 40):m.end() + 5]):
+            if rule.code == "content.reverse_payment_request" and _reverse_action_negated(folded, m):
                 continue
             if rule.code == "content.prize_or_refund" and _REFUND_DONE.search(folded):
                 continue
@@ -387,6 +422,12 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
             signals.append(_signal(rule.code, rule.family, rule.severity, rule.user, rule.tech))
             break
 
+    contextual_review = _needs_sensitive_reference_review(folded)
+    if contextual_review:
+        signals.append(_signal("context.sensitive_reference_request", SignalFamily.CONTEXT, Severity.LOW,
+                               "Se menciona un dato sensible y después se pide enviarlo a otra persona o canal. "
+                               "No podemos asegurar a qué se refiere: compruébelo antes de compartir nada.",
+                               "posible solicitud referida: antecedente sensible cercano y envío pronominal a tercero"))
     _iban_payment(folded, signals)
     # Organismo público + enlace + llamada a la acción: sin dominios verificados de organismos (salvo «.gob.es»,
     # reservado a las administraciones públicas) no se puede afirmar que el enlace sea oficial (A4).
@@ -485,7 +526,7 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
     risky = [s for s in signals if s.severity.rank >= Severity.MEDIUM.rank]
     # Mención de una entidad + algún enlace que NO es de un dominio oficial verificado → análisis profundo.
     unofficial_links = [u for u in message.urls if not (u.host and directory.official_entity_for_host(u.host))]
-    needs_deep = bool(risky) or (bool(entities) and bool(unofficial_links))
+    needs_deep = bool(risky) or contextual_review or (bool(entities) and bool(unofficial_links))
     preliminary = any(s.severity.rank >= Severity.HIGH.rank for s in signals)
     result = ScreeningResult(
         message_id=message.id,

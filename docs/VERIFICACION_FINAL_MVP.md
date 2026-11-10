@@ -1,5 +1,7 @@
 # Verificación final local del MVP — 09-11-2026
 
+> Estado vigente de cierre, 10-11-2026: rules-0.3.5, 926 Python / 11 JS / 8 SDK Gmail simulados. Rama codex/cierre-mvp, base compartida c013f5b, sin publicación nueva. Evidencia y pendientes: [CIERRE_MVP_2026-11-10.md](CIERRE_MVP_2026-11-10.md). Las secciones fechadas anteriores son históricas.
+
 ## Alcance y resultado
 Prototipo de hackatón, no producto bancario comercial. Continuación desde dd3e4fb en feat/fase-0. No se modifica main, no se publica ni se llama a APIs de pago. Coste real de API durante esta misión: 0 USD. IA/Opus/presupuesto e integraciones reales apagados; no se usan claves ni cuentas reales.
 

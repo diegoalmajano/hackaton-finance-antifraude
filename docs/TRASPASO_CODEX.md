@@ -1,5 +1,7 @@
 # Traspaso a Codex — estado comprobado el 08-11-2026 (22:03, hora peninsular)
 
+> Estado vigente de cierre, 10-11-2026: rules-0.3.5, 926 Python / 11 JS / 8 SDK Gmail simulados. Rama codex/cierre-mvp, base compartida c013f5b, sin publicación nueva. Evidencia y pendientes: [CIERRE_MVP_2026-11-10.md](CIERRE_MVP_2026-11-10.md). Las secciones fechadas anteriores son históricas.
+
 > Estado vigente 09-11-2026: rules-0.3.3, 877 Python / 11 JS / 8 SDK simulados; cierre local sin push. Véase «Estado vigente — cierre técnico local» al final y docs/VERIFICACION_FINAL_MVP.md. Las cifras anteriores son historia fechada.
 
 > Actualización 09-11-2026: versión local rules-0.3.2, 746 pruebas Python y 11 JS; consolidación y push de feat/fase-0 autorizados expresamente. Los estados Git anteriores son instantáneas históricas. Véase el registro de consolidación al final.

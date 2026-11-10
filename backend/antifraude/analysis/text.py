@@ -19,7 +19,8 @@ import unicodedata
 
 _INVISIBLE = re.compile("[​-‏‪-‮⁠-⁤⁦-⁩﻿­]")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-_SPACES = re.compile(r"[ \t  -   　]+")
+_SPACE_TRANSLATION = str.maketrans({ch: " " for ch in "\t\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"})
+_MULTI_SPACES = re.compile(r" {2,}")
 
 
 def clean_text(text: str) -> tuple[str, int]:
@@ -30,7 +31,7 @@ def clean_text(text: str) -> tuple[str, int]:
     t = _CONTROL.sub("", t)
     # Se conservan como máximo DOS espacios: separan palabras escritas con letras sueltas
     # («I N T R O D U Z C A   S U   C L A V E»), lo que necesita ``fold`` (revisión adversarial ronda 3, A9).
-    t = "\n".join(_SPACES.sub(lambda m: "  " if len(m.group()) > 1 else " ", line).strip()
+    t = "\n".join(_MULTI_SPACES.sub("  ", line.translate(_SPACE_TRANSLATION)).strip()
                   for line in t.split("\n"))
     t = re.sub(r"\n{3,}", "\n\n", t).strip()
     return t, invisibles
