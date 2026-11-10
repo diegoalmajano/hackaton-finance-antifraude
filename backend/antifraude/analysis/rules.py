@@ -21,7 +21,7 @@ from antifraude.contracts.screening import ScreeningResult, Signal, SignalFamily
 from antifraude.intel.entities import EntityDirectory
 from antifraude.intel.urls import UNVERIFIED_BRAND, find_lookalike, registrable_domain
 
-RULE_VERSION = "rules-0.3.5"
+RULE_VERSION = "rules-0.3.9"
 
 #: Negación SOLO de la propia petición («nunca le pediremos…»): tras el verbo de pedir solo pueden
 #: quedar pronombres o artículos (revisión adversarial A1: «Nunca le pediremos sus datos, por eso
@@ -54,7 +54,7 @@ _REQUEST_VERB = (
     r"inicia sesion|ingrese|necesit\w*|acced\w* con|entre con|comuniq\w*|digale|facilitenos|indiquenos|envienos|"
     r"tecle\w*|aporte|aporta|remita|remite|remitiera|remitirnos|"
     # formas con pronombre pegado (revisión adversarial A2/A3)
-    r"enviarnos|envianos|facilitarnos|facilitanos|indicarnos|indicanos|confirmarnos|confirmenos|pasame|pasamelo|"
+    r"enviarme|enviarnos|envianos|facilitarnos|facilitanos|indicarnos|indicanos|confirmarnos|confirmenos|pasame|pasamelo|"
     r"pasarnos|pasanos|pasenos|pasas|diganos|dinos|mandame|mandanos|reenviame|reenvienos|renueve|renueva|renuevela|"
     r"compart(?:a|e)(?:me|nos)|envi(?:a|e)me|"
     # subjuntivo de tú («te pide que nos envíes…») y otras formas (revisión adversarial ronda 3, A5/A7)
@@ -82,6 +82,106 @@ _OTP_OBJECT = (
 )
 
 
+_REQUEST_TAIL = re.compile(
+    _REQUEST_VERB + r"\b(?:\s+(?:su|sus|tu|tus|el|la|los|las|un|una))?\s*$")
+_SENSITIVE_HEAD = re.compile(
+    r"^\s*[:,]?\s*(?:por\s+favor(?:\s*[:,]\s*|\s+))?"
+    r"(?:(?:su|sus|tu|tus|el|la|los|las|un|una)\s+)?(?:"
+    + re.sub(" ", r"\\s+", _CREDENTIAL_OBJECT + "|" + _OTP_OBJECT + "|" + _CARD_OBJECT) + ")")
+# Destinatario explícito de una petición, no una cláusula arbitraria antes de «:».
+_REQUEST_RECIPIENT = r"(?:\s+(?:por\s+favor\s+)?(?:a|al)\s+(?:(?:nuestro|nuestra|su|tu|el|la)\s+)?(?:agente|gestor|gestora|asesor|asesora|soporte)\s*[:,]?)?"
+_DIRECT_SENSITIVE = re.compile(_REQUEST_VERB + r"\b" + _REQUEST_RECIPIENT + _SENSITIVE_HEAD.pattern[1:])
+_REPAIRED_REQUEST_TAIL = re.compile(_REQUEST_RECIPIENT + _SENSITIVE_HEAD.pattern[1:])
+_BROKEN_WORD = re.compile(r"(?=\b([^\W\d_]{1,20})([ \t]*\n\s*)([^\W\d_]{1,20})\b)")
+_SENSITIVE_WORDS = {"contrasena", "credenciales", "codigo", "verificacion", "confirmacion",
+                    "tarjeta", "coordenadas", "seguridad", "firma", "pin", "cvv", "cvc", "otp"}
+# Solo alternativas literales completas, nunca raíces abiertas como tecle\w*.
+# Las variantes antes representadas mediante patrones tienen formas finitas explícitas.
+_REPAIR_REQUEST_WORDS = {
+    word for word in _REQUEST_VERB.removeprefix(r"\b(").removesuffix(")").split("|")
+    if re.fullmatch(r"[a-z]+", word)
+} | {
+    "enviame", "envieme", "compartame", "comparteme", "compartanos", "compartenos",
+    "teclea", "teclee", "teclear", "tecleas", "teclees", "tecleen", "tecleemos", "tecleando",
+    "necesito", "necesita", "necesitas", "necesitamos", "necesitais", "necesitan",
+    "necesite", "necesites", "necesitemos", "necesiten", "necesitar",
+    "comunica", "comunique", "comuniques", "comuniquen", "comuniquemos", "comunicar",
+    "comuniquenos", "comunicanos",
+}
+_NEGATED_REQUEST_HEAD = re.compile(
+    r"(?:(?:evite|evita)\s+)?(?:(?:me|le|te|se lo|se la|se|nos|les|lo|la)\s+)?" + _REQUEST_VERB + r"\b")
+# Catálogo morfológico cerrado para las raíces antes abiertas. Incluye flexión
+# regular y pronombres enclíticos, sin aceptar sufijos arbitrarios («opatra»).
+_REPAIR_INFLECTED_VERB = re.compile(
+    r"(?:(?:tecle|necesit)(?:o|as|a|amos|ais|an|aba|abas|abamos|abais|aban|"
+    r"e|aste|asteis|aron|are|aras|ara|aremos|areis|aran|aria|arias|ariamos|ariais|arian|"
+    r"es|emos|eis|en|aramos|arais|ase|ases|asemos|aseis|asen|ares|aren|ad|ar|ando|"
+    r"ado|ada|ados|adas)|comuniqu(?:e|es|emos|eis|en))"
+    r"(?:me|te|se|le|les|nos|os|lo|la|los|las|melo|mela|melos|melas|telo|tela|telos|"
+    r"telas|selo|sela|selos|selas|noslo|nosla|noslos|noslas|oslo|osla|oslos|oslas)?")
+
+
+# Dos palabras reconocibles son una frontera, no una palabra partida.
+# Catálogo acotado del dominio; no pretende ser un diccionario general.
+_COMPLETE_TOKENS = _SENSITIVE_WORDS | _REPAIR_REQUEST_WORDS | {
+    "con", "sin", "de", "del", "el", "la", "los", "las", "su", "sus", "tu", "tus",
+    "te", "me", "le", "se", "no", "nunca", "para", "por", "favor", "en", "y",
+}
+_DOUBLE_AVOID = re.compile(r"\bno\s+(evite|evita)\s*$")
+
+
+def _repair_broken_request_words(text: str) -> str:
+    """Une dos fragmentos de una palabra conocida separados por salto, solo en la vista de reglas."""
+    chunks: list[str] = []
+    cursor = 0
+    # Lookahead: un par ajeno («su / contra») no debe consumir el comienzo
+    # del par válido siguiente («contra / seña»).
+    for match in _BROKEN_WORD.finditer(text):
+        left, right = fold(match[1]), fold(match[3])
+        if left in _COMPLETE_TOKENS and right in _COMPLETE_TOKENS and right not in {"me", "nos", "le", "les", "lo", "la", "los", "las"}:
+            continue
+        canonical = fold(match[1] + match[3])
+        if (canonical in _REPAIR_REQUEST_WORDS or canonical in _SENSITIVE_WORDS
+                or _REPAIR_INFLECTED_VERB.fullmatch(canonical)):
+            # Reparar un verbo requiere objeto sensible directo detrás; una
+            # palabra reconocida en prosa no basta («con / firme protección»).
+            if canonical not in _SENSITIVE_WORDS and not _REPAIRED_REQUEST_TAIL.match(
+                    fold(text[match.end(3):match.end(3) + 250])):
+                continue
+            start, end = match.span(2)
+            chunks.append(text[cursor:start])
+            cursor = end
+    return "".join(chunks) + text[cursor:]
+
+
+def _join_sensitive_breaks(text: str) -> str:
+    """Recupera una petición directa partida solo por formato, sin unir párrafos ajenos.
+
+    Une verbo/determinante con un dato sensible, o una negación directa con
+    su petición sensible. La vista original sigue separada para
+    Bizum y referencias contextuales. Ventanas acotadas; no resolución semántica.
+    """
+    # Solo una petición gramatical directa: verbo + cortesía opcional + determinante + dato.
+    # Coma/dos puntos de maquetación, no puntos ni punto y coma ni objetos ajenos.
+    # No aplana el mensaje entero; conserva la negación de la propia petición.
+    # Puntuación de maquetación tras una negación inmediata, solo ante
+    # una petición sensible completa. No elimina cortes de otras cláusulas.
+    negated_layout = re.compile(
+        r"\b(?:no\s+)?(?:evite|evita|nunca|no)\s*[:,]\s*"
+        + _NEGATED_REQUEST_HEAD.pattern + _SENSITIVE_HEAD.pattern[1:])
+    text = negated_layout.sub(lambda m: re.sub(r"[\s:,]+", " ", m.group()), text)
+    text = _DIRECT_SENSITIVE.sub(lambda m: re.sub(r"[\s:,]+", " ", m.group()), text)
+    def separator(match: re.Match[str]) -> str:
+        before = fold(text[max(0, match.start() - 80):match.start()])
+        after = fold(text[match.end():match.end() + 100])
+        request = _NEGATED_REQUEST_HEAD.match(after)
+        direct = _REQUEST_TAIL.search(before) and _SENSITIVE_HEAD.match(after)
+        negated = (_DIRECT_NEGATION.search(before) and request
+                   and _SENSITIVE_HEAD.match(after[request.end():]))
+        return " " if direct or negated else match.group()
+    return re.sub(r"\n\n", separator, text)
+
+
 @dataclass(frozen=True)
 class _Rule:
     code: str
@@ -100,7 +200,7 @@ def _rx(p: str) -> re.Pattern[str]:
 
 _CONTENT_RULES: tuple[_Rule, ...] = (
     _Rule("content.credential_request", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(_REQUEST_VERB + r"\b[^.\n]{0,120}?" + _CREDENTIAL_OBJECT),
+          _rx(_REQUEST_VERB + r"\b[^.!?;:\n]{0,120}?" + _CREDENTIAL_OBJECT),
           "Le piden claves, contraseñas o datos de acceso. Su banco nunca se los pedirá por mensaje.",
           "petición de credenciales", negatable=True),
     # Peticiones de credenciales en inglés (cobertura mínima; las reglas están pensadas para español, R-56).
@@ -112,8 +212,8 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
     # OTP: «introduce el código» para teclearlo en el propio servicio es legítimo (adversarial P2); solo cuenta
     # si se pide enviarlo, compartirlo o introducirlo en un enlace/formulario/respuesta.
     _Rule("content.otp_request", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(_SHARE_VERB + r"\b[^.\n]{0,70}?" + _OTP_OBJECT + r"|\b(introduzca|introduce|introducir|escriba|escribe|"
-              r"tecle\w*)\b[^.\n]{0,70}?" + _OTP_OBJECT + r"[^.\n]{0,60}(enlace|aqui|formulario|respond|https?|www)"),
+          _rx(_SHARE_VERB + r"\b[^.!?;:\n]{0,70}?" + _OTP_OBJECT + r"|\b(introduzca|introduce|introducir|escriba|escribe|"
+              r"tecle\w*)\b[^.!?;:\n]{0,70}?" + _OTP_OBJECT + r"[^.!?;:\n]{0,60}(enlace|aqui|formulario|respond|https?|www)"),
           "Le piden un código de verificación (de un solo uso). No lo comparta nunca.",
           "petición de OTP", negatable=True),
     _Rule("content.otp_share", SignalFamily.CONTENT, Severity.HIGH,
@@ -123,7 +223,7 @@ _CONTENT_RULES: tuple[_Rule, ...] = (
           "petición de compartir un código", negatable=True),
     # Tarjeta: exige un verbo de petición o una pregunta (adversarial P3: mencionarla no es pedirla).
     _Rule("content.card_request", SignalFamily.CONTENT, Severity.HIGH,
-          _rx(_REQUEST_VERB + r"\b[^.\n]{0,60}?" + _CARD_OBJECT + r"|(cual es|digame|diganos)[^.\n]{0,30}" + _CARD_OBJECT),
+          _rx(_REQUEST_VERB + r"\b[^.!?;:\n]{0,60}?" + _CARD_OBJECT + r"|(cual es|digame|diganos)[^.!?;:\n]{0,30}" + _CARD_OBJECT),
           "Le piden datos de su tarjeta.", "petición de datos de tarjeta", negatable=True),
     _Rule("content.identity_data_request", SignalFamily.CONTENT, Severity.MEDIUM,
           _rx(_REQUEST_VERB + r"\b[^.\n]{0,60}?(\bdni\b|\[dni\]|fecha de nacimiento|numero de la seguridad social|"
@@ -255,6 +355,10 @@ def _is_negated(folded: str, start: int, end: int, no_need: bool) -> bool:
     window = folded[max(0, start - 100):start]
     parts = _CLAUSE_CUT.split(window)
     clause = parts[-1] if parts else window
+    # «No evite facilitar» solicita lo contrario de «Evite facilitar».
+    # Solo afecta al prefijo inmediato de esta petición, no a otras cláusulas.
+    if _DOUBLE_AVOID.search(clause):
+        return False
     if any(p.search(clause) for p in (_NEGATION, _DIRECT_NEGATION, _COORDINATED_NEGATION, _REPORTED)):
         return True
     span = folded[start:end]
@@ -391,15 +495,18 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
     """Aplica las reglas y devuelve el resultado del filtro y las entidades mencionadas."""
     t0 = perf_counter()
     visible = (message.subject or "") + "\n" + message.text
+    visible = _repair_broken_request_words(visible)
     # Un salto simple puede ser maquetación; los párrafos en blanco sí cortan asociaciones.
     # Se conserva la puntuación fuerte del texto, usada también para negar cada cláusula.
-    folded = "\n\n".join(fold(p) for p in re.split(r"\n[ \t]*\n+", visible))
+    paragraphs = "\n\n".join(fold(p) for p in re.split(r"\n[ \t]*\n+", visible))
+    folded = _join_sensitive_breaks(paragraphs)
     signals: list[Signal] = []
 
     has_link_or_phone = bool(message.urls) or "[telefono]" in folded
     for rule in _CONTENT_RULES:
-        for m in _matches(rule.pattern, folded):
-            if rule.negatable and _is_negated(folded, m.start(), m.end(), rule.no_need):
+        source = paragraphs if rule.code == "content.reverse_payment_request" else folded
+        for m in _matches(rule.pattern, source):
+            if rule.negatable and _is_negated(source, m.start(), m.end(), rule.no_need):
                 continue
             if rule.code == "content.debt_lure" and not has_link_or_phone:
                 continue
@@ -408,7 +515,7 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
             if rule.code == "content.payment_details_change" and (not _has_payment_instruction(folded)
                                                                  or _NOTHING_TO_DO.search(folded)):
                 continue  # «su nueva cuenta ya está operativa» informa; solo es riesgo si le piden pagar allí (B1)
-            if rule.code == "content.reverse_payment_request" and _reverse_action_negated(folded, m):
+            if rule.code == "content.reverse_payment_request" and _reverse_action_negated(source, m):
                 continue
             if rule.code == "content.prize_or_refund" and _REFUND_DONE.search(folded):
                 continue
@@ -422,7 +529,7 @@ def screen(message: IncomingMessage, directory: EntityDirectory) -> tuple[Screen
             signals.append(_signal(rule.code, rule.family, rule.severity, rule.user, rule.tech))
             break
 
-    contextual_review = _needs_sensitive_reference_review(folded)
+    contextual_review = _needs_sensitive_reference_review(paragraphs)
     if contextual_review:
         signals.append(_signal("context.sensitive_reference_request", SignalFamily.CONTEXT, Severity.LOW,
                                "Se menciona un dato sensible y después se pide enviarlo a otra persona o canal. "

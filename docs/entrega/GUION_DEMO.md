@@ -1,6 +1,6 @@
-# Guion de la demostración (≈ 5 minutos)
+# Guion de la demostración (propuesta de ≈ 5 minutos; duración oficial pendiente)
 
-> Reglas: esta es una **preparación local sin publicar**, basada en `c013f5b` más la rama local `codex/cierre-mvp`. Antes de publicar, verificar que código y materiales correspondan a la misma versión. Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
+> Reglas: esta es una **preparación local sin publicar**, basada en `615b4a9` (que incluye `c013f5b`) más la corrección sin commit de `codex/candidata-council`. Antes de publicar, verificar que código y materiales correspondan a la misma versión. Nada pregrabado como real. Todo lo simulado se dice en voz alta y aparece etiquetado en pantalla. No necesita Internet.
 
 ## Preparación (antes de subir al escenario)
 1. Ordenador de la demo con Python 3.12 y el proyecto instalado según el README (validación de la copia actual e instalación: ver seguimiento, H6).
@@ -13,7 +13,7 @@
 3. Navegador en `http://127.0.0.1:8790/`, zoom al 125–150 % para que se lea desde la sala.
 4. Tener copiado en el portapapeles un mensaje de phishing de ejemplo **ficticio** (por ejemplo el de la sección «Texto libre» más abajo).
 5. Plan B: si el portátil falla, el mismo flujo en otro ordenador con el ZIP. No hay plan B «grabado».
-6. Resultados esperados (comprobados con `rules-0.3.5`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
+6. Resultados esperados (comprobados con `rules-0.3.9`, sin IA): ejemplo 1 → BAJO, ejemplo 2 → ALTO, ejemplo 3 → ALTO, texto libre → ALTO. Si cambian las reglas, volver a comprobarlos antes de ensayar.
 
 ## Desarrollo
 | Min. | Qué se hace | Qué se dice (idea) |
@@ -44,7 +44,7 @@ Use el bloque «Demo local sin IA» del README, que desactiva IA/presupuesto/Opu
 
 Después de los tres botones, importe con teclado los archivos de `docs/entrega/ejemplos/`:
 
-| Archivo sintético | Resultado observado por HTTP local, rules-0.3.5 | Qué explicar |
+| Archivo sintético | Resultado observado por HTTP local, rules-0.3.9 | Qué explicar |
 |---|---|---|
 | 01-sintetico.eml | BAJO | Aviso informativo sin peticiones sensibles |
 | 02-sintetico.eml | ALTO, parcial | Petición de claves y enlace que imita al banco |

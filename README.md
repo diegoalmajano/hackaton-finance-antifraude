@@ -1,5 +1,7 @@
 # Asistente antifraude — prototipo para Hackfinance (BEST UC3M)
 
+> Candidata Council local, 10-11-2026: rules-0.3.9, 1030 Python / 11 JS / 8 SDK Gmail simulados. Base 615b4a9, rama aislada codex/candidata-council, cambios sin commit. Decisión y validación: [DECISION_VERSION_FINAL.md](docs/DECISION_VERSION_FINAL.md). Los estados anteriores son históricos. IA y presupuesto cero; sin integraciones reales ni nueva publicación.
+
 Asistente antifraude con IA opcional que **ayuda a reconocer estafas financieras en mensajes escritos** (correo, SMS…), pensado para personas mayores y clientes de banca. Analiza el texto y los enlaces **sin abrirlos**, explica en español sencillo qué ha encontrado y qué no ha podido comprobar, y deja **siempre la decisión al usuario**.
 
 > **Estado: prototipo académico en desarrollo**, no es un producto comercial. Consulte la sección «Estado y limitaciones». Nada de lo que se muestra como simulado se presenta como real.
@@ -114,7 +116,7 @@ Desde la carpeta del proyecto:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
-Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución (10-11-2026, cierre local del detector): **926 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
+Ejecuta las pruebas automáticas de contratos, seguridad, interfaz, configuración, registros, banco de evaluación, directorio de entidades, motor de detección (con regresiones adversariales) e IA y Gmail **simulados**. Todas son locales: no usan Internet ni APIs de pago. Última ejecución (10-11-2026, cierre local del detector): **1030 pruebas Python en verde**, más 4 de integración real **saltadas** por defecto (requieren credenciales; ver `docs/PRUEBAS_INTEGRACION_REAL.md`) y 1 limitación conocida marcada como `xfail`; persiste un aviso de deprecación de Starlette/httpx. Las 11 pruebas JavaScript y las 8 comprobaciones opcionales de SDK se contabilizan por separado. La comprobación de la copia temporal con los cambios actuales y los límites de instalación se registra en `docs/contexto/15_SEGUIMIENTO.md`.
 
 ## 6. Seguridad y privacidad (resumen)
 - Solo escucha en `127.0.0.1`. Se accede mediante un emparejamiento con un código de un solo uso. La sesión usa una cookie HttpOnly y SameSite=Strict, y las operaciones están protegidas con CSRF, Host y Origin. La CSP es estricta y los recursos estáticos se sirven localmente.
@@ -192,4 +194,4 @@ Son once pruebas con DOM/temporizadores simulados; no sustituyen la verificació
 
 
 ## Cierre local del 10 de noviembre
-Ver [estado actual y evidencia](docs/CIERRE_MVP_2026-11-10.md), [revisión humana preparada](docs/REVISION_HUMANA_MVP.md) y [valor diferencial e hipótesis de negocio](docs/VALOR_DIFERENCIAL.md). Gmail real, Claude real, revisión humana y evaluación independiente siguen pendientes de sus permisos/datos. El sondeo de Linux del compañero es evidencia de portabilidad de la versión anterior; no una evaluación independiente de eficacia.
+Ver [estado actual y evidencia](docs/DECISION_VERSION_FINAL.md), [revisión humana preparada](docs/REVISION_HUMANA_MVP.md) y [valor diferencial e hipótesis de negocio](docs/VALOR_DIFERENCIAL.md). Gmail real, Claude real, revisión humana y evaluación independiente siguen pendientes de sus permisos/datos. El sondeo de Linux del compañero es evidencia de portabilidad de la versión anterior; no una evaluación independiente de eficacia.

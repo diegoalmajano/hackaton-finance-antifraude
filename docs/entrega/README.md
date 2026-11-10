@@ -1,11 +1,11 @@
 # Materiales de entrega
 
-> Estado vigente de cierre, 10-11-2026: rules-0.3.5, 926 Python / 11 JS / 8 SDK Gmail simulados. Rama codex/cierre-mvp, base compartida c013f5b, sin publicación nueva. Evidencia y pendientes: [CIERRE_MVP_2026-11-10.md](../CIERRE_MVP_2026-11-10.md). Las secciones fechadas anteriores son históricas.
+> Estado vigente de cierre, 10-11-2026: rules-0.3.9, 1030 Python / 11 JS / 8 SDK Gmail simulados. Candidata local codex/candidata-council, base 615b4a9, sin commit ni publicación. Evidencia y pendientes: [DECISION_VERSION_FINAL.md](../DECISION_VERSION_FINAL.md). Las secciones fechadas anteriores son históricas.
 
 | Archivo | Qué es | Cómo se genera |
 |---|---|---|
-| `Presentacion_Asistente_Antifraude.pptx` | Presentación (12 diapositivas) | `powershell -ExecutionPolicy Bypass -File docs\entrega\generar_presentacion.ps1` (requiere Microsoft PowerPoint instalado; lee `presentacion.json`) |
-| `Resumen_Asistente_Antifraude.pdf` | Resumen de una cara | Imprimir `resumen_una_cara.html` a PDF (A4, sin encabezados). Se generó con Edge sin interfaz: `msedge --headless=new --no-first-run --disable-background-networking --user-data-dir=<carpeta temporal> --no-pdf-header-footer --print-to-pdf=<salida> <ruta del HTML>`. También vale «Imprimir → Guardar como PDF» desde cualquier navegador |
+| `Presentacion_Asistente_Antifraude.pptx` | Presentación (12 diapositivas) | Fuente: `presentacion.json`. Candidata actualizada con Artifact Tool del runtime de Codex, renderizada y validada. Alternativa existente: `docs\entrega\generar_presentacion.ps1`, que requiere PowerPoint instalado; no se ejecutó para esta revisión |
+| `Resumen_Asistente_Antifraude.pdf` | Resumen de una cara | Fuente: `resumen_una_cara.html`. Candidata regenerada con ReportLab del runtime de Codex, renderizada con Poppler e inspeccionada. Alternativa: imprimir el HTML a PDF A4 sin encabezados desde un navegador; esa alternativa no se ejecutó ahora |
 | `GUION_DEMO.md` | Guion de la demostración en directo | — |
 | `PRESENTACION.md` | Guion de las diapositivas y relación con la rúbrica | — |
 | `RESUMEN_UNA_CARA.md` | Texto fuente del resumen | — |

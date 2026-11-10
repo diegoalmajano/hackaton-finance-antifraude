@@ -83,7 +83,7 @@
     {
       "titulo": "Calidad comprobada",
       "puntos": [
-        "926 pruebas Python y 11 JS correctas; cuatro integraciones reales saltadas y un fallo esperado conocido",
+        "1030 pruebas Python y 11 JS correctas; cuatro integraciones reales saltadas y un fallo esperado conocido",
         "Revisiones asistidas de código, seguridad y accesibilidad; validación manual aún parcial",
         "Métricas de DESARROLLO solo para ajustar (no son evaluación independiente)",
         "Metodología de evaluación independiente preparada (conjunto sellado pendiente)"

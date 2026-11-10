@@ -1,5 +1,7 @@
 # 15 — Seguimiento del desarrollo autónomo hacia el MVP (D-54, misión 2)
 
+> Candidata Council local, 10-11-2026: rules-0.3.9, 1030 Python / 11 JS / 8 SDK Gmail simulados. Base 615b4a9, rama aislada codex/candidata-council, cambios sin commit. Decisión y validación: [DECISION_VERSION_FINAL.md](../DECISION_VERSION_FINAL.md). Los estados anteriores son históricos. IA y presupuesto cero; sin integraciones reales ni nueva publicación.
+
 > Estado vigente de cierre, 10-11-2026: rules-0.3.5, 926 Python / 11 JS / 8 SDK Gmail simulados. Rama codex/cierre-mvp, base compartida c013f5b, sin publicación nueva. Evidencia y pendientes: [CIERRE_MVP_2026-11-10.md](../CIERRE_MVP_2026-11-10.md). Las secciones fechadas anteriores son históricas.
 
 > Documento vivo para retomar el trabajo si se interrumpe la sesión. Actualizar al cerrar cada bloque.
@@ -244,3 +246,11 @@ Trabajo hecho en una copia de `feat/fase-0` (idéntica al ZIP de GitHub a las 21
 El usuario autorizó expresamente publicar codex/cierre-mvp y comprobar su ZIP oficial. Se publicó el commit funcional33099d7, conservando feat/fase-0 enc013f5b y main. Esta autorización no incluye PR, merge, cambios de visibilidad, cuentas, instalaciones ni gasto. Las prohibiciones de publicación de las instantáneas anteriores describen el estado previo a esta autorización concreta.
 
 Esta nota solo cambia documentación. Código/materiales: rules-0.3.5,926pruebasPython/11JS/8SDKGmail simuladas correctas,27regresiones nuevas,IA/presupuesto0. El ZIP candidato local ya pasó extracción/suites y servidor real. Se comprueba ahora el ZIP descargado de GitHub y su coincidencia con este árbol versionado; la evidencia detallada se conserva en el espacio de trabajo del cierre. No se presupone éxito de la descarga o del ensayo antes de observarlo. El formulario está rellenado según el usuario; su envío sigue sin confirmar. Cierre:11nov2026,23:59 Madrid. Claude/Gmail reales y revisión humana siguen pendientes.
+
+Reparación posterior a la revisión: rules-0.3.7, catorce regresiones añadidas (25 de formato en total), 951 Python / 11 JS / 8 SDK simuladas correctas; referencias SHA históricas restauradas. Evidencia y límites vigentes en docs/DECISION_VERSION_FINAL.md, bloque «Reparación tras revisión». Sin commit/push/PR; pruebas humanas e integraciones reales siguen pendientes.
+
+Reparación vigente0.3.8: veintisiete regresiones nuevas,52 de formato;978 Python/11 JS/8 SDK simuladas correctas. Los cuatro casos auditados se corrigen sin descartar cambios previos. Detalle y límites en DECISION_VERSION_FINAL.md, bloque «Reparación0.3.8». Pendiente nueva revisión independiente, validaciones humanas e integraciones reales. Sin commit/push/PR/merge/formulario.
+
+
+## Estabilización local rules-0.3.9
+Se reparan objetos sensibles fragmentados, «No evite facilitar…», unión falsa con/firma-con/firme y alcance entre cláusulas. Matriz de desarrollo:52 casos nuevos,104 focalizados; sin evaluación independiente. Revisión separada de otro agente Codex; regresiones intermedias corregidas. Estado vigente y evidencia: docs/DECISION_VERSION_FINAL.md, «Estabilización0.3.9». Repositorio real council-version-final-2026-11-10/repo; artefactos en reparacion-0.3.9, fuera de Git. Lenguaje acotado, sin garantía universal; pronombres arbitrarios, más de dos fragmentos y Bizum implícito siguen limitados. No se leen casos sellados. Validación humana, accesibilidad manual final y conexiones reales pendientes; IA y presupuesto0. Sin commit ni publicación.

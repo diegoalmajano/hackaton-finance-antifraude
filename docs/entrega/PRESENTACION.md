@@ -13,7 +13,7 @@
 | 7 | Accesibilidad | Diseño para mayores: texto grande, contraste, teclado, icono + texto, lenguaje llano (y qué falta medir) | UX y accesibilidad |
 | 8 | Seguridad y privacidad | Local, sin abrir enlaces, sin guardar mensajes, emparejamiento por código, sin datos al banco | Implementación, viabilidad |
 | 9 | Modelo de negocio | B2B con bancos (marca blanca); coste por mensaje (reglas: 0; IA solo si es sospechoso; **coste medido pendiente**) | Viabilidad financiera |
-| 10 | Calidad medida | 926 pruebas Python y 11 JS; revisiones asistidas de código, seguridad, accesibilidad y etiquetas y tres rondas adversariales, con sus correcciones; métricas **de desarrollo** con su advertencia; evaluación sellada pendiente | Implementación, impacto medible |
+| 10 | Calidad medida | 1030 pruebas Python y 11 JS; revisiones asistidas de código, seguridad, accesibilidad y etiquetas y tres rondas adversariales, con sus correcciones; métricas **de desarrollo** con su advertencia; evaluación sellada pendiente | Implementación, impacto medible |
 | 11 | Hoja de ruta | OAuth de pruebas, piloto Sonnet pendiente de autorización, evaluación independiente, dominios y accesibilidad final | Viabilidad |
 | 12 | Cierre | Valor diferencial en una frase + preguntas | Presentación |
 
